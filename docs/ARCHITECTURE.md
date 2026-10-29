@@ -132,4 +132,17 @@ Yorum:
   Last.fm–Deezer ilk-20 örtüşmesi ortalama 0,27 (24 sanatçı); iki bağımsız kaynak farklı listeler veriyor, biri diğerini doğrulamıyor. Last.fm'i ad ile sorgulamak belirsiz adlarda yanlış sanatçıya çözülebilir (UZI için Fransız rapçiler çıktı); mümkünse MBID ile sorgula. Örnek 25 sanatçı, tek kişinin sahnesi.
 - **Karar (29 Ekim 2026): hibrit model.** PPR sanatçı düğümlerinde çalışır; sanatçı içinde şarkı seçimi kullanıcı oyları ve etiketlerle yapılır; şarkı düzeyinde kenarlar (Last.fm, ListenBrainz) varsa ek sinyal olur. Üretim sanatçı benzerliği kaynağı: Last.fm (ikincil kaynak kuralı, 100 MB sınırı ve partners@last.fm izni koşuluyla). Deezer yalnızca ölçüm/geliştirme, üretimde yazılı izin olmadan kullanılmaz. Yedek: kullanıcı oylarından ve ListenBrainz dökümlerinden kendi sanatçı eşzamanlılık matrisi. Risk: tek kaynağa (Last.fm) bağımlılık ve iznin gelmemesi.
 
+**Discogs API Terms of Use (support.discogs.com, son güncelleme 27 Mayıs 2025, 29 Ekim 2026 okundu):**
+- Ticari kullanım "genel olarak izinli" ama Discogs'un takdirine bağlı; ücretli uygulamada, Discogs'un ücretsiz verdiği erişim için ücret almak yazılı izin ister.
+- CC0 veri: sürüm başlıkları, parça listeleri, kredi/kimlikler, sanatçı adları ve ilişkili sürümler. Kısıtlı veri: kullanıcı verisi, pazar yeri verisi, görseller (ticari kullanım ve üçüncü tarafa aktarım yasak).
+- Stil/tür alanlarının CC0 mü kısıtlı mı olduğu metinde açıkça yazmıyor; doğrulanmadı.
+- İçerik gerekli olandan uzun önbelleğe alınamaz ve 6 saatten eski gösterilemez (bu kural CC0 olmayan "Content" için de genel cümleyle yazılmış; CC0 veri dökümleri ayrı konudur ve burada doğrulanmadı).
+- Zorunlu atıf: uygulamada "This application uses Discogs' API but is not affiliated with…" bildirimi ve kullanılan verinin yanında "Data provided by Discogs" + discogs.com bağlantısı (nofollow olmadan). Gelecekte ücretlendirme hakkı saklı; erişim her an gerekçesiz kapatılabilir.
+- Sonuç: Discogs sanatçı benzerliği vermez; olası rolü sürüm/stil etiketiyle soğuk başlangıç. Önbellek ve atıf kuralları Last.fm'den daha sıkı; çekirdek bağımlılık olmamalı. Stil kapsamı `spikes/discogs_probe.py` ile (token gerekir) ölçülecek.
+
+**Apple (29 Ekim 2026, developer.apple.com):**
+- Apple Developer Program ücreti 99 USD / üyelik yılı (bölgeye göre yerel para birimiyle listelenir); kâr amacı gütmeyen/eğitim kurumları için ücret muafiyeti var.
+- MusicKit sayfası Android için indirilebilir bir SDK sunuyor (oturum açma + çalma kütüphaneleri); "Beta" etiketi Android'e değil Apple Music Feed'e ait. SDK'nın sürümü/olgunluğu ve bir Flutter bağlayıcısı olup olmadığı doğrulanmadı; Faz 7'de platform kanalı (method channel) gerekebilir.
+- Apple Developer Program License Agreement okunmadı.
+
 **Doğrulanamayan:** Spotify'ın Şubat 2026 blog yazısı okunamadı.
