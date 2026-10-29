@@ -35,6 +35,7 @@ mobile/android/key.properties
 
 # Veri ve önbellek
 data/
+spikes/out/
 *.sqlite3
 *.dump
 
@@ -43,3 +44,14 @@ data/
 .idea/
 .DS_Store
 Thumbs.db
+
+# aegis-hybrid-harness
+**/secrets*
+.claude/settings.local.json
+.claude/logs/
+bin/
+obj/
+node_modules/
+.vs/
+.aegis/
+.guvenlik-denetimi/

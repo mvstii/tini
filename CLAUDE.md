@@ -51,6 +51,8 @@ Bu kararları geliştiriciye sormadan değiştirme:
 - Her profil ve listeye algoritma sürümü yazılır.
 - Algoritma değişikliği birim testi olmadan birleştirilmez.
 - Dış API çağrıları yalnızca adaptör veya kaynak istemcisi modüllerinde yapılır; önbellek ve 429 geri çekilme orada ele alınır.
+- **Spotify verisi kalıcı saklanmaz** (Developer Terms v10: yalnızca geçici metadata önbelleği). Parçanın kalıcı kimliği ISRC/MBID'dir; başlık, sanatçı ve süre MusicBrainz'den gelir. Spotify yanıtları yalnızca TTL'li önbellekte durur (TTL yapılandırmadan gelir, başlangıç 24 saat). Spotify ID yalnızca kullanıcıya özel eşleme olarak tutulur.
+- **Last.fm verisi 100 MB sınırı altında tutulur** (API ToS "Reasonable Usage Cap"). Ham yanıt saklanmaz; düğüm başına en çok ~20 komşu, tamsayı kimlik ve ağırlıkla kompakt yazılır, boyut izlenir, sınıra yaklaşınca en eskiler atılır. Last.fm zorunlu kaynak değil, ikincil kaynaktır; çekirdek kaynaklar ListenBrainz ve MusicBrainz'dir. Ticari kullanım için Last.fm'in önceden izni gerekir.
 - Gizli bilgiler yalnızca `.env` içindedir (şablon: `.env.example`). Token'lar veritabanında şifreli saklanır.
 - Kişisel veri (oylar, profil, token) ile paylaşılan katalog/grafik verisi ayrı tutulur; hesap silindiğinde kişisel veri tamamen silinir.
 
