@@ -11,11 +11,11 @@ Kapı: dış kaynakların gerçekten veri verdiği 100 şarkılık örnekle kan�
 - [x] Spotify Development Mode uygulamasını aç; kütüphane, top items, recently-played, arama, ISRC ve playlist yazma uç noktalarını tek tek doğrula
 - [x] Last.fm, ListenBrainz ve MusicBrainz için 100 şarkılık örnekte benzerlik ve etiket kapsamını ölç (sonuçlar `docs/ARCHITECTURE.md`'de)
 - [ ] Deezer listeler/yeni çıkanlar ve Apple MusicKit (iOS + Android) durumunu doğrula
-- [ ] Spotify, Last.fm ve Apple kullanım koşullarını oku, kısıtları not et (Spotify ve Last.fm okundu, Apple fiyatı ve Deezer koşulları kaldı; bulgular `docs/ARCHITECTURE.md`'de)
+- [ ] Spotify, Last.fm ve Apple kullanım koşullarını oku, kısıtları not et (Spotify, Last.fm ve Deezer okundu, Apple fiyatı ve Android SDK durumu kaldı; bulgular `docs/ARCHITECTURE.md`'de)
 - [ ] Last.fm'e (partners@last.fm) ticari kullanım ve kota için izin başvurusu gönder
 - [x] Kapsam ölçümünü yaygın ve niş şarkı katmanlarında çalıştır (`spikes/coverage_probe.py`, niş için `sample_niche.json`); Last.fm olmadan kapsamı karşılaştır
 - [ ] Discogs API koşullarını oku ve stil etiketi kapsamını ölç
-- [ ] Kapı: örnek şarkıların en az %80'i için benzerlik verisi ve ISRC eşlemesi var mı?
+- [x] Kapı: örnek şarkıların en az %80'i için benzerlik verisi ve ISRC eşlemesi var mı? (Sanatçı düzeyinde evet: ISRC %98, Last.fm sanatçı benzerliği %96; şarkı düzeyinde hayır. Hibrit model kararı ve koşullar `docs/ARCHITECTURE.md`'de. Last.fm izni gelmeden üretim bağımlılığı sayılmaz.)
 
 ## Faz 1 — Temel altyapı (Hafta 2–3: 9–22 Kasım)
 

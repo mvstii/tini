@@ -121,6 +121,15 @@ Yorum:
 - Kenarlar yönlü: ilk 5 komşuda karşılıklılık %55. PPR'dan önce simetrikleştirme veya yönlü kullanım kararı gerekir.
 - Elle bakılan 8 sanatçıda komşular mantıklı ve türce tutarlı (niş Türk rap kümesi ve rock kümesi ayrı çıkıyor). Kütüphanedeki sanatçılara 1 adımda 19/25, 2 adımda 23/25 ulaşıldı. Uyarı: örnek tek kişinin, tek bir sahneye yoğun zevki; bu oran başka zevklere genellenmez.
 - **Deezer ↔ MusicBrainz sanatçı eşlemesi zayıf:** 25'ten 6'sı doğrulanmış bağlantıyla eşleşti, 11'i yalnızca ad benzerliğiyle (doğrulanamadı), 7'si MusicBrainz'de yok, 1'inde bağlantı çelişiyor. Niş sanatçılarda MBID'ye güvenilemez; sanatçı kimliği için kendi tablomuz (normalize ad + sağlayıcı kimlikleri, MBID isteğe bağlı) gerekir.
-- Açık: Deezer ticari kullanıma kapalı olduğu için üretimde aynı kalitede alternatif kaynak gerekir (Last.fm artist.getSimilar, ListenBrainz sanatçı benzerliği); ölçülecek.
+- Deezer ticari kullanıma kapalı olduğu için üretimde alternatif kaynak ölçüldü (`spikes/artist_sources_probe.py`, aynı 25 sanatçı):
+
+| Kaynak | ≥10 komşu | Not |
+|---|---|---|
+| Last.fm artist.getSimilar | %96 | Komşular mantıklı (Murda/Ezhel kümesi tutarlı) |
+| ListenBrainz similar-artists | %12 | MBID bulunan %40'ın yalnızca 3 sanatçısında dolu; niş için yetersiz |
+| Last.fm veya ListenBrainz (Deezer'siz) | %100 | Last.fm'den geliyor |
+
+  Last.fm–Deezer ilk-20 örtüşmesi ortalama 0,27 (24 sanatçı); iki bağımsız kaynak farklı listeler veriyor, biri diğerini doğrulamıyor. Last.fm'i ad ile sorgulamak belirsiz adlarda yanlış sanatçıya çözülebilir (UZI için Fransız rapçiler çıktı); mümkünse MBID ile sorgula. Örnek 25 sanatçı, tek kişinin sahnesi.
+- **Karar (29 Ekim 2026): hibrit model.** PPR sanatçı düğümlerinde çalışır; sanatçı içinde şarkı seçimi kullanıcı oyları ve etiketlerle yapılır; şarkı düzeyinde kenarlar (Last.fm, ListenBrainz) varsa ek sinyal olur. Üretim sanatçı benzerliği kaynağı: Last.fm (ikincil kaynak kuralı, 100 MB sınırı ve partners@last.fm izni koşuluyla). Deezer yalnızca ölçüm/geliştirme, üretimde yazılı izin olmadan kullanılmaz. Yedek: kullanıcı oylarından ve ListenBrainz dökümlerinden kendi sanatçı eşzamanlılık matrisi. Risk: tek kaynağa (Last.fm) bağımlılık ve iznin gelmemesi.
 
 **Doğrulanamayan:** Spotify'ın Şubat 2026 blog yazısı okunamadı.
