@@ -7,7 +7,7 @@ Not: playlist yazma denemesi hesapta ozel bir "tini-spike" playlist'i olusturur;
 """
 import base64
 import hashlib
-import http.server
+import http.server as httpserver
 import json
 import secrets
 import threading
@@ -27,7 +27,7 @@ def authorize(client_id):
     state = secrets.token_urlsafe(16)
     got = {}
 
-    class H(http.server.BaseHTTPRequestHandler):
+    class H(httpserver.BaseHTTPRequestHandler):
         def do_GET(self):
             q = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
             got.update({k: v[0] for k, v in q.items()})
@@ -38,7 +38,7 @@ def authorize(client_id):
         def log_message(self, *a):
             pass
 
-    srv = http.server.HTTPServer(("127.0.0.1", 8888), H)
+    srv = httpserver.HTTPServer(("127.0.0.1", 8888), H)
     t = threading.Thread(target=srv.handle_request)
     t.start()
     url = "https://accounts.spotify.com/authorize?" + urllib.parse.urlencode({
