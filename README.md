@@ -97,7 +97,8 @@ Ayrıntılı görevler: [docs/ROADMAP.md](docs/ROADMAP.md)
 tini/
 ├── backend/     # FastAPI servisi ve öneri motoru (Faz 1'de başlar)
 ├── mobile/      # Flutter uygulaması (Faz 1'de başlar)
-└── docs/        # Mimari doküman ve yol haritası
+├── docs/        # Mimari doküman ve yol haritası
+└── CLAUDE.md    # Claude Code için proje bağlamı ve kurallar
 ```
 
 ## Veri ve gizlilik
