@@ -10,6 +10,17 @@ jobs:
     defaults:
       run:
         working-directory: backend
+    services:
+      db:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: tini
+          POSTGRES_PASSWORD: tini
+          POSTGRES_DB: tini
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U tini" --health-interval 5s --health-retries 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -17,4 +28,5 @@ jobs:
           python-version: "3.12"
       - run: pip install -e ".[dev]"
       - run: ruff check .
+      - run: alembic upgrade head
       - run: pytest

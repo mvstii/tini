@@ -21,8 +21,8 @@ Kapı: dış kaynakların gerçekten veri verdiği 100 şarkılık örnekle kan�
 
 Kapı: kullanıcı hesap açıp Spotify'ı bağlayabilir ve kütüphanesi veritabanına iner.
 
-- [ ] Docker Compose, PostgreSQL + pgvector, CI
-- [ ] İlk veri modeli göçleri (kullanıcı, servis bağlantısı, parça, sanatçı, kimlik eşleme, oy olayı)
+- [x] Docker Compose, PostgreSQL + pgvector, CI
+- [x] İlk veri modeli göçleri (kullanıcı, servis bağlantısı, parça, sanatçı, kimlik eşleme, oy olayı)
 - [ ] Hesap sistemi ve Spotify OAuth (PKCE), şifreli token saklama
 - [ ] Servis adaptörü arayüzü ve Spotify adaptörü (kütüphane okuma)
 - [ ] Flutter iskeleti: giriş, servis bağlama, boş oylama ekranı

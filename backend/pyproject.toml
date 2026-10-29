@@ -27,6 +27,7 @@ include = ["app*"]
 testpaths = ["tests"]
 
 [tool.ruff]
+extend-exclude = ["migrations"]
 line-length = 100
 target-version = "py312"
 
