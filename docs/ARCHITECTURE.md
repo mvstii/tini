@@ -89,7 +89,7 @@ Betik ölçümleri (Spotify uç noktaları, %80 kapısı) henüz çalıştırıl
 Spotify uç noktaları (`spikes/spotify_probe.py`):
 - 200: `/me`, `/me/tracks`, `/me/top/tracks`, `/me/top/artists`, `/me/player/recently-played`, `/search` (limit 10), `/artists/{id}/albums`, `/search?q=isrc:`; `POST /me/playlists` 201 (playlist oluşturma çalışıyor).
 - Kapalı (beklendiği gibi): `/recommendations` 404; `/audio-features`, `/artists/{id}/top-tracks`, `/artists/{id}/related-artists`, `/browse/new-releases` 403.
-- **`POST /playlists/{id}/tracks` 403.** Nedeni doğrulanmadı (kapsam, sahiplik, Development Mode kısıtı veya uç noktanın yeniden adlandırılması olabilir). Faz 4 kapısı (listeyi Spotify'a yazma) buna bağlı; çözülene kadar varsayılmaz.
+- `POST /playlists/{id}/tracks` 403 verir (gövde veya sorgu `uris`, ayrıca `PUT` da); playlist kullanıcıya ait ve kapsam doğru. **`POST /playlists/{id}/items` 201 verir:** şarkı ekleme uç noktası `/items` olarak değişmiş (`spikes/playlist_probe.py` ile ölçüldü). Adaptör `/items` kullanmalı; eski `/tracks` yoluna dayanma.
 - Örnek: 100 şarkı, 99'unda ISRC.
 
 Kaynak kapsamı (`spikes/coverage_probe.py`, n=102; 100 kütüphane + 2 niş liste; 97'sinde Last.fm dinleyici sayısı var ve çoğu `<50000`, yani örnek ağırlıklı olarak niş; "yaygın" katman yalnızca 3 şarkı, o katman için sonuç anlamsız):

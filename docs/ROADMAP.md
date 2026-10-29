@@ -8,7 +8,7 @@ Her fazın sonunda bir kapı vardır; kapıdan geçilmeden sonraki faza başlanm
 
 Kapı: dış kaynakların gerçekten veri verdiği 100 şarkılık örnekle kanıtlanır.
 
-- [ ] Spotify Development Mode uygulamasını aç; kütüphane, top items, recently-played, arama, ISRC ve playlist yazma uç noktalarını tek tek doğrula
+- [x] Spotify Development Mode uygulamasını aç; kütüphane, top items, recently-played, arama, ISRC ve playlist yazma uç noktalarını tek tek doğrula
 - [x] Last.fm, ListenBrainz ve MusicBrainz için 100 şarkılık örnekte benzerlik ve etiket kapsamını ölç (sonuçlar `docs/ARCHITECTURE.md`'de)
 - [ ] Deezer listeler/yeni çıkanlar ve Apple MusicKit (iOS + Android) durumunu doğrula
 - [ ] Spotify, Last.fm ve Apple kullanım koşullarını oku, kısıtları not et (Spotify ve Last.fm okundu, Apple fiyatı ve Deezer koşulları kaldı; bulgular `docs/ARCHITECTURE.md`'de)
