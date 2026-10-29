@@ -107,7 +107,20 @@ Kaynak kapsamı (`spikes/coverage_probe.py`, n=102; 100 kütüphane + 2 niş lis
 Yorum:
 - %80 kapısı sayısal olarak geçildi (%89), ama yalnızca Deezer'ın **sanatçı düzeyindeki** related verisi sayesinde. Şarkı düzeyinde benzerlik niş içerikte neredeyse yok (Last.fm %8, ListenBrainz %2). Kapı, tasarımın şarkı düzeyinde grafik varsayımını doğrulamıyor.
 - MBID eşlemesi %28: ISRC'den MusicBrainz'e geçiş niş katalogda zayıf. "Kalıcı kimlik = ISRC/MBID" kararında MBID tek başına yetmez; ISRC birincil, MBID isteğe bağlı olmalı.
-- ListenBrainz algoritma adı doğrulanmamıştı; %2 sonucu algoritma adından da kaynaklanıyor olabilir (ayrıca doğrulanmalı).
+- ListenBrainz algoritma adı labs.api.listenbrainz.org/similar-recordings sayfasında doğrulandı (kullanılan ad listede var): %2 gerçek veri seyrekliği, adlandırma hatası değil. `similar-artists` ucu ayrı algoritma listesiyle mevcut.
 - Açık karar: grafiği sanatçı düzeyinde mi kuracağız (Deezer related, 20 komşu/sanatçı) yoksa şarkı düzeyinde kendi eşzamanlı dinleme matrisimizi mi hesaplayacağız. Deezer koşulları henüz okunmadı.
 
-**Doğrulanamayan:** Spotify'ın Şubat 2026 blog yazısı ve Deezer koşulları/rate limit sayfaları okunamadı.
+**Deezer for Developers Terms of Use (developers.deezer.com/termsofuse, 29 Ekim 2026 okundu):**
+- Bölüm IV: hizmet "kesinlikle ticari olmayan amaç ve ortamla" sınırlı; geliştirici hizmetten veya içerikten doğrudan/dolaylı gelir, veri veya başka karşılık elde edemez, marka/logoyla ilişkilendirilemez.
+- Bölüm IX: sayılanlar dışındaki kullanım Deezer'ın önceden incelemesine ve onayına bağlı. Bölüm II(c): Deezer erişimi istediği zaman, gerekçesiz kısıtlayabilir veya kaldırabilir.
+- Sonuç: Deezer verisi Faz 0 ölçümü için uygundur ama mağazada yayınlanacak ticari bir uygulamanın çekirdek bağımlılığı olamaz; yazılı onay alınmadıkça üretimde kullanılmaz. Rate limit bu sayfada yok.
+- Etki: "sanatçı grafiği = Deezer related" varsayımı tek başına yeterli değil; Deezer'a yazılı izin başvurusu veya ikinci bir sanatçı benzerliği kaynağı (ListenBrainz sanatçı benzerliği, MusicBrainz ilişkileri, kendi matrisimiz) gerekir.
+
+**Sanatçı grafiği ölçümü (`spikes/graph_probe.py`, 25 farklı sanatçı, 29 Ekim 2026):**
+- Deezer sanatçı eşlemesi 25/25 (hepsi ISRC ile). Ortalama 18,9 komşu/sanatçı; 2 adımda ortalama 78 benzersiz sanatçı.
+- Kenarlar yönlü: ilk 5 komşuda karşılıklılık %55. PPR'dan önce simetrikleştirme veya yönlü kullanım kararı gerekir.
+- Elle bakılan 8 sanatçıda komşular mantıklı ve türce tutarlı (niş Türk rap kümesi ve rock kümesi ayrı çıkıyor). Kütüphanedeki sanatçılara 1 adımda 19/25, 2 adımda 23/25 ulaşıldı. Uyarı: örnek tek kişinin, tek bir sahneye yoğun zevki; bu oran başka zevklere genellenmez.
+- **Deezer ↔ MusicBrainz sanatçı eşlemesi zayıf:** 25'ten 6'sı doğrulanmış bağlantıyla eşleşti, 11'i yalnızca ad benzerliğiyle (doğrulanamadı), 7'si MusicBrainz'de yok, 1'inde bağlantı çelişiyor. Niş sanatçılarda MBID'ye güvenilemez; sanatçı kimliği için kendi tablomuz (normalize ad + sağlayıcı kimlikleri, MBID isteğe bağlı) gerekir.
+- Açık: Deezer ticari kullanıma kapalı olduğu için üretimde aynı kalitede alternatif kaynak gerekir (Last.fm artist.getSimilar, ListenBrainz sanatçı benzerliği); ölçülecek.
+
+**Doğrulanamayan:** Spotify'ın Şubat 2026 blog yazısı okunamadı.
