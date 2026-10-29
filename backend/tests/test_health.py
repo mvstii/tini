@@ -10,6 +10,12 @@ def test_health():
     assert r.json() == {"status": "ok"}
 
 
+def test_empty_values_fall_back_to_defaults(monkeypatch):
+    monkeypatch.setenv("SPOTIFY_REDIRECT_URI", "")
+    s = Settings(_env_file=None)
+    assert s.spotify_redirect_uri.endswith("/connect/spotify/callback")
+
+
 def test_settings_defaults():
     s = Settings(_env_file=None)
     assert s.spotify_cache_ttl_seconds == 86400
