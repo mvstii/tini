@@ -86,7 +86,9 @@ def test_full_connect_flow_stores_encrypted_tokens(client, monkeypatch):
     r = c.get("/connect/spotify/callback", params={"code": "abc", "state": state})
     assert r.status_code == 200
 
-    conn = db.scalars(select(ServiceConnection)).one()
+    conn = db.scalars(
+        select(ServiceConnection).where(ServiceConnection.external_user_id == "spotify-user-1")
+    ).one()
     assert conn.external_user_id == "spotify-user-1"
     assert conn.access_token_enc != b"AT" and decrypt_value(KEY, conn.access_token_enc) == "AT"
     assert decrypt_value(KEY, conn.refresh_token_enc) == "RT"
