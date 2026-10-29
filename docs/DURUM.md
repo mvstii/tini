@@ -15,8 +15,8 @@ Son güncelleme: 30 Ekim 2026 · Her aşama (PR) sonrasında güncellenir.
 | 2 | Veri modeli ve ilk Alembic göçü | Bitti | #3 |
 | 3 | Hesap sistemi (e-posta + parola, oturum) | Bitti | #4 |
 | 4 | Spotify OAuth (PKCE), şifreli servis bağlantısı | Bitti; gerçek Spotify ile doğrulandı (30 Ekim 2026), token'lar veritabanında şifreli | #5 |
-| 5 | Servis adaptörü arayüzü + Spotify adaptörü (kütüphane okuma, token yenileme) | Bitti; gerçek hesapla doğrulandı (531 parça, 1 atlandı) | PR bekliyor |
-| 6 | Kütüphane içe aktarma (kaydedilenler + top items) | Bekliyor | — |
+| 5 | Servis adaptörü arayüzü + Spotify adaptörü (kütüphane okuma, token yenileme) | Bitti; gerçek hesapla doğrulandı (531 parça, 1 atlandı) | #6 |
+| 6 | Kütüphane içe aktarma (`POST /library/import`; kaydedilenler + top items) | Bitti; gerçek hesapla doğrulandı (524 parça, 531 bağlantı, 1 atlandı; meta TTL 24 sa) | PR bekliyor |
 | 7 | Flutter iskeleti (giriş, servis bağlama, boş oylama ekranı) | Bekliyor | — |
 
 ## Ortam

@@ -2,10 +2,12 @@ from fastapi import FastAPI
 
 from app.auth import router as auth_router
 from app.connect import router as connect_router
+from app.library import router as library_router
 
 app = FastAPI(title="Tını")
 app.include_router(auth_router)
 app.include_router(connect_router)
+app.include_router(library_router)
 
 
 @app.get("/health")
