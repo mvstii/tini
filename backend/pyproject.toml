@@ -11,6 +11,7 @@ dependencies = [
     "pydantic-settings>=2.4",
     "cryptography>=43",
     "argon2-cffi>=23.1",
+    "email-validator>=2.2",
 ]
 
 [project.optional-dependencies]
@@ -33,3 +34,4 @@ target-version = "py312"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "B", "UP"]
+ignore = ["B008"]  # FastAPI Depends(...) varsayılan argüman kalıbı
