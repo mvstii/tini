@@ -11,7 +11,7 @@ Kapı: dış kaynakların gerçekten veri verdiği 100 şarkılık örnekle kan�
 - [x] Spotify Development Mode uygulamasını aç; kütüphane, top items, recently-played, arama, ISRC ve playlist yazma uç noktalarını tek tek doğrula
 - [x] Last.fm, ListenBrainz ve MusicBrainz için 100 şarkılık örnekte benzerlik ve etiket kapsamını ölç (sonuçlar `docs/ARCHITECTURE.md`'de)
 - [ ] Deezer listeler/yeni çıkanlar ve Apple MusicKit (iOS + Android) durumunu doğrula
-- [ ] Spotify, Last.fm ve Apple kullanım koşullarını oku, kısıtları not et (Spotify, Last.fm ve Deezer okundu, Apple ücreti 99 USD/yıl olarak doğrulandı; Apple lisans sözleşmesi ve Android SDK olgunluğu okunmadı; bulgular `docs/ARCHITECTURE.md`'de)
+- [x] Spotify, Last.fm ve Apple kullanım koşullarını oku (Apple lisans sözleşmesi ve Android SDK incelemesi geliştirici kararıyla Faz 7'ye ertelendi, bkz. Faz 7), kısıtları not et (Spotify, Last.fm ve Deezer okundu, Apple ücreti 99 USD/yıl olarak doğrulandı; Apple lisans sözleşmesi ve Android SDK olgunluğu okunmadı; bulgular `docs/ARCHITECTURE.md`'de)
 - [ ] Last.fm'e (partners@last.fm) ticari kullanım ve kota için izin başvurusu gönder
 - [x] Kapsam ölçümünü yaygın ve niş şarkı katmanlarında çalıştır (`spikes/coverage_probe.py`, niş için `sample_niche.json`); Last.fm olmadan kapsamı karşılaştır
 - [ ] Discogs API koşullarını oku ve stil etiketi kapsamını ölç (koşullar okundu; kapsam için `spikes/discogs_probe.py` ve `DISCOGS_TOKEN` gerekiyor)
@@ -79,7 +79,8 @@ Kapı: 5 test kullanıcısının her biri en az 100 oy verdi ve kritik hata yok.
 
 Kapı: TestFlight ve Play kapalı test kanalında, Spotify'sız kullanıcı uygulamayı uçtan uca kullanabiliyor.
 
-- [ ] Apple Developer Program üyeliği; Apple Music adaptörü
+- [ ] Faz 6 sonunda (en geç 18 Ocak): Apple Developer Program üyeliği (99 USD/yıl; onay süresi doğrulanmadı), Apple lisans sözleşmesini oku, MusicKit Android SDK sürümü ve Flutter bağlayıcısı var mı kontrol et; sonuç kötüyse Apple Music adaptörü için platform kanalı veya kapsam kararı ver
+- [ ] Apple Music adaptörü (adaptör arayüzü Faz 1'de servis bağımsız yazılmış olmalı)
 - [ ] Bağlantısız mod: platformlar arası şarkı bağlantıları
 - [ ] Apple ile giriş, Google ile giriş, hesap ve veri silme
 - [ ] Gizlilik politikası, KVKK metni, mağaza görselleri
