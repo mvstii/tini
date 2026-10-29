@@ -9,11 +9,11 @@ Her fazın sonunda bir kapı vardır; kapıdan geçilmeden sonraki faza başlanm
 Kapı: dış kaynakların gerçekten veri verdiği 100 şarkılık örnekle kanıtlanır.
 
 - [ ] Spotify Development Mode uygulamasını aç; kütüphane, top items, recently-played, arama, ISRC ve playlist yazma uç noktalarını tek tek doğrula
-- [ ] Last.fm, ListenBrainz ve MusicBrainz için 100 şarkılık örnekte benzerlik ve etiket kapsamını ölç
+- [x] Last.fm, ListenBrainz ve MusicBrainz için 100 şarkılık örnekte benzerlik ve etiket kapsamını ölç (sonuçlar `docs/ARCHITECTURE.md`'de)
 - [ ] Deezer listeler/yeni çıkanlar ve Apple MusicKit (iOS + Android) durumunu doğrula
 - [ ] Spotify, Last.fm ve Apple kullanım koşullarını oku, kısıtları not et (Spotify ve Last.fm okundu, Apple fiyatı ve Deezer koşulları kaldı; bulgular `docs/ARCHITECTURE.md`'de)
 - [ ] Last.fm'e (partners@last.fm) ticari kullanım ve kota için izin başvurusu gönder
-- [ ] Kapsam ölçümünü yaygın ve niş şarkı katmanlarında çalıştır (`spikes/coverage_probe.py`, niş için `sample_niche.json`); Last.fm olmadan kapsamı karşılaştır
+- [x] Kapsam ölçümünü yaygın ve niş şarkı katmanlarında çalıştır (`spikes/coverage_probe.py`, niş için `sample_niche.json`); Last.fm olmadan kapsamı karşılaştır
 - [ ] Discogs API koşullarını oku ve stil etiketi kapsamını ölç
 - [ ] Kapı: örnek şarkıların en az %80'i için benzerlik verisi ve ISRC eşlemesi var mı?
 

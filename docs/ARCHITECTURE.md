@@ -84,4 +84,30 @@ Betik ölçümleri (Spotify uç noktaları, %80 kapısı) henüz çalıştırıl
 - MusicBrainz kullanıcı etiketleri ve oyları CC BY-NC-SA'dır (bilgi birikimine dayanır, doğrulanmadı); ticari kullanımda etiket yerine ilişkiler ve resmî türler kullanılır.
 - Niş kapsam yetersiz çıkarsa Faz 2'de ListenBrainz dökümlerinden kendi eşzamanlı dinleme matrisimiz hesaplanır.
 
+**Betik ölçümleri (29 Ekim 2026, geliştirici hesabı, Development Mode):**
+
+Spotify uç noktaları (`spikes/spotify_probe.py`):
+- 200: `/me`, `/me/tracks`, `/me/top/tracks`, `/me/top/artists`, `/me/player/recently-played`, `/search` (limit 10), `/artists/{id}/albums`, `/search?q=isrc:`; `POST /me/playlists` 201 (playlist oluşturma çalışıyor).
+- Kapalı (beklendiği gibi): `/recommendations` 404; `/audio-features`, `/artists/{id}/top-tracks`, `/artists/{id}/related-artists`, `/browse/new-releases` 403.
+- **`POST /playlists/{id}/tracks` 403.** Nedeni doğrulanmadı (kapsam, sahiplik, Development Mode kısıtı veya uç noktanın yeniden adlandırılması olabilir). Faz 4 kapısı (listeyi Spotify'a yazma) buna bağlı; çözülene kadar varsayılmaz.
+- Örnek: 100 şarkı, 99'unda ISRC.
+
+Kaynak kapsamı (`spikes/coverage_probe.py`, n=102; 100 kütüphane + 2 niş liste; 97'sinde Last.fm dinleyici sayısı var ve çoğu `<50000`, yani örnek ağırlıklı olarak niş; "yaygın" katman yalnızca 3 şarkı, o katman için sonuç anlamsız):
+
+| Ölçüt | Oran |
+|---|---|
+| ISRC | %98 |
+| MBID (ISRC 15 + metin 14) | %28 |
+| Last.fm benzer şarkı | %8 |
+| ListenBrainz benzer kayıt | %2 (niş katmanda %0) |
+| Deezer related artists | %89 (sanatçı düzeyinde, 20 komşu) |
+| MusicBrainz ilişki / tür | %7 / %9 |
+| Last.fm etiket | %2 |
+
+Yorum:
+- %80 kapısı sayısal olarak geçildi (%89), ama yalnızca Deezer'ın **sanatçı düzeyindeki** related verisi sayesinde. Şarkı düzeyinde benzerlik niş içerikte neredeyse yok (Last.fm %8, ListenBrainz %2). Kapı, tasarımın şarkı düzeyinde grafik varsayımını doğrulamıyor.
+- MBID eşlemesi %28: ISRC'den MusicBrainz'e geçiş niş katalogda zayıf. "Kalıcı kimlik = ISRC/MBID" kararında MBID tek başına yetmez; ISRC birincil, MBID isteğe bağlı olmalı.
+- ListenBrainz algoritma adı doğrulanmamıştı; %2 sonucu algoritma adından da kaynaklanıyor olabilir (ayrıca doğrulanmalı).
+- Açık karar: grafiği sanatçı düzeyinde mi kuracağız (Deezer related, 20 komşu/sanatçı) yoksa şarkı düzeyinde kendi eşzamanlı dinleme matrisimizi mi hesaplayacağız. Deezer koşulları henüz okunmadı.
+
 **Doğrulanamayan:** Spotify'ın Şubat 2026 blog yazısı ve Deezer koşulları/rate limit sayfaları okunamadı.
