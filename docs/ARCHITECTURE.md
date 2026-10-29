@@ -138,7 +138,9 @@ Yorum:
 - Stil/tür alanlarının CC0 mü kısıtlı mı olduğu metinde açıkça yazmıyor; doğrulanmadı.
 - İçerik gerekli olandan uzun önbelleğe alınamaz ve 6 saatten eski gösterilemez (bu kural CC0 olmayan "Content" için de genel cümleyle yazılmış; CC0 veri dökümleri ayrı konudur ve burada doğrulanmadı).
 - Zorunlu atıf: uygulamada "This application uses Discogs' API but is not affiliated with…" bildirimi ve kullanılan verinin yanında "Data provided by Discogs" + discogs.com bağlantısı (nofollow olmadan). Gelecekte ücretlendirme hakkı saklı; erişim her an gerekçesiz kapatılabilir.
-- Sonuç: Discogs sanatçı benzerliği vermez; olası rolü sürüm/stil etiketiyle soğuk başlangıç. Önbellek ve atıf kuralları Last.fm'den daha sıkı; çekirdek bağımlılık olmamalı. Stil kapsamı `spikes/discogs_probe.py` ile (token gerekir) ölçülecek.
+- Sonuç: Discogs sanatçı benzerliği vermez; olası rolü sürüm/stil etiketiyle soğuk başlangıç. Önbellek ve atıf kuralları Last.fm'den daha sıkı; çekirdek bağımlılık olmamalı. 
+- **Kapsam ölçümü (`spikes/discogs_probe.py`, 100 şarkı):** sonuç dönen %29, stil etiketi %26, tür %29. Eşleşmeler eski/ana akım içerikte (Müslüm Gürses, İbrahim Tatlıses, Neşet Ertaş, Kanye West); güncel niş rap/SoundCloud içeriğinde neredeyse hiç (Murda, Motive, Keskin, Kava, UZI… sıfır). Karar: Discogs niş soğuk başlangıç için işe yaramıyor; v1'de kullanılmaz, atıf ve önbellek yükünü almaya değmez. Gerekirse ana akım/eski katalog için sonradan eklenir.
+- Not: örnekte 47. satır boş sanatçı/başlıklı bir kayıt var (muhtemelen yerel dosya veya silinmiş parça); adaptör boş metadata'yı ele almalı.
 
 **Apple (29 Ekim 2026, developer.apple.com):**
 - Apple Developer Program ücreti 99 USD / üyelik yılı (bölgeye göre yerel para birimiyle listelenir); kâr amacı gütmeyen/eğitim kurumları için ücret muafiyeti var.
