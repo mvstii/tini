@@ -4,8 +4,8 @@ Son güncelleme: 30 Ekim 2026 · Her aşama (PR) sonrasında güncellenir.
 
 ## Özet
 
-- **Faz:** 1 — Temel altyapı (9–22 Kasım). Kapı: kullanıcı hesap açıp Spotify'ı bağlayabilir, kütüphanesi veritabanına iner.
-- **Kapı durumu:** Backend tarafı kanıtlandı (hesap, Spotify bağlama, 524 parça veritabanında). Mobil uçtan uca deneme (emülatörde giriş → bağla → aktar) geliştiricide; ROADMAP'ta Faz 1 kapısı bu deneme sonrası kapatılır.
+- **Faz:** Faz 1 tamamlandı; sıradaki Faz 2 — Katalog ve benzerlik grafiği (planlama onayı bekleniyor).
+- **Faz 1 kapısı geçildi (30 Ekim 2026):** emülatörde hesap açıldı, Spotify bağlandı, kütüphane aktarıldı (531 bağlantı, 524 parça veritabanında).
 - **Faz 0:** tamamlandı. Kalan kullanıcı işleri: partners@last.fm'e izin e-postası, `.env.example` şablonunu geri koymak, Spotify'daki "tini-spike" ve "tini-spike-2" çalma listelerini silmek.
 
 ## Faz 1 aşamaları
@@ -18,7 +18,7 @@ Son güncelleme: 30 Ekim 2026 · Her aşama (PR) sonrasında güncellenir.
 | 4 | Spotify OAuth (PKCE), şifreli servis bağlantısı | Bitti; gerçek Spotify ile doğrulandı (30 Ekim 2026), token'lar veritabanında şifreli | #5 |
 | 5 | Servis adaptörü arayüzü + Spotify adaptörü (kütüphane okuma, token yenileme) | Bitti; gerçek hesapla doğrulandı (531 parça, 1 atlandı) | #6 |
 | 6 | Kütüphane içe aktarma (`POST /library/import`; kaydedilenler + top items) | Bitti; gerçek hesapla doğrulandı (524 parça, 531 bağlantı, 1 atlandı; meta TTL 24 sa) | #7 |
-| 7 | Flutter iskeleti (giriş, servis bağlama, boş oylama ekranı) | Kodlandı; analyze + 4 test geçti, debug APK derlendi. Telefonda/emülatörde uçtan uca deneme sende | #8 |
+| 7 | Flutter iskeleti (giriş, servis bağlama, boş oylama ekranı) | Bitti; analyze + 4 test geçti, Android emülatöründe uçtan uca doğrulandı | #8 |
 
 ## Ortam
 

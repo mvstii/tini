@@ -26,6 +26,7 @@ Kapı: kullanıcı hesap açıp Spotify'ı bağlayabilir ve kütüphanesi verita
 - [x] Hesap sistemi ve Spotify OAuth (PKCE), şifreli token saklama
 - [x] Servis adaptörü arayüzü ve Spotify adaptörü (kütüphane okuma)
 - [x] Flutter iskeleti: giriş, servis bağlama, boş oylama ekranı
+- [x] Kapı: emülatörde hesap açıldı, Spotify bağlandı, kütüphane veritabanına indi (30 Ekim 2026)
 
 ## Faz 2 — Katalog ve benzerlik grafiği (Hafta 4–5: 23 Kasım–6 Aralık)
 
