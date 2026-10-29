@@ -122,3 +122,16 @@ class VoteEvent(Base):
     track_id: Mapped[int] = mapped_column(ForeignKey("track.id"), index=True)
     vote: Mapped[int] = mapped_column(SmallInteger)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=_now)
+
+
+class UserSession(Base):
+    """Oturum kaydı; veritabanında yalnızca SHA-256 özeti durur."""
+
+    __tablename__ = "user_session"
+
+    token_hash: Mapped[str] = mapped_column(String(64), primary_key=True)
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("user_account.id", ondelete="CASCADE"), index=True
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=_now)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))

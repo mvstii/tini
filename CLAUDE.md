@@ -68,5 +68,5 @@ Bu kararları geliştiriciye sormadan değiştirme:
 
 ## Güncel durum
 
-- Planlama tamamlandı (29 Ekim 2026).
-- Sıradaki adım: **Faz 0 — Fizibilite** (2–8 Kasım 2026). Bu fazda üretim kodu yazılmaz; yalnızca API doğrulama denemeleri ve ölçümler yapılır.
+- Güncel durum belgesi: `docs/DURUM.md`. **Her aşama (PR) sonrasında güncellenir.**
+- Faz 0 tamamlandı; güncel faz Faz 1'dir (ayrıntı DURUM.md ve ROADMAP.md).

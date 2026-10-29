@@ -9,6 +9,9 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
     database_url: str = "postgresql+psycopg://tini:tini@localhost:5432/tini"
+    session_ttl_days: int = 30
+    # Fernet anahtarı (servis kimlik bilgilerini şifreler); .env'den gelir.
+    credential_key: str = ""
     # Spotify yanıtlarının kullanıcıya özel önbellek ömrü (saniye); başlangıç 24 saat.
     spotify_cache_ttl_seconds: int = 86400
 
