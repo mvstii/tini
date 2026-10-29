@@ -25,7 +25,7 @@ Kapı: kullanıcı hesap açıp Spotify'ı bağlayabilir ve kütüphanesi verita
 - [x] İlk veri modeli göçleri (kullanıcı, servis bağlantısı, parça, sanatçı, kimlik eşleme, oy olayı)
 - [x] Hesap sistemi ve Spotify OAuth (PKCE), şifreli token saklama
 - [x] Servis adaptörü arayüzü ve Spotify adaptörü (kütüphane okuma)
-- [ ] Flutter iskeleti: giriş, servis bağlama, boş oylama ekranı
+- [x] Flutter iskeleti: giriş, servis bağlama, boş oylama ekranı
 
 ## Faz 2 — Katalog ve benzerlik grafiği (Hafta 4–5: 23 Kasım–6 Aralık)
 

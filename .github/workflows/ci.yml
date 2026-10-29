@@ -30,3 +30,18 @@ jobs:
       - run: ruff check .
       - run: alembic upgrade head
       - run: pytest
+
+  mobile:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: "3.47.9"
+      - run: flutter pub get
+      - run: flutter analyze
+      - run: flutter test
