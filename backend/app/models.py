@@ -135,3 +135,16 @@ class UserSession(Base):
     )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=_now)
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class OAuthState(Base):
+    """Devam eden OAuth isteği (PKCE doğrulayıcısı); kısa ömürlü, kullanıcıya özel."""
+
+    __tablename__ = "oauth_state"
+
+    state: Mapped[str] = mapped_column(String(128), primary_key=True)
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("user_account.id", ondelete="CASCADE"), index=True
+    )
+    verifier: Mapped[str] = mapped_column(String(128))
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))

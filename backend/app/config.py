@@ -12,6 +12,12 @@ class Settings(BaseSettings):
     session_ttl_days: int = 30
     # Fernet anahtarı (servis kimlik bilgilerini şifreler); .env'den gelir.
     credential_key: str = ""
+    spotify_client_id: str = ""
+    spotify_redirect_uri: str = "http://127.0.0.1:8000/connect/spotify/callback"
+    spotify_scopes: str = (
+        "user-library-read user-top-read user-read-recently-played "
+        "playlist-modify-private playlist-read-private"
+    )
     # Spotify yanıtlarının kullanıcıya özel önbellek ömrü (saniye); başlangıç 24 saat.
     spotify_cache_ttl_seconds: int = 86400
 
