@@ -14,7 +14,7 @@ Son güncelleme: 30 Ekim 2026 · Her aşama (PR) sonrasında güncellenir.
 | 1 | Backend iskeleti, Docker Compose (Postgres + pgvector), CI | Bitti | #2 |
 | 2 | Veri modeli ve ilk Alembic göçü | Bitti | #3 |
 | 3 | Hesap sistemi (e-posta + parola, oturum) | Bitti | #4 |
-| 4 | Spotify OAuth (PKCE), şifreli servis bağlantısı | Kodlandı, PR bekliyor; gerçek Spotify ile denenmedi | — |
+| 4 | Spotify OAuth (PKCE), şifreli servis bağlantısı | Bitti; gerçek Spotify ile doğrulandı (30 Ekim 2026), token'lar veritabanında şifreli | #5 |
 | 5 | Servis adaptörü arayüzü + Spotify adaptörü (kütüphane okuma) | Bekliyor | — |
 | 6 | Kütüphane içe aktarma (kaydedilenler + top items) | Bekliyor | — |
 | 7 | Flutter iskeleti (giriş, servis bağlama, boş oylama ekranı) | Bekliyor | — |
@@ -32,11 +32,11 @@ Son güncelleme: 30 Ekim 2026 · Her aşama (PR) sonrasında güncellenir.
 - `vote_event` tablosunda UPDATE veritabanı tetikleyicisiyle engelli.
 - Hibrit grafik modeli: PPR sanatçı düğümlerinde; Last.fm izni gelmeden üretim bağımlılığı sayılmaz (ayrıntı `docs/ARCHITECTURE.md`).
 
-## Kullanıcıdan beklenenler (Aşama 4)
+## Yerel kurulum notları
 
-- Spotify dashboard'da redirect URI olarak `http://127.0.0.1:8000/connect/spotify/callback` ekle.
-- `.env` içine `SPOTIFY_CLIENT_ID` ve `CREDENTIAL_KEY` (Fernet anahtarı) yaz.
-  Anahtar üretimi: `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"`
+- Spotify dashboard'da redirect URI'ler: `http://127.0.0.1:8000/connect/spotify/callback` (backend) ve `http://127.0.0.1:8888/callback` (Faz 0 betikleri). Eklerken Add ve ardından Save gerekir.
+- `.env` içinde `SPOTIFY_CLIENT_ID` ve `CREDENTIAL_KEY` (Fernet anahtarı) tanımlı olmalı; anahtar kaybolursa kayıtlı token'lar çözülemez.
+- Boş `.env` satırları (ör. `SPOTIFY_REDIRECT_URI=`) varsayılana düşer.
 
 ## Açık riskler
 
