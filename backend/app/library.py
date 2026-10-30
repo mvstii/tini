@@ -7,7 +7,7 @@ import uuid
 from datetime import UTC, datetime, timedelta
 
 import httpx
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
@@ -18,6 +18,7 @@ from app.config import get_settings
 from app.connect import get_http
 from app.connections import valid_access_value
 from app.deps import current_user, get_db
+from app.jobs.enrich import run_background
 from app.models import ServiceConnection, Track, User, UserTrackLink, UserTrackMeta
 
 router = APIRouter()
@@ -77,6 +78,7 @@ def store_library(
 
 @router.post("/library/import")
 def import_library(
+    background: BackgroundTasks,
     service: str = "spotify",
     user: User = Depends(current_user),
     db: Session = Depends(get_db),
@@ -99,4 +101,6 @@ def import_library(
     lib = adapter_cls(http, value).read_library()
     ttl = timedelta(seconds=get_settings().spotify_cache_ttl_seconds)
     stored = store_library(db, user.id, service, lib, ttl)
+    if get_settings().musicbrainz_contact:
+        background.add_task(run_background)
     return {"imported": stored, "skipped": lib.skipped}
