@@ -1,6 +1,6 @@
 # Faz 3 Planı — Profil ve öneri motoru v1
 
-Taslak: 30 Ekim 2026 · Durum: **onaylandı** (S1 #16 birleşti, S2 PR'da) · Süre: 7–20 Aralık (erken başlanabilir; Faz 2 kapısı geçildi)
+Taslak: 30 Ekim 2026 · Durum: **onaylandı** (S1 #16, S2 #17 birleşti, S3 PR'da) · Süre: 7–20 Aralık (erken başlanabilir; Faz 2 kapısı geçildi)
 
 Kapı: kendi oylarınla üretilen listede gerekçeler mantıklı görünüyor.
 

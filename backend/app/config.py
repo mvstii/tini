@@ -100,6 +100,30 @@ class ProfileSettings(BaseSettings):
     cluster_n_init: int = 10
 
 
+class RecommendSettings(BaseSettings):
+    """Aday skoru (PPR) parametreleri; gömülü sabit yok. Ortamdan RECOMMEND_ önekiyle ezilir."""
+
+    model_config = SettingsConfigDict(env_file=".env", env_prefix="RECOMMEND_", extra="ignore")
+
+    recommend_algo_version: str = "recommend-1"
+    # PPR: r = (1 - alpha) * Σ_k alpha^k S^k e (kesik kuvvet serisi; çapa başına doğrusal)
+    ppr_alpha: float = 0.7
+    ppr_iterations: int = 8
+    max_seeds: int = 200  # pozitif tohum üst sınırı (en yüksek ağırlık)
+    max_negative_seeds: int = 100  # Bad cezası için negatif tohum üst sınırı
+    anchor_boost: float = 2.0  # çapa (Amazing) tohum ağırlığı çarpanı
+    bad_penalty_beta: float = 0.5  # negatif tohum ağırlığı = -beta * kaçınma gücü
+    # nihai skor = ham * (1 + gamma * yenilik); yenilik = 1 - derece persentili
+    novelty_gamma: float = 0.3
+    candidate_top_n: int = 100
+    reason_count: int = 3
+
+
+@lru_cache
+def get_recommend_settings() -> RecommendSettings:
+    return RecommendSettings()
+
+
 @lru_cache
 def get_profile_settings() -> ProfileSettings:
     return ProfileSettings()
