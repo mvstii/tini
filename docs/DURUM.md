@@ -24,9 +24,10 @@ Son güncelleme: 30 Ekim 2026 · Her aşama (PR) sonrasında güncellenir.
 
 | # | Aşama | Durum | PR |
 |---|---|---|---|
-| S1 | Kaynak altyapısı + MusicBrainz + kademe A (göç 0004 sanatçı tabloları, `catalog.resolve`, `python -m app.jobs.enrich`) | Kod ve birim testler hazır (46 testten 45 geçiyor); gerçek MusicBrainz ile doğrulanmadı | — |
+| S1 | Kaynak altyapısı + MusicBrainz + kademe A (göç 0004 sanatçı tabloları, `catalog.resolve`, `python -m app.jobs.enrich`) | Kod ve birim testler hazır (46 testten 45 geçiyor); gerçek MusicBrainz ile doğrulandı (30 Ekim 2026, 20 parça: 10 eşleşti, 10 boş, 0 hata → %50) | #12 |
 
 S1 notları: `fetch_log` anahtarı `(source, key)` (ör. `isrc:…`), plandaki `(artist_id, source)` yerine; ISRC aramasında henüz sanatçı yok. Çok sanatçılı kayıtta ilk kredi alınır. Ortam dosyasına `MUSICBRAINZ_CONTACT` gerekir; yoksa içe aktarma sonrası arka plan işi çalışmaz.
+Gerçek doğrulama: göç 0004 uygulandı; hesapsız, yalnızca `User-Agent` ile çalıştı, 429 görülmedi. 20 parçalık örnek tek kişinin sahnesi ve çok küçük; planın ~%28 beklentisiyle karşılaştırılamaz, tüm kütüphane (514 çözülmemiş parça) çalıştırılınca gerçek oran ölçülecek.
 `tests/test_models.py::test_account_delete_removes_personal_data_only` geliştirme veritabanındaki gerçek verilerle (tüm `user_track_link` satırlarını sayar) başarısız; S1'den önce de böyle, ayrı düzeltilecek.
 
 ## Ortam
