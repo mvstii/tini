@@ -4,7 +4,7 @@ Son güncelleme: 30 Ekim 2026 · Her aşama (PR) sonrasında güncellenir.
 
 ## Özet
 
-- **Faz:** Faz 1 ve Faz 2 tamamlandı (Faz 2: S1–S4 birleşti, kapı geçildi, 30 Ekim 2026; plan `docs/FAZ2_PLAN.md`). Güncel faz: Faz 3 — Profil ve öneri motoru v1 (plan `docs/FAZ3_PLAN.md`, onaylandı; S1–S2 birleşti, S3 PR'da). Açık kalem: sanatçı etiketleri (Faz 3 öncesi karar).
+- **Faz:** Faz 1 ve Faz 2 tamamlandı (Faz 2: S1–S4 birleşti, kapı geçildi, 30 Ekim 2026; plan `docs/FAZ2_PLAN.md`). Güncel faz: Faz 3 — Profil ve öneri motoru v1 (plan `docs/FAZ3_PLAN.md`, onaylandı; S1–S3 birleşti, S4 PR'da). Açık kalem: sanatçı etiketleri (Faz 3 öncesi karar).
 - **Faz 1 kapısı geçildi (30 Ekim 2026):** emülatörde hesap açıldı, Spotify bağlandı, kütüphane aktarıldı (531 bağlantı, 524 parça veritabanında).
 - **Faz 0:** tamamlandı. Kalan kullanıcı işleri: partners@last.fm'e izin e-postası, `.env.example` şablonunu geri koymak, Spotify'daki "tini-spike" ve "tini-spike-2" çalma listelerini silmek.
 
@@ -56,7 +56,10 @@ Not: `test_models::test_account_delete_removes_personal_data_only` S1 sırasınd
 |---|---|---|---|
 | S1 | Oy olayı + güncel oy (`POST /votes`, `GET /votes/current`, saf `profile/scoring.py`, `ProfileSettings`) | Kod ve testler hazır (107 test geçiyor) | #16 |
 | S2 | Profil anlık görüntüsü (göç 0006 `taste_profile`, saf `profile/build.py`, `POST /profile/rebuild`, `GET /profile`, scikit-learn eklendi) | Kod ve testler hazır (119 test geçiyor); gerçek grafikte duman testi yapıldı | #17 |
-| S3 | PPR aday skoru + gerekçe (saf `recommend/ppr.py`, `RecommendSettings`, `GET /recommend/candidates`) | Kod ve testler hazır (132 test geçiyor); gerçek grafikte duman testi yapılmadı | S3 PR'ı |
+| S3 | PPR aday skoru + gerekçe (saf `recommend/ppr.py`, `RecommendSettings`, `GET /recommend/candidates`) | Kod ve testler hazır (132 test geçiyor); gerçek grafikte duman testi yapılmadı | #18 |
+| S4 | Liste üretimi (göç 0007 `generated_list`+`list_item`, saf `recommend/select.py` MMR, `POST /lists/generate`, `GET /lists/{id}`) | Kod ve testler hazır (141 test geçiyor) | S4 PR'ı |
+
+S4 notları: Liste öğeleri sanatçı düzeyindedir, bu yüzden sanatçı başına en çok bir öğe (üst sınır) doğal olarak sağlanır. MMR benzerliği grafik matrisi satırlarının kosinüsüdür (λ=0,7, boyut 20). Sanatçı içi şarkı: paylaşılan katalogdaki, oylanmamış en düşük kimlikli parça; yoksa `track_id` boş. Başlık yalnızca kullanıcıya özel önbellekte olduğundan listede yoktur. Adaylar henüz katalogda parçası olmayan sanatçılar için çalma Faz 4/5 adaptörlerine kalır.
 
 S3 notları: Skor tohum vektörlerine göre doğrusaldır; gerekçe katkı paylarından okunur (ilk 3 pozitif tohum). Awful düğümleri her adımda maskelenir; Bad/Meh kaçınma sanatçıları negatif tohumdur (β=0,5); yenilik çarpanı 1+γ·(1−derece persentili), γ=0,3. Oy verilmiş tüm sanatçılar adaylardan çıkarılır. Yalnızca pozitif skorlu adaylar döner.
 
