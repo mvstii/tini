@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from app.config import GraphSettings, ProfileSettings, RecommendSettings
 from app.graph.matrix import GraphMatrix
 from app.graph.service import get_matrix
-from app.models import GeneratedList, ListItem, TasteProfile, Track, VoteEvent
+from app.models import ArtistMember, GeneratedList, ListItem, TasteProfile, Track, VoteEvent
 from app.profile.service import load_profile_votes
 from app.recommend.ppr import Candidate, score_candidates
 from app.recommend.select import select_mmr
@@ -49,6 +49,8 @@ def compute_candidates(
     known = {
         v.artist_id for v in load_profile_votes(db, user_id, now, pcfg) if v.artist_id is not None
     }
+    # işbirliği düğümleri ("A & B") kendi başına önerilmez; üyeleri zaten ayrı skorlanır
+    known |= set(db.scalars(select(ArtistMember.collab_id)))
     return Scored(row, graph_version, gm, score_candidates(gm, row.body, known, cfg))
 
 
