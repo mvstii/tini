@@ -68,6 +68,6 @@ def test_account_delete_removes_personal_data_only(session):
     )
     session.flush()
     session.execute(delete(User).where(User.id == u.id))
-    assert session.scalars(select(VoteEvent)).all() == []
-    assert session.scalars(select(UserTrackLink)).all() == []
+    assert session.scalars(select(VoteEvent).where(VoteEvent.user_id == u.id)).all() == []
+    assert session.scalars(select(UserTrackLink).where(UserTrackLink.user_id == u.id)).all() == []
     assert session.scalars(select(Track).where(Track.id == t.id)).one()

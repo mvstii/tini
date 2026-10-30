@@ -74,6 +74,29 @@ class GraphSettings(BaseSettings):
     neighborhood_fanout: int = 10  # derinlik 2'de genişletilen en güçlü derinlik-1 komşu sayısı
 
 
+class ProfileSettings(BaseSettings):
+    """Oy skoru / profil parametreleri; gömülü sabit yok. Ortamdan PROFILE_ önekiyle ezilir."""
+
+    model_config = SettingsConfigDict(env_file=".env", env_prefix="PROFILE_", extra="ignore")
+
+    profile_algo_version: str = "profile-1"
+    # Soğuk başlangıç skorları (CLAUDE.md oylama ölçeği)
+    vote_scores: dict[int, float] = {1: -1.0, 2: -0.6, 3: -0.15, 4: 0.35, 5: 0.7, 6: 1.0}
+    # Persentil normalizasyonu: en az bu kadar güncel oydan sonra devreye girer; işaret korunur,
+    # her işaret grubunda mid-rank persentil, soğuk başlangıç aralığına yayılır ve harmanlanır.
+    normalize_min_votes: int = 30
+    normalize_blend: float = 0.5  # 0 = yalnız soğuk skor, 1 = yalnız persentil
+    # Zaman sönümü: ağırlık = 0.5 ** (yaş_gün / yarı_ömür), tabanın altına inmez.
+    decay_half_life_days: float = 365.0
+    decay_floor: float = 0.25
+    decay_exempt_votes: tuple[int, ...] = (1,)  # Awful sönmez (sert filtre)
+
+
+@lru_cache
+def get_profile_settings() -> ProfileSettings:
+    return ProfileSettings()
+
+
 @lru_cache
 def get_settings() -> Settings:
     return Settings()
