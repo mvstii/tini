@@ -107,7 +107,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           const SizedBox(height: 8),
           OutlinedButton(
             onPressed: () => Navigator.of(context)
-                .push(MaterialPageRoute<void>(builder: (_) => const RatingScreen())),
+                .push(MaterialPageRoute<void>(builder: (_) => RatingScreen(api: widget.api, onLogout: widget.onLogout))),
             child: const Text('Oylamaya başla'),
           ),
         ],

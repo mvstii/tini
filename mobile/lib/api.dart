@@ -27,6 +27,22 @@ class ImportResult {
   final int skipped;
 }
 
+class QueueItem {
+  QueueItem(this.track, this.title, this.artists);
+  final int track;
+  final String title;
+  final List<String> artists;
+
+  String get artistLine => artists.join(', ');
+}
+
+class VoteQueue {
+  VoteQueue(this.remaining, this.stale, this.items);
+  final int remaining;
+  final int stale;
+  final List<QueueItem> items;
+}
+
 class Api {
   Api({http.Client? client, FlutterSecureStorage? storage})
       : _http = client ?? http.Client(),
@@ -77,6 +93,30 @@ class Api {
     final body = await _send('POST', '/library/import');
     return ImportResult(body['imported'] as int, body['skipped'] as int);
   }
+
+  Future<VoteQueue> voteQueue({int seed = 0, int? limit}) async {
+    final q = {'seed': '$seed', if (limit != null) 'limit': '$limit'};
+    final body = await _send('GET', '/votes/queue?${Uri(queryParameters: q).query}');
+    return VoteQueue(
+      body['remaining'] as int,
+      body['stale'] as int,
+      (body['items'] as List)
+          .map((e) => QueueItem(
+              e['track'] as int, e['title'] as String, (e['artists'] as List).cast<String>()))
+          .toList(),
+    );
+  }
+
+  /// Oy silinmez; her çağrı yeni bir olaydır.
+  Future<void> castVote(int track, int vote) =>
+      _send('POST', '/votes', {'track': track, 'vote': vote});
+
+  Future<int> voteTotal() async {
+    final body = await _send('GET', '/votes/history?limit=1');
+    return body['total'] as int;
+  }
+
+  Future<void> rebuildProfile() => _send('POST', '/profile/rebuild');
 
   Future<Map<String, dynamic>> _send(String method, String path, [Object? json]) async {
     final req = http.Request(method, Uri.parse('$apiBase$path'));

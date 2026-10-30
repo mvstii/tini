@@ -54,7 +54,7 @@ Kapı: kendi oylarınla üretilen listede gerekçeler mantıklı görünüyor. *
 
 Kapı: telefonda oylayıp gerekçeli listeyi Spotify'a kaydedebiliyorsun.
 
-- [ ] Kaydırmalı oylama kartları (6 oy + Unheard), başlangıç turu
+- [x] Kaydırmalı oylama kartları (6 oy + Unheard), başlangıç turu
 - [ ] Spotify App Remote ile uygulama içi dinleme ve "servisinde aç"
 - [ ] Keşif listesi ekranı: gerekçe, slot tipi, gerekçe itirazı
 - [ ] Listeyi Spotify'a yazma; oy geçmişi ve oy değiştirme
