@@ -4,7 +4,7 @@ Son güncelleme: 30 Ekim 2026 · Her aşama (PR) sonrasında güncellenir.
 
 ## Özet
 
-- **Faz:** Faz 1 ve Faz 2 tamamlandı (Faz 2: S1–S4 birleşti, kapı geçildi, 30 Ekim 2026; plan `docs/FAZ2_PLAN.md`). Güncel faz: Faz 3 — Profil ve öneri motoru v1 (plan `docs/FAZ3_PLAN.md`, onaylandı; S1 birleşti, S2 PR'da). Açık kalem: sanatçı etiketleri (Faz 3 öncesi karar).
+- **Faz:** Faz 1 ve Faz 2 tamamlandı (Faz 2: S1–S4 birleşti, kapı geçildi, 30 Ekim 2026; plan `docs/FAZ2_PLAN.md`). Güncel faz: Faz 3 — Profil ve öneri motoru v1 (plan `docs/FAZ3_PLAN.md`, onaylandı; S1–S2 birleşti, S3 PR'da). Açık kalem: sanatçı etiketleri (Faz 3 öncesi karar).
 - **Faz 1 kapısı geçildi (30 Ekim 2026):** emülatörde hesap açıldı, Spotify bağlandı, kütüphane aktarıldı (531 bağlantı, 524 parça veritabanında).
 - **Faz 0:** tamamlandı. Kalan kullanıcı işleri: partners@last.fm'e izin e-postası, `.env.example` şablonunu geri koymak, Spotify'daki "tini-spike" ve "tini-spike-2" çalma listelerini silmek.
 
@@ -55,7 +55,10 @@ Not: `test_models::test_account_delete_removes_personal_data_only` S1 sırasınd
 | # | Aşama | Durum | PR |
 |---|---|---|---|
 | S1 | Oy olayı + güncel oy (`POST /votes`, `GET /votes/current`, saf `profile/scoring.py`, `ProfileSettings`) | Kod ve testler hazır (107 test geçiyor) | #16 |
-| S2 | Profil anlık görüntüsü (göç 0006 `taste_profile`, saf `profile/build.py`, `POST /profile/rebuild`, `GET /profile`, scikit-learn eklendi) | Kod ve testler hazır (119 test geçiyor); gerçek grafikte duman testi yapıldı | S2 PR'ı |
+| S2 | Profil anlık görüntüsü (göç 0006 `taste_profile`, saf `profile/build.py`, `POST /profile/rebuild`, `GET /profile`, scikit-learn eklendi) | Kod ve testler hazır (119 test geçiyor); gerçek grafikte duman testi yapıldı | #17 |
+| S3 | PPR aday skoru + gerekçe (saf `recommend/ppr.py`, `RecommendSettings`, `GET /recommend/candidates`) | Kod ve testler hazır (133 test geçiyor); gerçek grafikte duman testi yapılmadı | S3 PR'ı |
+
+S3 notları: Skor tohum vektörlerine göre doğrusaldır; gerekçe katkı paylarından okunur (ilk 3 pozitif tohum). Awful düğümleri her adımda maskelenir; Bad/Meh kaçınma sanatçıları negatif tohumdur (β=0,5); yenilik çarpanı 1+γ·(1−derece persentili), γ=0,3. Oy verilmiş tüm sanatçılar adaylardan çıkarılır. Yalnızca pozitif skorlu adaylar döner.
 
 S1 notları: Güncel oy = parçanın son olayı (id sırası). Persentil normalizasyonu ≥30 güncel oyda, işaret grubu başına mid-rank persentil, soğuk skorla harmanlanır (`normalize_blend` 0,5). Zaman sönümü yarı ömür 365 gün, taban 0,25; Awful sönmez. Oy yalnızca kullanıcının kütüphanesindeki parçaya verilir (Faz 4'te Unheard havuzu gelince gevşer). İki eski test (`test_models::test_account_delete_removes_personal_data_only`, `test_catalog_b::test_low_confidence_is_tier_c`) geliştirme verisinden bağımsız hâle getirildi (sorgular kendi satırlarına daraltıldı; 31 Ekim 2026).
 

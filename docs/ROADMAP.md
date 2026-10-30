@@ -45,8 +45,8 @@ Kapı: kendi oylarınla üretilen listede gerekçeler mantıklı görünüyor.
 
 - [x] Oy olay kaydı, güncel oy görünümü, normalizasyon, zaman sönümü
 - [x] Çok modlu profil: kümeler, çapalar, kaçınma bölgesi
-- [ ] PPR aday skoru, Awful budama, Bad cezası, yenilik bonusu
-- [ ] Çapa katkısından gerekçe üretimi
+- [x] PPR aday skoru, Awful budama, Bad cezası, yenilik bonusu
+- [x] Çapa katkısından gerekçe üretimi
 - [ ] MMR çeşitlilik ve sanatçı üst sınırı
 - [ ] Algoritma birim testleri ve sentetik veri seti
 
