@@ -6,12 +6,14 @@ from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.config import ProfileSettings, get_profile_settings
+from app.config import GraphSettings, ProfileSettings, get_graph_settings, get_profile_settings
 from app.deps import current_user, get_db
-from app.models import User, UserTrackLink, VoteEvent
+from app.models import TasteProfile, User, UserTrackLink, VoteEvent
 from app.profile.scoring import VoteEvt, score_votes
+from app.profile.service import rebuild_profile
 
 router = APIRouter(prefix="/votes")
+profile_router = APIRouter(prefix="/profile")
 
 
 class VoteIn(BaseModel):
@@ -60,3 +62,30 @@ def current(
             for s in scored
         ],
     }
+
+
+def _out(row: TasteProfile) -> dict:
+    return {"version": row.version, "created_at": row.created_at.isoformat(), **row.body}
+
+
+@profile_router.post("/rebuild", status_code=201)
+def rebuild(
+    user: User = Depends(current_user),
+    db: Session = Depends(get_db),
+    cfg: ProfileSettings = Depends(get_profile_settings),
+    graph_cfg: GraphSettings = Depends(get_graph_settings),
+) -> dict:
+    return _out(rebuild_profile(db, user.id, datetime.now(UTC), cfg, graph_cfg))
+
+
+@profile_router.get("")
+def latest(user: User = Depends(current_user), db: Session = Depends(get_db)) -> dict:
+    row = db.scalar(
+        select(TasteProfile)
+        .where(TasteProfile.user_id == user.id)
+        .order_by(TasteProfile.version.desc())
+        .limit(1)
+    )
+    if row is None:
+        raise HTTPException(404, "Henüz profil üretilmedi")
+    return _out(row)

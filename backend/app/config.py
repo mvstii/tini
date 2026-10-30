@@ -90,6 +90,14 @@ class ProfileSettings(BaseSettings):
     decay_half_life_days: float = 365.0
     decay_floor: float = 0.25
     decay_exempt_votes: tuple[int, ...] = (1,)  # Awful sönmez (sert filtre)
+    # Profil anlık görüntüsü (S2): çapa oyu, kaçınma, kümeleme (tohum sabit -> deterministik).
+    anchor_vote: int = 6  # Amazing
+    hard_avoid_votes: tuple[int, ...] = (1,)  # Awful: kaçınma bölgesinde "sert" işaretlenir
+    # k = min(cluster_count, sanatçı sayısı // cluster_min_artists)
+    cluster_count: int = 8
+    cluster_min_artists: int = 3
+    cluster_seed: int = 0
+    cluster_n_init: int = 10
 
 
 @lru_cache

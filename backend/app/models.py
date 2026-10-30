@@ -195,6 +195,23 @@ class VoteEvent(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=_now)
 
 
+class TasteProfile(Base):
+    """Kişisel, sürümlü profil anlık görüntüsü (oy olaylarından türetilir). Hesapla silinir."""
+
+    __tablename__ = "taste_profile"
+    __table_args__ = (UniqueConstraint("user_id", "version"),)
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("user_account.id", ondelete="CASCADE"), index=True
+    )
+    version: Mapped[int] = mapped_column(Integer)
+    algo_version: Mapped[str] = mapped_column(String(32))
+    graph_version: Mapped[int | None] = mapped_column(Integer)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=_now)
+    body: Mapped[dict] = mapped_column(JSONB)
+
+
 class UserSession(Base):
     """Oturum kaydı; veritabanında yalnızca SHA-256 özeti durur."""
 
