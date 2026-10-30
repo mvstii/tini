@@ -57,6 +57,13 @@ class GraphSettings(BaseSettings):
     fetch_ok_ttl_seconds: int = 30 * 86400
     fetch_empty_ttl_seconds: int = 7 * 86400
     fetch_error_ttl_seconds: int = 3600
+    # Kenar deposu (S3): komşu üst sınırı, genişleme derinliği, boyut uyarısı/üst sınırı (bayt).
+    # Last.fm kullanım sınırı: 100 MB altı (CLAUDE.md); 80 MB'ta uyarılır.
+    edge_max_neighbors: int = 20
+    expand_depth: int = 2
+    edge_source: str = "lastfm"
+    edge_warn_bytes: int = 80 * 1024 * 1024
+    edge_max_bytes: int = 100 * 1024 * 1024
 
 
 @lru_cache
