@@ -56,7 +56,7 @@ Not: `test_models::test_account_delete_removes_personal_data_only` S1 sırasınd
 |---|---|---|---|
 | S1 | Oy olayı + güncel oy (`POST /votes`, `GET /votes/current`, saf `profile/scoring.py`, `ProfileSettings`) | Kod ve testler hazır (107 test geçiyor) | #16 |
 | S2 | Profil anlık görüntüsü (göç 0006 `taste_profile`, saf `profile/build.py`, `POST /profile/rebuild`, `GET /profile`, scikit-learn eklendi) | Kod ve testler hazır (119 test geçiyor); gerçek grafikte duman testi yapıldı | #17 |
-| S3 | PPR aday skoru + gerekçe (saf `recommend/ppr.py`, `RecommendSettings`, `GET /recommend/candidates`) | Kod ve testler hazır (133 test geçiyor); gerçek grafikte duman testi yapılmadı | S3 PR'ı |
+| S3 | PPR aday skoru + gerekçe (saf `recommend/ppr.py`, `RecommendSettings`, `GET /recommend/candidates`) | Kod ve testler hazır (132 test geçiyor); gerçek grafikte duman testi yapılmadı | S3 PR'ı |
 
 S3 notları: Skor tohum vektörlerine göre doğrusaldır; gerekçe katkı paylarından okunur (ilk 3 pozitif tohum). Awful düğümleri her adımda maskelenir; Bad/Meh kaçınma sanatçıları negatif tohumdur (β=0,5); yenilik çarpanı 1+γ·(1−derece persentili), γ=0,3. Oy verilmiş tüm sanatçılar adaylardan çıkarılır. Yalnızca pozitif skorlu adaylar döner.
 
