@@ -117,6 +117,9 @@ class RecommendSettings(BaseSettings):
     novelty_gamma: float = 0.3
     candidate_top_n: int = 100
     reason_count: int = 3
+    list_algo_version: str = "list-1"
+    list_size: int = 20
+    mmr_lambda: float = 0.7  # 1 = yalnız alaka, 0 = yalnız çeşitlilik
 
 
 @lru_cache

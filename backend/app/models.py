@@ -212,6 +212,36 @@ class TasteProfile(Base):
     body: Mapped[dict] = mapped_column(JSONB)
 
 
+class GeneratedList(Base):
+    """Kişisel, değişmez öneri listesi anlık görüntüsü. Hesapla silinir."""
+
+    __tablename__ = "generated_list"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("user_account.id", ondelete="CASCADE"), index=True
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=_now)
+    algo_version: Mapped[str] = mapped_column(String(32))
+    candidate_algo_version: Mapped[str] = mapped_column(String(32))
+    profile_version: Mapped[int] = mapped_column(Integer)
+    graph_version: Mapped[int] = mapped_column(Integer)
+    params: Mapped[dict] = mapped_column(JSONB)
+
+
+class ListItem(Base):
+    __tablename__ = "list_item"
+
+    list_id: Mapped[int] = mapped_column(
+        ForeignKey("generated_list.id", ondelete="CASCADE"), primary_key=True
+    )
+    position: Mapped[int] = mapped_column(Integer, primary_key=True)
+    artist_id: Mapped[int] = mapped_column(ForeignKey("artist.id"))
+    track_id: Mapped[int | None] = mapped_column(ForeignKey("track.id"))
+    score: Mapped[float] = mapped_column(Float)
+    reasons: Mapped[list] = mapped_column(JSONB)
+
+
 class UserSession(Base):
     """Oturum kaydı; veritabanında yalnızca SHA-256 özeti durur."""
 
