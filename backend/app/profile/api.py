@@ -3,12 +3,14 @@ from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
-from sqlalchemy import select
+from sqlalchemy import func, select
+from sqlalchemy.dialects.postgresql import distinct_on
 from sqlalchemy.orm import Session
 
 from app.config import GraphSettings, ProfileSettings, get_graph_settings, get_profile_settings
 from app.deps import current_user, get_db
-from app.models import TasteProfile, User, UserTrackLink, VoteEvent
+from app.models import TasteProfile, Track, User, UserTrackLink, UserTrackMeta, VoteEvent
+from app.profile.queue import order_queue
 from app.profile.scoring import VoteEvt, score_votes
 from app.profile.service import rebuild_profile
 
@@ -45,6 +47,92 @@ def cast_vote(
     db.add(ev)
     db.commit()
     return {"id": ev.id, "track": ev.track_id, "vote": ev.vote}
+
+
+@router.get("/queue")
+def queue(
+    seed: int = 0,
+    limit: int | None = None,
+    user: User = Depends(current_user),
+    db: Session = Depends(get_db),
+    cfg: ProfileSettings = Depends(get_profile_settings),
+) -> dict:
+    """Oylanacak parçalar. Başlık/sanatçı kullanıcıya özel önbellekten gelir; süresi dolmuş
+    önbellekli parçalar atlanır ve `stale` ile sayılır (istemci kütüphaneyi yeniden aktarır)."""
+    size = min(limit or cfg.queue_size, cfg.queue_max_size)
+    voted = select(VoteEvent.track_id).where(VoteEvent.user_id == user.id)
+    rows = db.execute(
+        select(
+            Track.id, Track.artist_id, UserTrackMeta.title, UserTrackMeta.artist_names,
+            UserTrackMeta.expires_at,
+        )
+        .join(UserTrackLink, UserTrackLink.track_id == Track.id)
+        .outerjoin(
+            UserTrackMeta,
+            (UserTrackMeta.track_id == Track.id) & (UserTrackMeta.user_id == user.id),
+        )
+        .where(
+            UserTrackLink.user_id == user.id,
+            Track.artist_id.is_not(None),
+            Track.id.not_in(voted),
+        )
+        .ext(distinct_on(Track.id))
+        .order_by(Track.id)
+    ).all()
+    now = datetime.now(UTC)
+    fresh = {r[0]: r for r in rows if r[4] is not None and r[4] > now}
+    voted_artists = set(
+        db.scalars(
+            select(Track.artist_id)
+            .join(VoteEvent, VoteEvent.track_id == Track.id)
+            .where(VoteEvent.user_id == user.id, Track.artist_id.is_not(None))
+        )
+    )
+    order = order_queue([(r[0], r[1]) for r in fresh.values()], voted_artists, seed)[:size]
+    return {
+        "remaining": len(fresh),
+        "stale": len(rows) - len(fresh),
+        "items": [
+            {"track": t, "title": fresh[t][2], "artists": fresh[t][3]} for t in order
+        ],
+    }
+
+
+@router.get("/history")
+def history(
+    limit: int = 50,
+    offset: int = 0,
+    user: User = Depends(current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Parça başına güncel oy (son olay), yeniden eskiye. Başlık varsa önbellekten."""
+    latest = (
+        select(VoteEvent.track_id, VoteEvent.vote, VoteEvent.created_at)
+        .where(VoteEvent.user_id == user.id)
+        .ext(distinct_on(VoteEvent.track_id))
+        .order_by(VoteEvent.track_id, VoteEvent.id.desc())
+        .subquery()
+    )
+    total = db.scalar(select(func.count()).select_from(latest))
+    rows = db.execute(
+        select(latest.c.track_id, latest.c.vote, latest.c.created_at, UserTrackMeta.title,
+               UserTrackMeta.artist_names)
+        .outerjoin(
+            UserTrackMeta,
+            (UserTrackMeta.track_id == latest.c.track_id) & (UserTrackMeta.user_id == user.id),
+        )
+        .order_by(latest.c.created_at.desc(), latest.c.track_id)
+        .limit(min(max(limit, 1), 200))
+        .offset(max(offset, 0))
+    ).all()
+    return {
+        "total": total,
+        "items": [
+            {"track": t, "vote": v, "voted_at": at.isoformat(), "title": title,
+             "artists": names}
+            for t, v, at, title, names in rows
+        ],
+    }
 
 
 @router.get("/current")

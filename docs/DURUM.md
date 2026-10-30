@@ -89,6 +89,14 @@ S1 notları: Güncel oy = parçanın son olayı (id sırası). Persentil normali
 - `.env` içinde `SPOTIFY_CLIENT_ID` ve `CREDENTIAL_KEY` (Fernet anahtarı) tanımlı olmalı; anahtar kaybolursa kayıtlı token'lar çözülemez.
 - Boş `.env` satırları (ör. `SPOTIFY_REDIRECT_URI=`) varsayılana düşer.
 
+## Faz 4 aşamaları (plan: `docs/FAZ4_PLAN.md`)
+
+| # | Aşama | Durum | PR |
+|---|---|---|---|
+| S1 | Backend: `GET /votes/queue` (oy almamış sanatçılar önde, sanatçı başına sırayla, tohumlu deterministik; süresi dolmuş önbellekli parçalar atlanır, `stale` ile sayılır), `GET /votes/history` (parça başına güncel oy), liste öğesine `title`. Göç yok. | Kod ve testler hazır (157 test geçiyor) | S1 PR'ı |
+
+S1 notu: `stale > 0` ise istemci `POST /library/import` ile önbelleği yeniler (Spotify'dan canlı yenileme S1'de yok). Liste öğesinin `title` alanı yalnızca parça kullanıcının kütüphanesindeyse dolar; önerilen parçalar çoğunlukla kütüphanede olmadığı için başlık S4'te ISRC→Spotify çözümüyle gelir.
+
 ## Açık riskler
 
 - Last.fm ticari izni gelmeyebilir; yedek: ListenBrainz + kendi birlikte-oluşum matrisi.

@@ -98,6 +98,9 @@ class ProfileSettings(BaseSettings):
     cluster_min_artists: int = 3
     cluster_seed: int = 0
     cluster_n_init: int = 10
+    # Oylama kuyruğu (Faz 4 S1)
+    queue_size: int = 20
+    queue_max_size: int = 100
 
 
 class RecommendSettings(BaseSettings):
