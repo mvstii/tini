@@ -22,7 +22,7 @@ from sqlalchemy import (
     UniqueConstraint,
     func,
 )
-from sqlalchemy.dialects.postgresql import ARRAY, UUID
+from sqlalchemy.dialects.postgresql import ARRAY, JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db import Base
@@ -110,6 +110,32 @@ class FetchLog(Base):
     status: Mapped[str] = mapped_column(String(16))
     fetched_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=_now)
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+
+
+class ArtistEdge(Base):
+    """Paylaşılan benzerlik kenarı (yönlü, kaynak ham ağırlığı 0–1). Kişisel veri içermez."""
+
+    __tablename__ = "artist_edge"
+
+    src: Mapped[int] = mapped_column(ForeignKey("artist.id"), primary_key=True)
+    dst: Mapped[int] = mapped_column(ForeignKey("artist.id"), primary_key=True)
+    source: Mapped[str] = mapped_column(String(32), primary_key=True)
+    weight: Mapped[float] = mapped_column(Float)
+    fetched_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=_now, index=True
+    )
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+
+
+class GraphSnapshot(Base):
+    """Paylaşılan: genişletme sonrası grafiğin sürümü (S4 matrisi bu sürümden kurulur)."""
+
+    __tablename__ = "graph_snapshot"
+
+    version: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=_now)
+    edge_count: Mapped[int] = mapped_column(Integer)
+    params: Mapped[dict] = mapped_column(JSONB)
 
 
 class Track(Base):

@@ -32,11 +32,11 @@ Kapı: kullanıcı hesap açıp Spotify'ı bağlayabilir ve kütüphanesi verita
 
 Kapı: bir çapa şarkıdan 2 adımlık komşuluk önbellekten saniyeler içinde gelir.
 
-- [ ] Zenginleştirme hattı: Spotify ID → ISRC → MBID → Last.fm
+- [x] Zenginleştirme hattı: Spotify ID → ISRC → MBID → Last.fm
 - [ ] Grafik kenarları ve etiketler; geçerlilik süreli paylaşılan önbellek
-- [ ] Tembel genişleme işi (çapalardan 2–3 adım)
-- [ ] Servise eşleme hunisi ve güven skoru
-- [ ] Kota yönetimi: toplu istek, 429 geri çekilme, önbellek isabet metriği
+- [x] Tembel genişleme işi (çapalardan 2–3 adım)
+- [x] Servise eşleme hunisi ve güven skoru
+- [x] Kota yönetimi: toplu istek, 429 geri çekilme, önbellek isabet metriği
 
 ## Faz 3 — Profil ve öneri motoru v1 (Hafta 6–7: 7–20 Aralık)
 
