@@ -64,6 +64,14 @@ class GraphSettings(BaseSettings):
     edge_source: str = "lastfm"
     edge_warn_bytes: int = 80 * 1024 * 1024
     edge_max_bytes: int = 100 * 1024 * 1024
+    # Matris ve komşuluk (S4). Simetrikleştirme: max | mean; normalizasyon: sym | row | none.
+    graph_algo_version: str = "graph-1"
+    edge_min_weight: float = 0.0
+    matrix_symmetrize: str = "max"
+    matrix_normalization: str = "sym"
+    neighborhood_max_depth: int = 2
+    neighborhood_top_k: int = 20
+    neighborhood_fanout: int = 10  # derinlik 2'de genişletilen en güçlü derinlik-1 komşu sayısı
 
 
 @lru_cache

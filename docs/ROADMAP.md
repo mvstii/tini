@@ -30,10 +30,11 @@ Kapı: kullanıcı hesap açıp Spotify'ı bağlayabilir ve kütüphanesi verita
 
 ## Faz 2 — Katalog ve benzerlik grafiği (Hafta 4–5: 23 Kasım–6 Aralık)
 
-Kapı: bir çapa şarkıdan 2 adımlık komşuluk önbellekten saniyeler içinde gelir.
+Kapı: bir çapa şarkıdan 2 adımlık komşuluk önbellekten saniyeler içinde gelir. **Geçildi (30 Ekim 2026):** soğuk 195 ms, sıcak p95 13 ms.
 
 - [x] Zenginleştirme hattı: Spotify ID → ISRC → MBID → Last.fm
-- [ ] Grafik kenarları ve etiketler; geçerlilik süreli paylaşılan önbellek
+- [x] Grafik kenarları; geçerlilik süreli paylaşılan önbellek
+- [ ] Sanatçı etiketleri (FAZ2_PLAN kapsamında değildi; Faz 3 öncesi karar verilecek)
 - [x] Tembel genişleme işi (çapalardan 2–3 adım)
 - [x] Servise eşleme hunisi ve güven skoru
 - [x] Kota yönetimi: toplu istek, 429 geri çekilme, önbellek isabet metriği
