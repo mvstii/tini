@@ -44,7 +44,7 @@ Kapı: bir çapa şarkıdan 2 adımlık komşuluk önbellekten saniyeler içinde
 Kapı: kendi oylarınla üretilen listede gerekçeler mantıklı görünüyor.
 
 - [x] Oy olay kaydı, güncel oy görünümü, normalizasyon, zaman sönümü
-- [ ] Çok modlu profil: kümeler, çapalar, kaçınma bölgesi
+- [x] Çok modlu profil: kümeler, çapalar, kaçınma bölgesi
 - [ ] PPR aday skoru, Awful budama, Bad cezası, yenilik bonusu
 - [ ] Çapa katkısından gerekçe üretimi
 - [ ] MMR çeşitlilik ve sanatçı üst sınırı
