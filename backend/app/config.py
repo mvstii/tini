@@ -111,15 +111,15 @@ class RecommendSettings(BaseSettings):
     ppr_iterations: int = 8
     max_seeds: int = 200  # pozitif tohum üst sınırı (en yüksek ağırlık)
     max_negative_seeds: int = 100  # Bad cezası için negatif tohum üst sınırı
-    anchor_boost: float = 2.0  # çapa (Amazing) tohum ağırlığı çarpanı
+    anchor_boost: float = 1.5  # çapa (Amazing) tohum ağırlığı çarpanı
     bad_penalty_beta: float = 0.5  # negatif tohum ağırlığı = -beta * kaçınma gücü
     # nihai skor = ham * (1 + gamma * yenilik); yenilik = 1 - derece persentili
-    novelty_gamma: float = 0.3
+    novelty_gamma: float = 0.4
     candidate_top_n: int = 100
     reason_count: int = 3
     list_algo_version: str = "list-1"
     list_size: int = 20
-    mmr_lambda: float = 0.7  # 1 = yalnız alaka, 0 = yalnız çeşitlilik
+    mmr_lambda: float = 0.6  # 1 = yalnız alaka, 0 = yalnız çeşitlilik
 
 
 @lru_cache

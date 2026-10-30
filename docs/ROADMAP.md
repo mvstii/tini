@@ -41,7 +41,7 @@ Kapı: bir çapa şarkıdan 2 adımlık komşuluk önbellekten saniyeler içinde
 
 ## Faz 3 — Profil ve öneri motoru v1 (Hafta 6–7: 7–20 Aralık)
 
-Kapı: kendi oylarınla üretilen listede gerekçeler mantıklı görünüyor.
+Kapı: kendi oylarınla üretilen listede gerekçeler mantıklı görünüyor. **Geçildi (30 Ekim 2026).**
 
 - [x] Oy olay kaydı, güncel oy görünümü, normalizasyon, zaman sönümü
 - [x] Çok modlu profil: kümeler, çapalar, kaçınma bölgesi

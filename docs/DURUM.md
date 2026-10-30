@@ -4,7 +4,7 @@ Son güncelleme: 30 Ekim 2026 · Her aşama (PR) sonrasında güncellenir.
 
 ## Özet
 
-- **Faz:** Faz 1 ve Faz 2 tamamlandı (Faz 2: S1–S4 birleşti, kapı geçildi, 30 Ekim 2026; plan `docs/FAZ2_PLAN.md`). Güncel faz: Faz 3 — Profil ve öneri motoru v1 (plan `docs/FAZ3_PLAN.md`, onaylandı; S1–S4 birleşti, S5 PR'da; kapı gerçek oylarla elle bakışı bekliyor). Açık kalem: sanatçı etiketleri (Faz 3 öncesi karar).
+- **Faz:** Faz 1 ve Faz 2 tamamlandı (Faz 2: S1–S4 birleşti, kapı geçildi, 30 Ekim 2026; plan `docs/FAZ2_PLAN.md`). Güncel faz: Faz 3 — Profil ve öneri motoru v1 (plan `docs/FAZ3_PLAN.md`, onaylandı; S1–S5 birleşti, kapı geçildi, 30 Ekim 2026). Açık kalem: sanatçı etiketleri (Faz 3 öncesi karar).
 - **Faz 1 kapısı geçildi (30 Ekim 2026):** emülatörde hesap açıldı, Spotify bağlandı, kütüphane aktarıldı (531 bağlantı, 524 parça veritabanında).
 - **Faz 0:** tamamlandı. Kalan kullanıcı işleri: partners@last.fm'e izin e-postası, `.env.example` şablonunu geri koymak, Spotify'daki "tini-spike" ve "tini-spike-2" çalma listelerini silmek.
 
@@ -58,9 +58,9 @@ Not: `test_models::test_account_delete_removes_personal_data_only` S1 sırasınd
 | S2 | Profil anlık görüntüsü (göç 0006 `taste_profile`, saf `profile/build.py`, `POST /profile/rebuild`, `GET /profile`, scikit-learn eklendi) | Kod ve testler hazır (119 test geçiyor); gerçek grafikte duman testi yapıldı | #17 |
 | S3 | PPR aday skoru + gerekçe (saf `recommend/ppr.py`, `RecommendSettings`, `GET /recommend/candidates`) | Kod ve testler hazır (132 test geçiyor); gerçek grafikte duman testi yapılmadı | #18 |
 | S4 | Liste üretimi (göç 0007 `generated_list`+`list_item`, saf `recommend/select.py` MMR, `POST /lists/generate`, `GET /lists/{id}`) | Kod ve testler hazır (141 test geçiyor) | #19 |
-| S5 | Sentetik uçtan uca testler (`tests/test_synthetic.py`) + elle bakış işi (`python -m app.jobs.preview_list EPOSTA`) | Kod ve testler hazır (147 test geçiyor); **kapı açık**: gerçek oylarla elle bakış bekliyor | S5 PR'ı |
+| S5 | Sentetik uçtan uca testler (`tests/test_synthetic.py`) + elle bakış işi (`python -m app.jobs.preview_list EPOSTA`) | Kod ve testler hazır (147 test geçiyor); **Faz 3 kapısı geçildi** (30 Ekim 2026) | #20 |
 
-S5 notları: Geliştirme veritabanında henüz oy yok (mobil oylama Faz 4). Kapı için oyları API ile gir (`POST /votes`), `POST /profile/rebuild` çalıştır, sonra `preview_list` ile listeye ve gerekçelere bak. Gerekçeler mantıklıysa Faz 3 kapısı geçer.
+S5 notları: Kapı gerçek oylarla (79 oy, 48'i Amazing, 26 çapa) elle bakıldı (`python -m app.jobs.votes_csv` ile CSV'den oy girişi, `preview_list` ile liste). Gerekçeler gerçek çapalara bağlanıyor ve mantıklı; Drake baskınlığı nedeniyle varsayılanlar ayarlandı: `anchor_boost` 2,0→1,5, `novelty_gamma` 0,3→0,4, `mmr_lambda` 0,7→0,6 (liste çeşitlendi: metal ve East Coast rap çıktı). Bilinen kusur: işbirliği/ekip düğümleri ("Drake & 21 Savage", "Young Money", "JACKBOYS") ayrı sanatçı sayılıyor; sanatçı etiketleri/kanonikleştirme kalemiyle birlikte ele alınacak. Oy CSV'si `local/` altında, git dışı.
 
 S4 notları: Liste öğeleri sanatçı düzeyindedir, bu yüzden sanatçı başına en çok bir öğe (üst sınır) doğal olarak sağlanır. MMR benzerliği grafik matrisi satırlarının kosinüsüdür (λ=0,7, boyut 20). Sanatçı içi şarkı: paylaşılan katalogdaki, oylanmamış en düşük kimlikli parça; yoksa `track_id` boş. Başlık yalnızca kullanıcıya özel önbellekte olduğundan listede yoktur. Adaylar henüz katalogda parçası olmayan sanatçılar için çalma Faz 4/5 adaptörlerine kalır.
 
