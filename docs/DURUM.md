@@ -4,7 +4,7 @@ Son güncelleme: 30 Ekim 2026 · Her aşama (PR) sonrasında güncellenir.
 
 ## Özet
 
-- **Faz:** Faz 1 tamamlandı; Faz 2 tamamlanmak üzere — Katalog ve benzerlik grafiği (plan: `docs/FAZ2_PLAN.md`; S1–S3 birleşti, S4 PR'da; kapı ölçümü geçti). Sıradaki: Faz 3.
+- **Faz:** Faz 1 ve Faz 2 tamamlandı (Faz 2: S1–S4 birleşti, kapı geçildi, 30 Ekim 2026; plan `docs/FAZ2_PLAN.md`). Güncel faz: Faz 3 — Profil ve öneri motoru v1 (plan `docs/FAZ3_PLAN.md`, onaylandı; S1 PR'da). Açık kalem: sanatçı etiketleri (Faz 3 öncesi karar).
 - **Faz 1 kapısı geçildi (30 Ekim 2026):** emülatörde hesap açıldı, Spotify bağlandı, kütüphane aktarıldı (531 bağlantı, 524 parça veritabanında).
 - **Faz 0:** tamamlandı. Kalan kullanıcı işleri: partners@last.fm'e izin e-postası, `.env.example` şablonunu geri koymak, Spotify'daki "tini-spike" ve "tini-spike-2" çalma listelerini silmek.
 
@@ -34,7 +34,7 @@ Son güncelleme: 30 Ekim 2026 · Her aşama (PR) sonrasında güncellenir.
 
 **S3 ölçümü (246 çapa sanatçı, derinlik 1):** 224 sanatçının kenarı var, 22'si Last.fm'de boş; 4376 kenar, 2210 farklı komşu, ortalama ağırlık 0,565, tablo 776 kB (100 MB sınırının çok altında). Tekrar çalıştırmada önbellek isabeti %100, 0 çağrı. Derinlik 2 tahmini: ~2200 yeni sanatçı çağrısı (≈20 dk, 0,25 sn aralık), ~40–50 bin kenar, ~4 MB. Derinlik 2 henüz tam çalıştırılmadı; S4 öncesinde çalıştırılacak.
 
-| S4 | Matris kurucu + komşuluk (`graph/matrix.py`, `graph/neighborhood.py`, `GET /graph/neighborhood`, SciPy/NumPy eklendi) | Kod ve testler hazır (94 test, 93 geçiyor + 1 eski hata); **Faz 2 kapısı geçildi** (30 Ekim 2026) | S4 PR'ı |
+| S4 | Matris kurucu + komşuluk (`graph/matrix.py`, `graph/neighborhood.py`, `GET /graph/neighborhood`, SciPy/NumPy eklendi) | Kod ve testler hazır (94 test, 93 geçiyor + 1 eski hata); **Faz 2 kapısı geçildi** (30 Ekim 2026) | #15 |
 
 **Kapı ölçümü (gerçek veri, derinlik 2 genişletme sonrası):** 2291 sanatçının kenarı var (22 sanatçı Last.fm'de boş), 45.148 kenar, 10.930 farklı komşu, tablo 7 MB. Uç nokta: soğuk (matris kurulumu dahil) 195 ms, sıcak p50 10 ms / p95 13 ms / en kötü 21 ms (200 parça). Hedef < 3 sn. 200 parçadan 30'u 404 döndü (sanatçısı grafikte kenarsız, yani Last.fm'de boş olan 22 sanatçıdan). Sentetik ölçek testi: 1 milyon kenarda kurulum 0,46 sn, sorgu 1,6 ms; 4 milyon kenarda 2,8 sn ve 3 ms.
 
@@ -47,6 +47,14 @@ S2 notları: Kademe B bağı yalnızca `user_track_artist`'te; `track.artist_id`
 S1 notları: `fetch_log` anahtarı `(source, key)` (ör. `isrc:…`), plandaki `(artist_id, source)` yerine; ISRC aramasında henüz sanatçı yok. Çok sanatçılı kayıtta ilk kredi alınır. Ortam dosyasına `MUSICBRAINZ_CONTACT` gerekir; yoksa içe aktarma sonrası arka plan işi çalışmaz.
 Gerçek doğrulama: göç 0004 uygulandı; hesapsız, yalnızca `User-Agent` ile çalıştı, 429 görülmedi. Tüm kütüphane çalıştırıldı (30 Ekim 2026): 524 parçadan 252'si MusicBrainz'de eşleşti (%48, 114 sanatçı), 272'si boş (kademe B/C adayı), 0 hata, 429 yok. Plandaki ~%28 beklentisinden yüksek; ölçüm tek kişinin sahnesine ait, genellenmez.
 `tests/test_models.py::test_account_delete_removes_personal_data_only` geliştirme veritabanındaki gerçek verilerle (tüm `user_track_link` satırlarını sayar) başarısız; S1'den önce de böyle, ayrı düzeltilecek.
+
+## Faz 3 aşamaları
+
+| # | Aşama | Durum | PR |
+|---|---|---|---|
+| S1 | Oy olayı + güncel oy (`POST /votes`, `GET /votes/current`, saf `profile/scoring.py`, `ProfileSettings`) | Kod ve testler hazır (107 testten 105 geçiyor + 2 geliştirme verisi kaynaklı eski hata) | S1 PR'ı |
+
+S1 notları: Güncel oy = parçanın son olayı (id sırası). Persentil normalizasyonu ≥30 güncel oyda, işaret grubu başına mid-rank persentil, soğuk skorla harmanlanır (`normalize_blend` 0,5). Zaman sönümü yarı ömür 365 gün, taban 0,25; Awful sönmez. Oy yalnızca kullanıcının kütüphanesindeki parçaya verilir (Faz 4'te Unheard havuzu gelince gevşer). Eski hatalar: `test_models::test_account_delete_removes_personal_data_only` ve `test_catalog_b::test_low_confidence_is_tier_c` geliştirme veritabanındaki gerçek verilerle (1062 bağlantı, gerçek "Metallica" sanatçısı) başarısız; testler izole veritabanı kullanmalı, ayrı düzeltilecek.
 
 ## Ortam
 
