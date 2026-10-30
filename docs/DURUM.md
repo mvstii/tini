@@ -4,7 +4,7 @@ Son güncelleme: 30 Ekim 2026 · Her aşama (PR) sonrasında güncellenir.
 
 ## Özet
 
-- **Faz:** Faz 1 tamamlandı; sıradaki Faz 2 — Katalog ve benzerlik grafiği (planlama onayı bekleniyor).
+- **Faz:** Faz 1 tamamlandı; sıradaki Faz 2 — Katalog ve benzerlik grafiği — plan taslağı: `docs/FAZ2_PLAN.md` (onay bekliyor).
 - **Faz 1 kapısı geçildi (30 Ekim 2026):** emülatörde hesap açıldı, Spotify bağlandı, kütüphane aktarıldı (531 bağlantı, 524 parça veritabanında).
 - **Faz 0:** tamamlandı. Kalan kullanıcı işleri: partners@last.fm'e izin e-postası, `.env.example` şablonunu geri koymak, Spotify'daki "tini-spike" ve "tini-spike-2" çalma listelerini silmek.
 
