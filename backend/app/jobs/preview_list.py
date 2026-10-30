@@ -3,6 +3,7 @@
 Listeyi kaydetmez. CLI: python -m app.jobs.preview_list EPOSTA [--size N]
 """
 import argparse
+import sys
 from datetime import UTC, datetime
 
 from sqlalchemy import select
@@ -47,4 +48,5 @@ if __name__ == "__main__":
     ap.add_argument("email")
     ap.add_argument("--size", type=int)
     args = ap.parse_args()
+    sys.stdout.reconfigure(encoding="utf-8")  # Windows konsolu (cp1254) ← ve ★ yazamaz
     print("\n".join(run(args.email, args.size)))
