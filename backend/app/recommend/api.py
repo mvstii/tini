@@ -3,8 +3,10 @@
 Yanıtlardaki adlar yalnızca paylaşılan katalogdaki sanatçı adlarıdır.
 """
 from datetime import UTC, datetime
+from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -17,7 +19,7 @@ from app.config import (
     get_recommend_settings,
 )
 from app.deps import current_user, get_db
-from app.models import Artist, GeneratedList, ListItem, User, UserTrackMeta
+from app.models import Artist, GeneratedList, ListFeedback, ListItem, User, UserTrackMeta
 from app.recommend.service import NoGraph, NoProfile, compute_candidates, generate_list
 
 router = APIRouter(prefix="/recommend")
@@ -143,3 +145,35 @@ def get_list(
     if lst is None:
         raise HTTPException(404, "Liste yok")
     return _list_out(db, lst)
+
+
+class FeedbackIn(BaseModel):
+    kind: Literal["wrong_reason"] = "wrong_reason"
+    seed_id: int | None = None
+
+
+@lists_router.post("/{list_id}/items/{position}/feedback", status_code=201)
+def item_feedback(
+    list_id: int, position: int, body: FeedbackIn,
+    user: User = Depends(current_user), db: Session = Depends(get_db),
+) -> dict:
+    """Gerekçe itirazı: yalnızca olay kaydı (algoritmaya etkisi Faz 5)."""
+    item = db.scalar(
+        select(ListItem)
+        .join(GeneratedList, GeneratedList.id == ListItem.list_id)
+        .where(
+            ListItem.list_id == list_id, ListItem.position == position,
+            GeneratedList.user_id == user.id,
+        )
+    )
+    if item is None:
+        raise HTTPException(404, "Liste öğesi yok")
+    if body.seed_id is not None and body.seed_id not in {r["seed_id"] for r in item.reasons}:
+        raise HTTPException(422, "Bu çapa öğenin gerekçesinde yok")
+    ev = ListFeedback(
+        user_id=user.id, list_id=list_id, position=position, seed_id=body.seed_id, kind=body.kind
+    )
+    db.add(ev)
+    db.commit()
+    return {"id": ev.id, "list": list_id, "position": position, "seed_id": ev.seed_id,
+            "kind": ev.kind}

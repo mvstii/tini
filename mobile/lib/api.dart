@@ -43,6 +43,31 @@ class VoteQueue {
   final List<QueueItem> items;
 }
 
+class Reason {
+  Reason(this.seedId, this.seedName, this.share, this.isAnchor);
+  final int seedId;
+  final String seedName;
+  final double share;
+  final bool isAnchor;
+}
+
+class ListEntry {
+  ListEntry(this.position, this.name, this.title, this.reasons);
+  final int position;
+  final String name;
+  final String? title;
+  final List<Reason> reasons;
+
+  /// Faz 4'te tek slot tipi var.
+  String get slot => 'keşif';
+}
+
+class DiscoveryList {
+  DiscoveryList(this.id, this.items);
+  final int id;
+  final List<ListEntry> items;
+}
+
 class Api {
   Api({http.Client? client, FlutterSecureStorage? storage})
       : _http = client ?? http.Client(),
@@ -117,6 +142,28 @@ class Api {
   }
 
   Future<void> rebuildProfile() => _send('POST', '/profile/rebuild');
+
+  Future<DiscoveryList> generateList() async {
+    final body = await _send('POST', '/lists/generate');
+    return DiscoveryList(
+      body['id'] as int,
+      (body['items'] as List)
+          .map((e) => ListEntry(
+                e['position'] as int,
+                (e['name'] as String?) ?? '?',
+                e['title'] as String?,
+                (e['reasons'] as List)
+                    .map((r) => Reason(r['seed_id'] as int, (r['seed_name'] as String?) ?? '?',
+                        (r['share'] as num).toDouble(), r['is_anchor'] as bool))
+                    .toList(),
+              ))
+          .toList(),
+    );
+  }
+
+  /// Gerekçe itirazı; yalnızca kayıt (algoritmaya etkisi Faz 5). seedId boşsa tüm gerekçe.
+  Future<void> reasonFeedback(int listId, int position, {int? seedId}) => _send(
+      'POST', '/lists/$listId/items/$position/feedback', {'kind': 'wrong_reason', 'seed_id': seedId});
 
   Future<Map<String, dynamic>> _send(String method, String path, [Object? json]) async {
     final req = http.Request(method, Uri.parse('$apiBase$path'));

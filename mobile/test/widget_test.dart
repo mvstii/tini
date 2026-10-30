@@ -7,6 +7,7 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:tini/api.dart';
 import 'package:tini/main.dart';
+import 'package:tini/screens/list_screen.dart';
 import 'package:tini/screens/rating_screen.dart';
 
 class _MemoryStorage extends FlutterSecureStorage {
@@ -189,6 +190,67 @@ void main() {
       await tester.tap(find.text('Kütüphaneyi yenile'));
       await tester.pumpAndSettle();
       expect(f.calls, contains('POST /library/import'));
+    });
+  });
+
+  group('list screen', () {
+    final listJson = {
+      'id': 7,
+      'items': [
+        {
+          'position': 1,
+          'name': 'Beta',
+          'title': null,
+          'reasons': [
+            {'seed_id': 10, 'seed_name': 'Seed A', 'share': 0.6, 'is_anchor': true},
+            {'seed_id': 11, 'seed_name': 'Seed B', 'share': 0.4, 'is_anchor': false},
+          ],
+        }
+      ],
+    };
+
+    test('reasonText orders by share and marks anchors', () {
+      final e = ListEntry(1, 'X', null, [
+        Reason(2, 'Low', 0.1, false),
+        Reason(1, 'High', 0.9, true),
+      ]);
+      expect(reasonText(e), 'Sevdiğin sanatçılara benzediği için: ★ High %90, Low %10');
+    });
+
+    testWidgets('generates, shows reasons and records an objection', (tester) async {
+      Object? feedback;
+      final api = _api((req) async {
+        if (req.url.path == '/lists/generate') {
+          return http.Response.bytes(utf8.encode(jsonEncode(listJson)), 201);
+        }
+        if (req.url.path == '/lists/7/items/1/feedback') {
+          feedback = jsonDecode(req.body);
+          return http.Response('{}', 201);
+        }
+        return http.Response('{}', 200);
+      }, _MemoryStorage());
+      await tester.pumpWidget(MaterialApp(home: ListScreen(api: api)));
+
+      await tester.tap(find.text('Liste üret'));
+      await tester.pumpAndSettle();
+      expect(find.text('1. Beta'), findsOneWidget);
+      expect(find.text('keşif'), findsOneWidget);
+      expect(find.textContaining('★ Seed A %60, Seed B %40'), findsOneWidget);
+
+      await tester.tap(find.text('Bu gerekçe yanlış'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Seed B'));
+      await tester.pumpAndSettle();
+      expect(feedback, {'kind': 'wrong_reason', 'seed_id': 11});
+      expect(find.text('Geri bildirimin kaydedildi'), findsOneWidget);
+    });
+
+    testWidgets('no profile yet shows a hint', (tester) async {
+      final api = _api((req) async => http.Response('{"detail": "x"}', 404), _MemoryStorage());
+      await tester.pumpWidget(MaterialApp(home: ListScreen(api: api)));
+      await tester.tap(find.text('Liste üret'));
+      await tester.pumpAndSettle();
+      expect(find.text('Önce oylayıp profilini kur.'), findsOneWidget);
     });
   });
 }
