@@ -94,10 +94,12 @@ S1 notları: Güncel oy = parçanın son olayı (id sırası). Persentil normali
 | # | Aşama | Durum | PR |
 |---|---|---|---|
 | S1 | Backend: `GET /votes/queue` (oy almamış sanatçılar önde, sanatçı başına sırayla, tohumlu deterministik; süresi dolmuş önbellekli parçalar atlanır, `stale` ile sayılır), `GET /votes/history` (parça başına güncel oy), liste öğesine `title`. Göç yok. | Kod ve testler hazır (157 test geçiyor) | #25 |
-| S2 | Mobil: kaydırmalı oylama kartları (`RatingScreen`: 6 oy düğmesi, sağa kaydır = Great, sola kaydır veya düğme = Unheard, geri al, 30 oyluk başlangıç turu ve "Profili kur", eskiyen önbellek için "Kütüphaneyi yenile"). `Api`: `voteQueue`, `castVote`, `voteTotal`, `rebuildProfile`. | Kod ve widget testleri yazıldı; yerelde çalıştırılamadı (yerel Dart 3.13.5 < gereken 3.13.7), CI doğrular | S2 PR'ı |
+| S2 | Mobil: kaydırmalı oylama kartları (`RatingScreen`: 6 oy düğmesi, sağa kaydır = Great, sola kaydır veya düğme = Unheard, geri al, 30 oyluk başlangıç turu ve "Profili kur", eskiyen önbellek için "Kütüphaneyi yenile"). `Api`: `voteQueue`, `castVote`, `voteTotal`, `rebuildProfile`. | Kod ve widget testleri yazıldı; yerelde çalıştırılamadı (yerel Dart 3.13.5 < gereken 3.13.7), CI doğruladı | #26 |
+| S3 | Keşif listesi: göç 0009 `list_feedback` (kişisel olay kaydı), `POST /lists/{id}/items/{pos}/feedback` (`wrong_reason`, isteğe bağlı `seed_id` öğenin gerekçesinde olmalı), mobil `ListScreen` (sanatçı kartı, "keşif" slot etiketi, yüzdeli gerekçe cümlesi, çapa ★, "Bu gerekçe yanlış"). | Backend 159 test geçiyor, ruff temiz; mobil testler CI'da | S3 PR'ı |
 
 S1 notu: `stale > 0` ise istemci `POST /library/import` ile önbelleği yeniler (Spotify'dan canlı yenileme S1'de yok). Liste öğesinin `title` alanı yalnızca parça kullanıcının kütüphanesindeyse dolar; önerilen parçalar çoğunlukla kütüphanede olmadığı için başlık S4'te ISRC→Spotify çözümüyle gelir.
 S2 notu: Unheard backend'e yazılmaz (oy 1–6); oturum içinde atlanır, parça sonraki oturumda kuyruğa yeniden gelebilir. Geri al, kartı yeniden gösterir; verilen yeni oy yeni bir olaydır (eski olay silinmez).
+S3 notu: Gerekçe itirazı yalnızca kayıttır; profile/algoritmaya etkisi Faz 5'te. Liste öğeleri parça başlığı taşımaz (önerilen parçalar kütüphanede olmadığından); başlık/çalma S4'te.
 
 
 ## Açık riskler

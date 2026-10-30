@@ -251,6 +251,27 @@ class ListItem(Base):
     reasons: Mapped[list] = mapped_column(JSONB)
 
 
+class ListFeedback(Base):
+    """Kişisel olay kaydı: kullanıcı bir liste öğesinin gerekçesine itiraz etti.
+
+    Faz 4'te yalnızca kayıttır; profile/algoritmaya etkisi Faz 5'te. seed_id boşsa tüm gerekçe.
+    """
+
+    __tablename__ = "list_feedback"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("user_account.id", ondelete="CASCADE"), index=True
+    )
+    list_id: Mapped[int] = mapped_column(
+        ForeignKey("generated_list.id", ondelete="CASCADE"), index=True
+    )
+    position: Mapped[int] = mapped_column(Integer)
+    seed_id: Mapped[int | None] = mapped_column(ForeignKey("artist.id"))
+    kind: Mapped[str] = mapped_column(String(32))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=_now)
+
+
 class UserSession(Base):
     """Oturum kaydı; veritabanında yalnızca SHA-256 özeti durur."""
 

@@ -112,3 +112,31 @@ def test_list_is_private_to_owner(client, db):
     lid = client.post("/lists/generate", headers=h1).json()["id"]
     h2 = register(client, "l3@example.com")
     assert client.get(f"/lists/{lid}", headers=h2).status_code == 404
+
+
+def test_item_feedback_is_recorded_as_event(client, db):
+    from app.models import ListFeedback
+
+    h, seed, c1, c2 = setup_user(client, db, "l4@example.com", "LC")
+    lst = client.post("/lists/generate", headers=h).json()
+    url = f"/lists/{lst['id']}/items/1/feedback"
+
+    r = client.post(url, json={"seed_id": seed.id}, headers=h)
+    assert r.status_code == 201 and r.json()["kind"] == "wrong_reason"
+    assert client.post(url, json={}, headers=h).status_code == 201  # tüm gerekçe, ikinci olay
+    rows = db.scalars(select(ListFeedback).where(ListFeedback.list_id == lst["id"])).all()
+    assert [(f.position, f.seed_id) for f in rows] == [(1, seed.id), (1, None)]
+
+
+def test_item_feedback_validation_and_privacy(client, db):
+    h1, seed, c1, c2 = setup_user(client, db, "l5@example.com", "LD")
+    lid = client.post("/lists/generate", headers=h1).json()["id"]
+    assert client.post(f"/lists/{lid}/items/99/feedback", json={}, headers=h1).status_code == 404
+    bad = client.post(f"/lists/{lid}/items/1/feedback", json={"seed_id": c2.id}, headers=h1)
+    assert bad.status_code == 422
+    assert client.post(
+        f"/lists/{lid}/items/1/feedback", json={"kind": "x"}, headers=h1
+    ).status_code == 422
+
+    h2 = register(client, "l6@example.com")
+    assert client.post(f"/lists/{lid}/items/1/feedback", json={}, headers=h2).status_code == 404

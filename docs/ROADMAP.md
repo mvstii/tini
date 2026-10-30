@@ -56,7 +56,7 @@ Kapı: telefonda oylayıp gerekçeli listeyi Spotify'a kaydedebiliyorsun.
 
 - [x] Kaydırmalı oylama kartları (6 oy + Unheard), başlangıç turu
 - [ ] Spotify App Remote ile uygulama içi dinleme ve "servisinde aç"
-- [ ] Keşif listesi ekranı: gerekçe, slot tipi, gerekçe itirazı
+- [x] Keşif listesi ekranı: gerekçe, slot tipi, gerekçe itirazı
 - [ ] Listeyi Spotify'a yazma; oy geçmişi ve oy değiştirme
 
 ## Faz 5 — Keşif döngüsü ve yeni çıkanlar (Hafta 10–11: 4–17 Ocak)
