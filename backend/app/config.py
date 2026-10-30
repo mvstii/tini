@@ -24,6 +24,8 @@ class Settings(BaseSettings):
 
     # MusicBrainz User-Agent'ı iletişim bilgisi ister (.env: MUSICBRAINZ_CONTACT).
     musicbrainz_contact: str = ""
+    # Last.fm API anahtarı; yalnızca .env'den gelir, loglanmaz.
+    lastfm_api_key: str = ""
 
     @field_validator("spotify_redirect_uri", "spotify_scopes", mode="before")
     @classmethod
@@ -43,6 +45,13 @@ class GraphSettings(BaseSettings):
     http_max_retries: int = 4
     http_backoff_base_seconds: float = 2.0
     http_backoff_max_seconds: float = 60.0
+    lastfm_base_url: str = "https://ws.audioscrobbler.com/2.0/"
+    lastfm_min_interval_seconds: float = 0.25
+    # Kademe B güveni: ad eşitliği, bulanık benzerlik ağırlığı, MBID bonusu; eşik altı bağlanmaz.
+    tier_b_exact_confidence: float = 0.8
+    tier_b_fuzzy_weight: float = 0.7
+    tier_b_mbid_bonus: float = 0.1
+    tier_b_min_confidence: float = 0.6
     # Kademe A eşleme güveni ve negatif önbellek ömürleri (saniye)
     tier_a_confidence: float = 0.95
     fetch_ok_ttl_seconds: int = 30 * 86400
