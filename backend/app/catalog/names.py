@@ -1,7 +1,7 @@
 import re
 import unicodedata
 
-_NON_ALNUM = re.compile(r"[^0-9a-zı]+")
+_NON_ALNUM = re.compile(r"[^0-9a-z]+")
 
 
 def normalize_name(name: str) -> str:
@@ -9,6 +9,7 @@ def normalize_name(name: str) -> str:
 
     Yalnızca eşleştirme ipucudur; aynı normalize ad kimlik anlamına gelmez (bkz. resolve).
     """
-    s = unicodedata.normalize("NFKD", name).casefold()
+    # ı NFKD'de ayrışmaz; Last.fm/MB sık sık ASCII yazar (Bayındır/Bayindir), i'ye katlanır.
+    s = unicodedata.normalize("NFKD", name).casefold().replace("ı", "i")
     s = "".join(c for c in s if not unicodedata.combining(c))
     return _NON_ALNUM.sub(" ", s).strip()

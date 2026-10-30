@@ -61,7 +61,8 @@ def test_normalize_name():
     assert normalize_name("Beyoncé") == "beyonce"
     assert normalize_name("AC/DC") == "ac dc"
     assert normalize_name("Sagopa Kajmer") == normalize_name("sagopa-kajmer")
-    assert normalize_name("Işık") == "isık"  # ı korunur, ş→s
+    assert normalize_name("Işık") == "isik"  # ı ve ş ASCII'ye katlanir
+    assert normalize_name("Bayındır") == normalize_name("Bayindir")
 
 
 def test_tier_a_resolves_and_links_shared_artist(db):
