@@ -4,7 +4,7 @@ Son güncelleme: 30 Ekim 2026 · Her aşama (PR) sonrasında güncellenir.
 
 ## Özet
 
-- **Faz:** Faz 1 ve Faz 2 tamamlandı (Faz 2: S1–S4 birleşti, kapı geçildi, 30 Ekim 2026; plan `docs/FAZ2_PLAN.md`). Güncel faz: Faz 3 — Profil ve öneri motoru v1 (plan `docs/FAZ3_PLAN.md`, onaylandı; S1–S5 birleşti, kapı geçildi, 30 Ekim 2026). Açık kalem: sanatçı etiketleri (Faz 3 öncesi karar).
+- **Faz:** Faz 1, 2 ve 3 tamamlandı (Faz 3: S1–S5 ve işbirliği düğümü düzeltmesi birleşti, kapı geçildi, 30 Ekim 2026; plan `docs/FAZ3_PLAN.md`). Güncel faz: Faz 4 — Mobil deneyim ve çıktı (plan hazırlanacak). Açık kalemler: sanatçı etiketleri, Last.fm izin e-postası (senin işin), Deezer/Apple MusicKit doğrulaması (Faz 6 öncesi).
 - **Faz 1 kapısı geçildi (30 Ekim 2026):** emülatörde hesap açıldı, Spotify bağlandı, kütüphane aktarıldı (531 bağlantı, 524 parça veritabanında).
 - **Faz 0:** tamamlandı. Kalan kullanıcı işleri: partners@last.fm'e izin e-postası, `.env.example` şablonunu geri koymak, Spotify'daki "tini-spike" ve "tini-spike-2" çalma listelerini silmek.
 

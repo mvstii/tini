@@ -69,4 +69,4 @@ Bu kararları geliştiriciye sormadan değiştirme:
 ## Güncel durum
 
 - Güncel durum belgesi: `docs/DURUM.md`. **Her aşama (PR) sonrasında güncellenir.**
-- Faz 0 tamamlandı; güncel faz Faz 1'dir (ayrıntı DURUM.md ve ROADMAP.md).
+- Faz 0–3 tamamlandı; güncel faz Faz 4'tür (ayrıntı DURUM.md ve ROADMAP.md).
