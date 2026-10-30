@@ -48,7 +48,7 @@ Kapı: kendi oylarınla üretilen listede gerekçeler mantıklı görünüyor.
 - [x] PPR aday skoru, Awful budama, Bad cezası, yenilik bonusu
 - [x] Çapa katkısından gerekçe üretimi
 - [x] MMR çeşitlilik ve sanatçı üst sınırı
-- [ ] Algoritma birim testleri ve sentetik veri seti
+- [x] Algoritma birim testleri ve sentetik veri seti
 
 ## Faz 4 — Mobil deneyim ve çıktı (Hafta 8–9: 21 Aralık–3 Ocak)
 
