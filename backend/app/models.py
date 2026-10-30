@@ -69,6 +69,15 @@ class Artist(Base):
     name_norm: Mapped[str | None] = mapped_column(String(256), index=True)
 
 
+class ArtistMember(Base):
+    """Paylaşılan: işbirliği düğümü ("A & B") ile üyeleri; app.catalog.collab ile türetilir."""
+
+    __tablename__ = "artist_member"
+
+    collab_id: Mapped[int] = mapped_column(ForeignKey("artist.id"), primary_key=True)
+    member_id: Mapped[int] = mapped_column(ForeignKey("artist.id"), primary_key=True, index=True)
+
+
 class ArtistRef(Base):
     """Paylaşılan: sanatçının sağlayıcıdaki kimliği (ör. musicbrainz/<mbid>)."""
 
