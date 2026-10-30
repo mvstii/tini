@@ -104,11 +104,12 @@ def test_tier_b_reuses_existing_mbid_artist(db):
 
 def test_low_confidence_is_tier_c(db):
     u, t = setup(db, "ZZB000000003", ["ezhel"], "b3@example.com")
-    lfm = FakeLfm({"ezhel": LfmArtist("Metallica", None)})
+    other = "Zzz Unrelated Act"  # geliştirme verisinde bulunmayan ad
+    lfm = FakeLfm({"ezhel": LfmArtist(other, None)})
     assert resolve_track_b(db, u.id, t.id, "ezhel", lfm, CFG, NOW) == "empty"
     assert db.get(UserTrackArtist, (u.id, t.id)) is None
     assert db.get(FetchLog, ("lastfm", f"track:{t.id}")).status == "empty"
-    assert not db.scalar(select(func.count()).select_from(Artist).where(Artist.name == "Metallica"))
+    assert not db.scalar(select(func.count()).select_from(Artist).where(Artist.name == other))
 
 
 def test_not_found_and_error(db):

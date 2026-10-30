@@ -4,7 +4,7 @@ Son güncelleme: 30 Ekim 2026 · Her aşama (PR) sonrasında güncellenir.
 
 ## Özet
 
-- **Faz:** Faz 1 ve Faz 2 tamamlandı (Faz 2: S1–S4 birleşti, kapı geçildi, 30 Ekim 2026; plan `docs/FAZ2_PLAN.md`). Güncel faz: Faz 3 — Profil ve öneri motoru v1 (plan `docs/FAZ3_PLAN.md`, onaylandı; S1 PR'da). Açık kalem: sanatçı etiketleri (Faz 3 öncesi karar).
+- **Faz:** Faz 1 ve Faz 2 tamamlandı (Faz 2: S1–S4 birleşti, kapı geçildi, 30 Ekim 2026; plan `docs/FAZ2_PLAN.md`). Güncel faz: Faz 3 — Profil ve öneri motoru v1 (plan `docs/FAZ3_PLAN.md`, onaylandı; S1 birleşti). Açık kalem: sanatçı etiketleri (Faz 3 öncesi karar).
 - **Faz 1 kapısı geçildi (30 Ekim 2026):** emülatörde hesap açıldı, Spotify bağlandı, kütüphane aktarıldı (531 bağlantı, 524 parça veritabanında).
 - **Faz 0:** tamamlandı. Kalan kullanıcı işleri: partners@last.fm'e izin e-postası, `.env.example` şablonunu geri koymak, Spotify'daki "tini-spike" ve "tini-spike-2" çalma listelerini silmek.
 
@@ -46,15 +46,15 @@ S2 notları: Kademe B bağı yalnızca `user_track_artist`'te; `track.artist_id`
 
 S1 notları: `fetch_log` anahtarı `(source, key)` (ör. `isrc:…`), plandaki `(artist_id, source)` yerine; ISRC aramasında henüz sanatçı yok. Çok sanatçılı kayıtta ilk kredi alınır. Ortam dosyasına `MUSICBRAINZ_CONTACT` gerekir; yoksa içe aktarma sonrası arka plan işi çalışmaz.
 Gerçek doğrulama: göç 0004 uygulandı; hesapsız, yalnızca `User-Agent` ile çalıştı, 429 görülmedi. Tüm kütüphane çalıştırıldı (30 Ekim 2026): 524 parçadan 252'si MusicBrainz'de eşleşti (%48, 114 sanatçı), 272'si boş (kademe B/C adayı), 0 hata, 429 yok. Plandaki ~%28 beklentisinden yüksek; ölçüm tek kişinin sahnesine ait, genellenmez.
-`tests/test_models.py::test_account_delete_removes_personal_data_only` geliştirme veritabanındaki gerçek verilerle (tüm `user_track_link` satırlarını sayar) başarısız; S1'den önce de böyle, ayrı düzeltilecek.
+Not: `test_models::test_account_delete_removes_personal_data_only` S1 sırasında düzeltildi (Faz 3 / S1 notlarına bak).
 
 ## Faz 3 aşamaları
 
 | # | Aşama | Durum | PR |
 |---|---|---|---|
-| S1 | Oy olayı + güncel oy (`POST /votes`, `GET /votes/current`, saf `profile/scoring.py`, `ProfileSettings`) | Kod ve testler hazır (107 testten 105 geçiyor + 2 geliştirme verisi kaynaklı eski hata) | S1 PR'ı |
+| S1 | Oy olayı + güncel oy (`POST /votes`, `GET /votes/current`, saf `profile/scoring.py`, `ProfileSettings`) | Kod ve testler hazır (107 test geçiyor) | #16 |
 
-S1 notları: Güncel oy = parçanın son olayı (id sırası). Persentil normalizasyonu ≥30 güncel oyda, işaret grubu başına mid-rank persentil, soğuk skorla harmanlanır (`normalize_blend` 0,5). Zaman sönümü yarı ömür 365 gün, taban 0,25; Awful sönmez. Oy yalnızca kullanıcının kütüphanesindeki parçaya verilir (Faz 4'te Unheard havuzu gelince gevşer). Eski hatalar: `test_models::test_account_delete_removes_personal_data_only` ve `test_catalog_b::test_low_confidence_is_tier_c` geliştirme veritabanındaki gerçek verilerle (1062 bağlantı, gerçek "Metallica" sanatçısı) başarısız; testler izole veritabanı kullanmalı, ayrı düzeltilecek.
+S1 notları: Güncel oy = parçanın son olayı (id sırası). Persentil normalizasyonu ≥30 güncel oyda, işaret grubu başına mid-rank persentil, soğuk skorla harmanlanır (`normalize_blend` 0,5). Zaman sönümü yarı ömür 365 gün, taban 0,25; Awful sönmez. Oy yalnızca kullanıcının kütüphanesindeki parçaya verilir (Faz 4'te Unheard havuzu gelince gevşer). İki eski test (`test_models::test_account_delete_removes_personal_data_only`, `test_catalog_b::test_low_confidence_is_tier_c`) geliştirme verisinden bağımsız hâle getirildi (sorgular kendi satırlarına daraltıldı; 31 Ekim 2026).
 
 ## Ortam
 
