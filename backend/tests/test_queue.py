@@ -1,0 +1,127 @@
+from datetime import UTC, datetime, timedelta
+
+import pytest
+from cryptography.fernet import Fernet
+from fastapi.testclient import TestClient
+from sqlalchemy import select
+from sqlalchemy.orm import Session
+
+from app.config import Settings
+from app.db import make_engine
+from app.deps import get_db
+from app.main import app
+from app.models import Artist, Track, User, UserTrackLink, UserTrackMeta
+from app.profile.queue import order_queue
+
+
+def test_order_is_deterministic_and_seeded():
+    cands = [(1, 10), (2, 10), (3, 20), (4, 30)]
+    a = order_queue(cands, set(), seed=0)
+    assert a == order_queue(list(reversed(cands)), set(), seed=0)
+    assert sorted(a) == [1, 2, 3, 4]
+    assert any(order_queue(cands, set(), seed=s) != a for s in range(1, 20))
+
+
+def test_unvoted_artists_first_and_one_track_per_artist_per_round():
+    cands = [(1, 10), (2, 10), (3, 20), (4, 30)]
+    order = order_queue(cands, voted_artists={20}, seed=0)
+    assert order[-1] == 3  # oy almış sanatçı sona
+    first_round = order[:2]  # 10 ve 30'dan birer parça; 10'un ikinci parçası sonra
+    assert {t for t in first_round} & {4} and len({1, 2} & set(first_round)) == 1
+
+
+@pytest.fixture
+def db():
+    engine = make_engine()
+    try:
+        conn = engine.connect()
+    except Exception:
+        pytest.skip("PostgreSQL erişilemiyor")
+    trans = conn.begin()
+    s = Session(bind=conn, join_transaction_mode="create_savepoint")
+    yield s
+    s.close()
+    trans.rollback()
+    conn.close()
+
+
+@pytest.fixture
+def client(db, monkeypatch):
+    cfg = Settings(_env_file=None, credential_key=Fernet.generate_key().decode())
+    monkeypatch.setattr("app.auth.get_settings", lambda: cfg)
+    app.dependency_overrides[get_db] = lambda: db
+    yield TestClient(app)
+    app.dependency_overrides.clear()
+
+
+def register(c, email):
+    r = c.post("/auth/register", json={"email": email, "password": "uzun-parola-1"})
+    return {"Authorization": f"Bearer {r.json()['token']}"}
+
+
+def lib_track(db, email, isrc, artist, title, expired=False):
+    u = db.scalar(select(User).where(User.email == email))
+    t = Track(isrc=isrc, artist_id=artist.id if artist else None)
+    db.add(t)
+    db.flush()
+    db.add(UserTrackLink(user_id=u.id, service="spotify", external_id=isrc, track_id=t.id))
+    now = datetime.now(UTC)
+    exp = now - timedelta(hours=1) if expired else now + timedelta(hours=1)
+    db.add(UserTrackMeta(user_id=u.id, track_id=t.id, title=title, artist_names=["X"],
+                         expires_at=exp))
+    db.flush()
+    return t
+
+
+def mk_artist(db, name):
+    a = Artist(name=name, name_norm=name.lower())
+    db.add(a)
+    db.flush()
+    return a
+
+
+def test_queue_skips_voted_unresolved_and_stale(client, db):
+    h = register(client, "q1@example.com")
+    a, b = mk_artist(db, "QA"), mk_artist(db, "QB")
+    t1 = lib_track(db, "q1@example.com", "ZZQ000000001", a, "Bir")
+    t2 = lib_track(db, "q1@example.com", "ZZQ000000002", b, "Iki")
+    lib_track(db, "q1@example.com", "ZZQ000000003", None, "Sanatçısız")
+    lib_track(db, "q1@example.com", "ZZQ000000004", b, "Eski", expired=True)
+    client.post("/votes", json={"track": t1.id, "vote": 5}, headers=h)
+
+    body = client.get("/votes/queue", headers=h).json()
+    assert [i["track"] for i in body["items"]] == [t2.id]
+    assert body["items"][0]["title"] == "Iki" and body["remaining"] == 1 and body["stale"] == 1
+    assert client.get("/votes/queue?seed=3", headers=h).json() == client.get(
+        "/votes/queue?seed=3", headers=h
+    ).json()
+
+
+def test_history_returns_latest_vote_per_track(client, db):
+    h = register(client, "q2@example.com")
+    a = mk_artist(db, "QH")
+    t1 = lib_track(db, "q2@example.com", "ZZQ000000011", a, "Bir")
+    t2 = lib_track(db, "q2@example.com", "ZZQ000000012", a, "Iki")
+    client.post("/votes", json={"track": t1.id, "vote": 2}, headers=h)
+    client.post("/votes", json={"track": t2.id, "vote": 6}, headers=h)
+    client.post("/votes", json={"track": t1.id, "vote": 5}, headers=h)
+
+    body = client.get("/votes/history", headers=h).json()
+    assert body["total"] == 2
+    votes = {i["track"]: i["vote"] for i in body["items"]}
+    assert votes == {t1.id: 5, t2.id: 6}
+    assert {i["title"] for i in body["items"]} == {"Bir", "Iki"}
+    assert body["items"][0]["track"] == t1.id  # en son oy en üstte
+    assert client.get("/votes/history?limit=1&offset=1", headers=h).json()["items"][0][
+        "track"
+    ] == t2.id
+
+
+def test_queue_and_history_are_private(client, db):
+    h1 = register(client, "q3@example.com")
+    a = mk_artist(db, "QP")
+    t = lib_track(db, "q3@example.com", "ZZQ000000021", a, "Gizli")
+    client.post("/votes", json={"track": t.id, "vote": 4}, headers=h1)
+    h2 = register(client, "q4@example.com")
+    assert client.get("/votes/queue", headers=h2).json()["items"] == []
+    assert client.get("/votes/history", headers=h2).json()["total"] == 0

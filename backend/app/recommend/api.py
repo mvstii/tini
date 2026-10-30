@@ -17,7 +17,7 @@ from app.config import (
     get_recommend_settings,
 )
 from app.deps import current_user, get_db
-from app.models import Artist, GeneratedList, ListItem, User
+from app.models import Artist, GeneratedList, ListItem, User, UserTrackMeta
 from app.recommend.service import NoGraph, NoProfile, compute_candidates, generate_list
 
 router = APIRouter(prefix="/recommend")
@@ -84,6 +84,15 @@ def _list_out(db: Session, lst: GeneratedList) -> dict:
     ).all()
     ids = {i.artist_id for i in items} | {r["seed_id"] for i in items for r in i.reasons}
     names = _names(db, ids)
+    metas = {
+        m.track_id: m
+        for m in db.scalars(
+            select(UserTrackMeta).where(
+                UserTrackMeta.user_id == lst.user_id,
+                UserTrackMeta.track_id.in_([i.track_id for i in items if i.track_id]),
+            )
+        )
+    }
     return {
         "id": lst.id,
         "created_at": lst.created_at.isoformat(),
@@ -98,6 +107,7 @@ def _list_out(db: Session, lst: GeneratedList) -> dict:
                 "artist_id": i.artist_id,
                 "name": names.get(i.artist_id),
                 "track_id": i.track_id,
+                "title": metas[i.track_id].title if i.track_id in metas else None,
                 "score": round(i.score, 6),
                 "reasons": [_reason(r, names) for r in i.reasons],
             }
