@@ -138,3 +138,22 @@ def test_expired_token_refreshed_and_stored_encrypted(monkeypatch):
     assert decrypt_value(KEY, conn.access_token_enc) == "NEW"
     assert decrypt_value(KEY, conn.refresh_token_enc) == "RT"  # yanıtta yoksa eskisi kalır
     assert db.commits == 1
+
+
+def test_open_url_resolves_isrc_to_track_uri():
+    seen = []
+
+    def handler(req):
+        seen.append(dict(req.url.params))
+        return httpx.Response(200, json={"tracks": {"items": [{"id": "abc123"}]}})
+
+    assert _adapter(handler).open_url("USAAA0000001", "X") == ("track", "spotify:track:abc123")
+    assert seen == [{"q": "isrc:USAAA0000001", "type": "track", "limit": "1"}]
+
+
+def test_open_url_falls_back_to_artist_search():
+    empty = _adapter(lambda r: httpx.Response(200, json={"tracks": {"items": []}}))
+    assert empty.open_url("USAAA0000001", "Tyler, The Creator") == (
+        "search", "spotify:search:Tyler%2C%20The%20Creator")
+    no_isrc = _adapter(lambda r: pytest.fail("ISRC yoksa çağrı yapılmaz"))
+    assert no_isrc.open_url(None, "Drake") == ("search", "spotify:search:Drake")
