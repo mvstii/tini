@@ -1,5 +1,6 @@
-"""Zenginleştirme işi: sanatçısı çözülmemiş parçaları MusicBrainz'den eşler.
+"""Zenginleştirme işi: sanatçısı çözülmemiş parçaları eşler.
 
+Kademe A (MusicBrainz, ISRC) her zaman; kademe B (Last.fm, ad) yalnızca LASTFM_API_KEY varsa.
 CLI: python -m app.jobs.enrich [--limit N]
 """
 import argparse
@@ -9,12 +10,19 @@ import httpx
 from sqlalchemy.orm import Session
 
 from app.catalog.resolve import resolve_pending
+from app.catalog.resolve_b import resolve_pending_b
 from app.config import get_graph_settings, get_settings
 from app.db import make_engine
 from app.sources.http import SourceClient
+from app.sources.lastfm import LastfmClient
 from app.sources.musicbrainz import MusicBrainzClient
 
 log = logging.getLogger("tini.enrich")
+
+
+def _quiet_http_logs() -> None:
+    """httpx istek satırları URL yazar; Last.fm anahtarı URL'de olduğundan INFO susturulur."""
+    logging.getLogger("httpx").setLevel(logging.WARNING)
 
 
 def make_musicbrainz(client: httpx.Client) -> MusicBrainzClient:
@@ -29,13 +37,30 @@ def make_musicbrainz(client: httpx.Client) -> MusicBrainzClient:
     return MusicBrainzClient(http, cfg.musicbrainz_base_url)
 
 
-def run(limit: int = 100) -> dict[str, int]:
+def make_lastfm(client: httpx.Client) -> LastfmClient | None:
+    settings = get_settings()
+    if not settings.lastfm_api_key:
+        return None
+    cfg = get_graph_settings()
+    http = SourceClient.from_settings(
+        client, cfg, user_agent=f"Tini/0.1 ( {settings.musicbrainz_contact} )",
+        min_interval=cfg.lastfm_min_interval_seconds,
+    )
+    return LastfmClient(http, cfg.lastfm_base_url, settings.lastfm_api_key)
+
+
+def run(limit: int = 100) -> dict[str, dict[str, int]]:
+    _quiet_http_logs()
     cfg = get_graph_settings()
     engine = make_engine()
+    result: dict[str, dict[str, int]] = {}
     with httpx.Client(timeout=20) as client, Session(engine) as db:
-        counts = resolve_pending(db, make_musicbrainz(client), cfg, limit=limit)
-    log.info("enrich: %s", counts)
-    return counts
+        result["tier_a"] = resolve_pending(db, make_musicbrainz(client), cfg, limit=limit)
+        lfm = make_lastfm(client)
+        if lfm is not None:
+            result["tier_b"] = resolve_pending_b(db, lfm, cfg, limit=limit)
+    log.info("enrich: %s", result)
+    return result
 
 
 def run_background(limit: int = 100) -> None:
