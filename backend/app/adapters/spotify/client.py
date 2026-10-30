@@ -69,12 +69,16 @@ class SpotifyAdapter:
             self._request("POST", f"/playlists/{pl['id']}/items", json={"uris": uris})
         return pl["id"]
 
+    def find_track(self, isrc: str) -> str | None:
+        """ISRC'den servis parça kimliği; bulunamazsa None. Kimlik saklanmaz."""
+        body = self._request(
+            "GET", "/search", params={"q": f"isrc:{isrc}", "type": "track", "limit": 1}
+        )
+        items = (body.get("tracks") or {}).get("items") or []
+        return items[0]["id"] if items and items[0].get("id") else None
+
     def open_url(self, isrc: str | None, artist_name: str) -> tuple[str, str]:
-        if isrc:
-            body = self._request(
-                "GET", "/search", params={"q": f"isrc:{isrc}", "type": "track", "limit": 1}
-            )
-            items = (body.get("tracks") or {}).get("items") or []
-            if items and items[0].get("id"):
-                return "track", f"spotify:track:{items[0]['id']}"
+        tid = self.find_track(isrc) if isrc else None
+        if tid:
+            return "track", f"spotify:track:{tid}"
         return "search", f"spotify:search:{quote(artist_name)}"

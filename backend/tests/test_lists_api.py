@@ -200,3 +200,63 @@ def test_item_open_requires_connection_and_ownership(client, db):
     assert client.get(f"/lists/{lid}/items/99/open", headers=h1).status_code == 404
     h2 = register(client, "l9@example.com")
     assert client.get(f"/lists/{lid}/items/1/open", headers=h2).status_code == 404
+
+
+def _export_setup(client, db, monkeypatch, email, tag, handler):
+    h, seed, c1, c2 = setup_user(client, db, email, tag)
+    db.add(Track(isrc=f"ZZ{tag}00000099", artist_id=c1.id))
+    db.flush()
+    lst = client.post("/lists/generate", headers=h).json()
+    _connect_spotify(db, email, monkeypatch, handler)
+    return h, lst
+
+
+def test_export_writes_playlist_and_reports_skipped(client, db, monkeypatch):
+    import httpx
+
+    posted = []
+
+    def handler(req):
+        if req.url.path == "/v1/search":
+            return httpx.Response(200, json={"tracks": {"items": [{"id": "T1"}]}})
+        if req.url.path == "/v1/me":
+            return httpx.Response(200, json={"id": "me"})
+        if req.url.path == "/v1/users/me/playlists":
+            return httpx.Response(201, json={"id": "PL1"})
+        posted.append((req.url.path, req.content))
+        return httpx.Response(201, json={})
+
+    h, lst = _export_setup(client, db, monkeypatch, "e1@example.com", "EA", handler)
+    r = client.post(f"/lists/{lst['id']}/export/spotify", headers=h)
+    assert r.status_code == 201
+    body = r.json()
+    assert body["playlist_id"] == "PL1" and body["added"] == 1 and len(body["skipped"]) == 1
+    assert posted[0][0] == "/v1/playlists/PL1/items" and b"spotify:track:T1" in posted[0][1]
+
+
+def test_export_with_nothing_resolvable_creates_no_playlist(client, db, monkeypatch):
+    import httpx
+
+    def handler(req):
+        if req.url.path == "/v1/search":
+            return httpx.Response(200, json={"tracks": {"items": []}})
+        raise AssertionError("çalma listesi oluşturulmamalı")
+
+    h, lst = _export_setup(client, db, monkeypatch, "e2@example.com", "EB", handler)
+    r = client.post(f"/lists/{lst['id']}/export/spotify", headers=h)
+    assert r.json() == {"playlist_id": None, "added": 0, "skipped": [1, 2]}
+
+
+def test_export_maps_scope_error_and_checks_access(client, db, monkeypatch):
+    import httpx
+
+    def handler(req):
+        if req.url.path == "/v1/search":
+            return httpx.Response(200, json={"tracks": {"items": [{"id": "T1"}]}})
+        return httpx.Response(403)
+
+    h, lst = _export_setup(client, db, monkeypatch, "e3@example.com", "EC", handler)
+    assert client.post(f"/lists/{lst['id']}/export/spotify", headers=h).status_code == 409
+    assert client.post(f"/lists/{lst['id']}/export/nope", headers=h).status_code == 400
+    h2 = register(client, "e4@example.com")
+    assert client.post(f"/lists/{lst['id']}/export/spotify", headers=h2).status_code == 404

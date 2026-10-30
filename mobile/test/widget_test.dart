@@ -7,6 +7,7 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:tini/api.dart';
 import 'package:tini/main.dart';
+import 'package:tini/screens/history_screen.dart';
 import 'package:tini/screens/list_screen.dart';
 import 'package:tini/screens/rating_screen.dart';
 
@@ -290,6 +291,61 @@ void main() {
       await tester.tap(find.text('Liste üret'));
       await tester.pumpAndSettle();
       expect(find.text('Önce oylayıp profilini kur.'), findsOneWidget);
+    });
+
+    testWidgets('saves the list to Spotify and reports skipped items', (tester) async {
+      var exported = false;
+      final api = _api((req) async {
+        if (req.url.path == '/lists/generate') {
+          return http.Response.bytes(utf8.encode(jsonEncode(listJson)), 201);
+        }
+        if (req.url.path == '/lists/7/export/spotify') {
+          exported = true;
+          return http.Response('{"playlist_id": "PL1", "added": 3, "skipped": [2, 5]}', 201);
+        }
+        return http.Response('{}', 200);
+      }, _MemoryStorage());
+      await tester.pumpWidget(MaterialApp(home: ListScreen(api: api)));
+      expect(find.text("Spotify'a kaydet"), findsNothing);
+      await tester.tap(find.text('Liste üret'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text("Spotify'a kaydet"));
+      await tester.pumpAndSettle();
+      expect(exported, isTrue);
+      expect(find.text("Spotify'a kaydedildi: 3 parça, 2 öğe atlandı"), findsOneWidget);
+    });
+  });
+
+  group('history screen', () {
+    testWidgets('lists current votes and changing one casts a new vote', (tester) async {
+      Object? cast;
+      final api = _api((req) async {
+        if (req.url.path == '/votes/history') {
+          return http.Response.bytes(
+              utf8.encode(jsonEncode({
+                'total': 1,
+                'items': [
+                  {'track': 5, 'vote': 4, 'title': 'Şarkı', 'artists': ['Sanatçı']}
+                ],
+              })),
+              200);
+        }
+        if (req.url.path == '/votes' && req.method == 'POST') {
+          cast = jsonDecode(req.body);
+          return http.Response('{}', 201);
+        }
+        return http.Response('{}', 200);
+      }, _MemoryStorage());
+      await tester.pumpWidget(MaterialApp(home: HistoryScreen(api: api)));
+      await tester.pumpAndSettle();
+      expect(find.text('Şarkı'), findsOneWidget);
+      expect(find.text('4 · Good'), findsOneWidget);
+
+      await tester.tap(find.text('Şarkı'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('6 · Amazing'));
+      await tester.pumpAndSettle();
+      expect(cast, {'track': 5, 'vote': 6});
     });
   });
 }

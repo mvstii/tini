@@ -55,6 +55,32 @@ class _ListScreenState extends State<ListScreen> {
     }
   }
 
+  Future<void> _export() async {
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      final r = await widget.api.exportList(_list!.id);
+      if (!mounted) return;
+      final msg = r.added == 0
+          ? 'Bu listedeki öğelerin çalınabilir parçası bulunamadı.'
+          : "Spotify'a kaydedildi: ${r.added} parça"
+              "${r.skipped > 0 ? ', ${r.skipped} öğe atlandı' : ''}";
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+    } on ApiException catch (ex) {
+      if (mounted) {
+        setState(() => _error = ex.status == 409
+            ? "Spotify'ı (yeniden) bağla; çalma listesi izni gerekebilir."
+            : ex.message);
+      }
+    } catch (_) {
+      if (mounted) setState(() => _error = 'Sunucuya ulaşılamadı');
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
   Future<void> _open(ListEntry e) async {
     try {
       final url = await widget.api.openUrl(_list!.id, e.position);
@@ -113,6 +139,11 @@ class _ListScreenState extends State<ListScreen> {
             onPressed: _busy ? null : _generate,
             child: Text(list == null ? 'Liste üret' : 'Yeniden üret'),
           ),
+          if (list != null && list.items.isNotEmpty)
+            OutlinedButton(
+              onPressed: _busy ? null : _export,
+              child: const Text("Spotify'a kaydet"),
+            ),
           if (_busy) const Padding(padding: EdgeInsets.all(16), child: LinearProgressIndicator()),
           if (_error != null)
             Padding(

@@ -51,6 +51,20 @@ class Reason {
   final bool isAnchor;
 }
 
+class HistoryItem {
+  HistoryItem(this.track, this.vote, this.title, this.artists);
+  final int track;
+  final int vote;
+  final String? title;
+  final List<String> artists;
+}
+
+class ExportResult {
+  ExportResult(this.added, this.skipped);
+  final int added;
+  final int skipped;
+}
+
 class ListEntry {
   ListEntry(this.position, this.name, this.title, this.reasons);
   final int position;
@@ -142,6 +156,21 @@ class Api {
   }
 
   Future<void> rebuildProfile() => _send('POST', '/profile/rebuild');
+
+  /// Oy geçmişi: parça başına güncel oy, yeniden eskiye.
+  Future<List<HistoryItem>> voteHistory({int limit = 200}) async {
+    final body = await _send('GET', '/votes/history?limit=$limit');
+    return (body['items'] as List)
+        .map((e) => HistoryItem(e['track'] as int, e['vote'] as int, e['title'] as String?,
+            ((e['artists'] as List?) ?? const []).cast<String>()))
+        .toList();
+  }
+
+  /// Listeyi servise özel çalma listesi olarak yazar; atlanan öğe sayısını döndürür.
+  Future<ExportResult> exportList(int listId, {String service = 'spotify'}) async {
+    final body = await _send('POST', '/lists/$listId/export/$service');
+    return ExportResult(body['added'] as int, (body['skipped'] as List).length);
+  }
 
   Future<DiscoveryList> generateList() async {
     final body = await _send('POST', '/lists/generate');

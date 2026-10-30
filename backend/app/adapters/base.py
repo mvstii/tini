@@ -28,6 +28,9 @@ class MusicServiceAdapter(Protocol):
     def create_playlist(self, name: str, external_ids: list[str]) -> str:
         """Özel liste oluşturur, şarkıları ekler, liste kimliğini döndürür."""
 
+    def find_track(self, isrc: str) -> str | None:
+        """ISRC'den servis parça kimliği (create_playlist girdisi); bulunamazsa None."""
+
     def open_url(self, isrc: str | None, artist_name: str) -> tuple[str, str]:
         """Servis uygulamasında açılacak bağlantı: ("track", url) ya da ("search", url) yedeği.
 
