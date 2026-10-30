@@ -1,6 +1,6 @@
 # Faz 4 Planı — Mobil deneyim ve çıktı
 
-Taslak: 30 Ekim 2026 · Durum: **onay bekliyor** · Süre: 21 Aralık–3 Ocak (erken başlanabilir; Faz 3 kapısı geçildi)
+Taslak: 30 Ekim 2026 · Durum: **onaylandı** (30 Ekim 2026; Premium sorusu açık) · Süre: 21 Aralık–3 Ocak (erken başlanabilir; Faz 3 kapısı geçildi)
 
 Kapı: telefonda oylayıp gerekçeli listeyi Spotify'a kaydedebiliyorsun.
 
