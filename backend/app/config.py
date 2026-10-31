@@ -139,6 +139,22 @@ class RecommendSettings(BaseSettings):
     familiar_fraction: float = 0.5  # havuzsuz adayların üst kesri = familiar, kalanı explore
 
 
+class ReleasesSettings(BaseSettings):
+    """Yayın tespiti parametreleri. Ortamdan RELEASES_ önekiyle ezilir."""
+
+    model_config = SettingsConfigDict(env_file=".env", env_prefix="RELEASES_", extra="ignore")
+
+    window_days: int = 120  # tespit penceresi: bugünden geriye
+    refetch_days: int = 7  # aynı sanatçı için yeniden sorgu aralığı
+    search_limit: int = 25  # sanatçı başına en çok yayın
+    types: tuple[str, ...] = ("album", "ep", "single")
+
+
+@lru_cache
+def get_releases_settings() -> ReleasesSettings:
+    return ReleasesSettings()
+
+
 @lru_cache
 def get_recommend_settings() -> RecommendSettings:
     return RecommendSettings()

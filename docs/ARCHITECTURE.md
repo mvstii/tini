@@ -148,3 +148,13 @@ Yorum:
 - Apple Developer Program License Agreement okunmadı.
 
 **Doğrulanamayan:** Spotify'ın Şubat 2026 blog yazısı okunamadı.
+
+## Faz 5 / S4 spike: yayın kaynağı doğrulaması (1 Kasım 2026, gerçek istekler)
+
+Örnek: veritabanındaki ilk 40 MBID'li sanatçı.
+
+- **MusicBrainz `release-group` listeleme (`?artist=MBID`)**: büyük kataloglu sanatçılarda (Jay-Z, Kendrick, Ye) limit 100'de kesilir ve sıralama tarihe göre değildir; "en yeni yayın" bununla güvenilir bulunamaz. Kullanılmaz.
+- **MusicBrainz arama ucu + tarih aralığı** (`/release-group?query=arid:MBID AND firstreleasedate:[2026-08-01 TO 2026-11-01] AND (primarytype:album OR ep OR single)`): 40 sanatçının 17'sinde son ~3 ayda yayın döndü (Don Toliver, Drake, Travis Scott, Eminem, Lennsko, EsDeeKid…); tarihler tam gün hassasiyetinde ve gerçekçi. Sanatçı başına tek istek. 1 istek/sn ile 40 sanatçı ≈ 2 dk; ~250 sanatçı ≈ 5 dk (haftalık iş için kabul). Anonim 503'ler görüldü; kaynak istemcisinin geri çekilmesi şart. **Birincil kaynak bu.**
+- **ListenBrainz `explore/fresh-releases`** (global, `days=30`): 9897 yayın döndü, bunlardan yalnızca 5'i bizim 40 sanatçıdan (MusicBrainz aramasının yakaladığı 17'nin alt kümesi). Tek istekle tüm sanatçılar için bakılabilir ama kapsamı düşük (yalnızca ListenBrainz'e giren yayınlar). Kullanılmaz; ikincil/yedek olarak ertelenir.
+- **Çalışma notları:** işbirliği yayınları ("X feat. Y") ana sanatçı MBID'sine ait görünür; aynı release-group birden çok sanatçıda çıkabilir (VULTURES: Ye ve ¥$) → `release` tablosu release-group MBID'sine göre tekilleştirilir. Eski albümlerin yeniden yayını (Donda, VULTURES 2026-08-28 tarihli) `first-release-date` değerine yansıyabilir; "yeni" sayılırken tür ve tarih penceresi birlikte kullanılır.
+- **MBID'siz sanatçılar** (~%26): Last.fm'de yayın tarihi veren uç yok (`artist.getTopAlbums` tarihsiz). Bu sanatçılar için yayın tespiti kapsam dışı; takip listesi yalnızca MBID'li sanatçılarla çalışır.
