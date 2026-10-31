@@ -143,3 +143,20 @@ def test_import_requires_connection_then_imports(client, db):
     assert r.status_code == 200 and r.json() == {"imported": 1, "skipped": 0}
     assert db.scalar(select(func.count()).select_from(UserTrackMeta)
                      .where(UserTrackMeta.user_id == uid)) == 1
+
+
+def test_import_with_undecryptable_token_is_409_not_500(client, db):
+    from app.models import User
+
+    h, _ = _login(client)
+    uid = db.scalars(select(User.id).where(User.email == "ep@example.com")).one()
+    db.add(
+        ServiceConnection(
+            user_id=uid, service="spotify", external_user_id="u",
+            access_token_enc=encrypt_value(Fernet.generate_key().decode(), "AT"),  # başka anahtar
+            expires_at=datetime.now(UTC) + timedelta(hours=1),
+        )
+    )
+    db.flush()
+    r = client.post("/library/import", headers=h)
+    assert r.status_code == 409 and "yeniden bağla" in r.json()["detail"]

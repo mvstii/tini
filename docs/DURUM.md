@@ -108,12 +108,13 @@ S5 notu: Dışa aktarma yalnızca katalogda parçası olan öğeleri yazar; sana
 - Bağlama, kütüphane aktarma, oylama, profil, liste üretimi, oy geçmişi çalışıyor.
 - Spotify `POST /users/{id}/playlists` 403 veriyor; `POST /me/playlists` çalışıyor (istemci buna geçirildi).
 - İlk dışa aktarma 20 öğenin yalnızca 3'ünü yazdı (sanatçı düzeyindeki öğelerin ISRC'li parçası yok). Onaylanan çözüm: `find_artist_track` (`/search?q=artist:"<ad>"`, sonuçta sanatçı adı eşleşmeli; ISRC yoksa/çözülmezse yedek; hem `export` hem `open` yolunda). 169 backend testi geçiyor, ruff temiz. **Canlı denendi (31 Ekim 2026): 20 öğenin 17'si yazıldı, 3'ü atlandı** (önceki 3/20). **Faz 4 kapısı geçildi.**
+- Atlanan 3 öğe teşhis edildi (31 Ekim 2026): "Travi$ Scott" (ad farkı), "NAV" (kısa ad, doğru sanatçı arama 2. sayfasında; sayfa limitten kısa dönebilir), "Child Rebel Soldier" (Spotify'da yok, doğru atlama). `find_artist_track` artık adı `$`/aksan/noktalama toleranslı karşılaştırır ve en çok 3 sayfa tarar (boş sayfada durur). Canlıda yalnızca Spotify'da olmayan sanatçı atlanıyor (18/20 bekleniyor; çalma listesi yeniden yazımıyla doğrulanmadı, çözümleme canlı kontrol edildi). Dışa aktarma yanıtı `skipped_names` döner ve liste ekranı atlanan sanatçı adlarını gösterir.
 - Emülatörde Spotify uygulaması kurulu olmadığı için "Spotify'da aç" açılmaz (mesaj düzeltildi); gerçek telefonda denenmeli.
 - `backend/.env` içinde `CREDENTIAL_KEY` ve `SPOTIFY_CLIENT_ID` boştu, dolduruldu. Anahtar değişince eski `service_connection` satırları çözülemez (InvalidToken → 500); satırlar silindi, yeniden bağlandı. Emülatörde OAuth dönüşü için `adb reverse tcp:8000 tcp:8000` gerekir (adb: `C:\src\android-sdk\platform-tools\adb.exe`).
 
 **Yapılacaklar (sırayla):**
 1. ~~Artist-track canlı denemesi, commit + PR #29, kapı~~ Yapıldı (17/20). Kalan: #28 ardından #29'u birleştir (#29 tabanını `main` yap). Auto-fix #29'da reddedilmişti.
-2. Sağlamlaştırma: `InvalidToken` → 409 "Spotify'ı yeniden bağla" (500 yerine), testle.
+2. ~~Sağlamlaştırma: `InvalidToken` → 409~~ Yapıldı: `connections._decrypt` `InvalidToken`'ı `PermissionError`'a çevirir, çağıranlar 409 döner (testli).
 3. Faz 5 (sistemsel): Unheard durum makinesi + aktif öğrenme kuyruğu, Thompson sampling slot dağılımı, takip listesi/yayın tespiti/haftalık Taze listesi, "Yeni" akışı, değerlendirme betikleri. Önce plan sunulup onay alınır (`docs/FAZ5_PLAN.md`).
 4. En sonda: UI yenileme ve şarkı kapakları. Plan: kapak URL'si `user_track_meta.image_url` (Spotify, TTL'li, kullanıcıya özel; dosya saklanmaz); liste/kuyruk/geçmiş yanıtlarına `image_url`; kapak yoksa yer tutucu; koyu temalı, kapak ağırlıklı kart tasarımı. Şema değişikliği olduğundan başlamadan onay alınır.
 S3 notu: Gerekçe itirazı yalnızca kayıttır; profile/algoritmaya etkisi Faz 5'te. Liste öğeleri parça başlığı taşımaz (önerilen parçalar kütüphanede olmadığından); başlık/çalma S4'te.

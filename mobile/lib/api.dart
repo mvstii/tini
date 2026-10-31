@@ -60,9 +60,10 @@ class HistoryItem {
 }
 
 class ExportResult {
-  ExportResult(this.added, this.skipped);
+  ExportResult(this.added, this.skippedNames);
   final int added;
-  final int skipped;
+  final List<String> skippedNames;
+  int get skipped => skippedNames.length;
 }
 
 class ListEntry {
@@ -169,7 +170,13 @@ class Api {
   /// Listeyi servise özel çalma listesi olarak yazar; atlanan öğe sayısını döndürür.
   Future<ExportResult> exportList(int listId, {String service = 'spotify'}) async {
     final body = await _send('POST', '/lists/$listId/export/$service');
-    return ExportResult(body['added'] as int, (body['skipped'] as List).length);
+    final skipped = body['skipped'] as List;
+    final names = (body['skipped_names'] as List?)?.cast<String>() ?? const <String>[];
+    // Eski sunucu adları göndermezse sayı korunur.
+    return ExportResult(
+      body['added'] as int,
+      names.length == skipped.length ? names : List<String>.filled(skipped.length, ''),
+    );
   }
 
   Future<DiscoveryList> generateList() async {

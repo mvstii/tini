@@ -173,3 +173,49 @@ def test_find_artist_track_requires_matching_artist_name():
     assert a.find_artist_track("Kimse") is None
     assert a.find_artist_track("") is None
     assert a.open_url(None, "Drake") == ("track", "spotify:track:X2")
+
+
+def test_find_artist_track_folds_dollar_and_punctuation():
+    def handler(req):
+        items = [{"id": "T1", "artists": [{"name": "Travis Scott"}]}]
+        return httpx.Response(200, json={"tracks": {"items": items}})
+
+    a = _adapter(handler)
+    assert a.find_artist_track("Travi$ Scott") == "T1"
+    assert a.find_artist_track("TRAVIS  SCOTT.") == "T1"
+
+
+def test_find_artist_track_scans_later_pages_for_short_names():
+    offsets = []
+
+    def handler(req):
+        off = int(req.url.params["offset"])
+        offsets.append(off)
+        if off == 10:
+            items = [{"id": "N1", "artists": [{"name": "NAV"}]}]
+        else:
+            items = [{"id": f"x{off}{i}", "artists": [{"name": "NAVAI"}]} for i in range(10)]
+        return httpx.Response(200, json={"tracks": {"items": items}})
+
+    a = _adapter(handler)
+    assert a.find_artist_track("NAV") == "N1"
+    assert offsets == [0, 10]
+
+
+def test_find_artist_track_gives_up_after_page_limit_or_empty_page():
+    offsets = []
+    empty = False
+
+    def handler(req):
+        offsets.append(int(req.url.params["offset"]))
+        n = 0 if empty else 5  # canlıda sayfa limitten kısa döner
+        items = [{"id": f"x{i}", "artists": [{"name": "Baska"}]} for i in range(n)]
+        return httpx.Response(200, json={"tracks": {"items": items}})
+
+    a = _adapter(handler)
+    assert a.find_artist_track("Kimse") is None
+    assert offsets == [0, 10, 20]
+    offsets.clear()
+    empty = True
+    assert a.find_artist_track("Kimse") is None
+    assert offsets == [0]

@@ -268,6 +268,7 @@ def export_list(
     ).all())
     ids: list[str] = []
     skipped: list[int] = []
+    skipped_names: list[str] = []
     try:
         for i in items:
             tid = adapter.find_track(isrcs[i.track_id]) if i.track_id in isrcs else None
@@ -277,12 +278,15 @@ def export_list(
                 ids.append(tid)
             else:
                 skipped.append(i.position)
+                skipped_names.append(names.get(i.artist_id, ""))
         if not ids:
-            return {"playlist_id": None, "added": 0, "skipped": skipped}
+            return {"playlist_id": None, "added": 0, "skipped": skipped,
+                    "skipped_names": skipped_names}
         playlist_id = adapter.create_playlist(f"Tını keşif {lst.created_at:%Y-%m-%d}", ids)
     except httpx.HTTPStatusError as e:
         code = 409 if e.response.status_code in (401, 403) else 502
         raise HTTPException(code, "Servis çalma listesini yazamadı") from e
     except httpx.HTTPError as e:
         raise HTTPException(502, "Servise ulaşılamadı") from e
-    return {"playlist_id": playlist_id, "added": len(ids), "skipped": skipped}
+    return {"playlist_id": playlist_id, "added": len(ids), "skipped": skipped,
+            "skipped_names": skipped_names}

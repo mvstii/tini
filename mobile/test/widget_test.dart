@@ -301,7 +301,7 @@ void main() {
         }
         if (req.url.path == '/lists/7/export/spotify') {
           exported = true;
-          return http.Response('{"playlist_id": "PL1", "added": 3, "skipped": [2, 5]}', 201);
+          return http.Response('{"playlist_id": "PL1", "added": 3, "skipped": [2, 5], "skipped_names": ["Child Rebel Soldier", "Foo"]}', 201);
         }
         return http.Response('{}', 200);
       }, _MemoryStorage());
@@ -312,7 +312,10 @@ void main() {
       await tester.tap(find.text("Spotify'a kaydet"));
       await tester.pumpAndSettle();
       expect(exported, isTrue);
-      expect(find.text("Spotify'a kaydedildi: 3 parça, 2 öğe atlandı"), findsOneWidget);
+      expect(
+        find.text("Spotify'a kaydedildi: 3 parça, 2 öğe atlandı (Child Rebel Soldier, Foo)"),
+        findsOneWidget,
+      );
     });
   });
 
