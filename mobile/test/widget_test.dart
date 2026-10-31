@@ -7,6 +7,7 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:tini/api.dart';
 import 'package:tini/main.dart';
+import 'package:tini/screens/fresh_screen.dart';
 import 'package:tini/screens/history_screen.dart';
 import 'package:tini/screens/list_screen.dart';
 import 'package:tini/screens/rating_screen.dart';
@@ -192,6 +193,66 @@ void main() {
       await tester.tap(find.text('Kütüphaneyi yenile'));
       await tester.pumpAndSettle();
       expect(f.calls, contains('POST /library/import'));
+    });
+  });
+
+  group('fresh screen', () {
+    final feedJson = {
+      'total': 1,
+      'items': [
+        {'release_id': 1, 'title': 'Yeni Albüm', 'type': 'album', 'released': '2026-10-30',
+         'artist_id': 5, 'artist': 'Sanatçı X', 'follow': 'auto'},
+      ],
+    };
+    final freshJson = {
+      'id': 9,
+      'items': [
+        {
+          'position': 1,
+          'name': 'Sanatçı X',
+          'title': null,
+          'release': {'id': 1, 'title': 'Yeni Albüm', 'type': 'album', 'released': '2026-10-30'},
+          'reasons': [
+            {'seed_id': 10, 'seed_name': 'Seed A', 'share': 1.0, 'is_anchor': true},
+          ],
+        }
+      ],
+    };
+
+    testWidgets('shows the feed on open and generates the fresh list', (tester) async {
+      final api = _api((req) async {
+        if (req.url.path == '/releases/new') {
+          return http.Response.bytes(utf8.encode(jsonEncode(feedJson)), 200);
+        }
+        if (req.url.path == '/lists/generate-fresh') {
+          return http.Response.bytes(utf8.encode(jsonEncode(freshJson)), 201);
+        }
+        return http.Response('{}', 200);
+      }, _MemoryStorage());
+      await tester.pumpWidget(MaterialApp(home: FreshScreen(api: api)));
+      await tester.pumpAndSettle();
+      expect(find.text('Yeni Albüm'), findsOneWidget);
+      expect(find.textContaining('Sanatçı X · album · 2026-10-30'), findsOneWidget);
+
+      await tester.tap(find.text('Taze liste üret'));
+      await tester.pumpAndSettle();
+      expect(find.text('1. Yeni Albüm'), findsOneWidget);
+      expect(find.textContaining('★ Seed A %100'), findsOneWidget);
+    });
+
+    testWidgets('no new releases shows a hint', (tester) async {
+      final api = _api((req) async {
+        if (req.url.path == '/lists/generate-fresh') {
+          return http.Response.bytes(utf8.encode(jsonEncode({'detail': 'yok'})), 409);
+        }
+        return http.Response(jsonEncode({'items': [], 'total': 0}), 200);
+      }, _MemoryStorage());
+      await tester.pumpWidget(MaterialApp(home: FreshScreen(api: api)));
+      await tester.pumpAndSettle();
+      expect(find.text('Henüz yeni yayın yok.'), findsOneWidget);
+      await tester.tap(find.text('Taze liste üret'));
+      await tester.pumpAndSettle();
+      expect(find.text('Takip ettiğin sanatçıların yeni yayını yok.'), findsOneWidget);
     });
   });
 

@@ -1,7 +1,7 @@
 """Öneri veritabanı katmanı: son profil -> adaylar -> MMR listesi -> kalıcı liste."""
 import math
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import date, datetime, timedelta
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
@@ -14,6 +14,8 @@ from app.models import (
     GeneratedList,
     ListFeedback,
     ListItem,
+    Release,
+    ReleaseArtist,
     TasteProfile,
     Track,
     UserTrackArtist,
@@ -21,9 +23,11 @@ from app.models import (
 )
 from app.profile.service import load_profile_votes, unheard_statuses
 from app.recommend.bandit import SLOTS, allocate, slot_shares
+from app.recommend.fresh import FreshRelease, rank_fresh
 from app.recommend.outcomes import ArtistVote, ItemRef, derive_outcomes
-from app.recommend.ppr import Candidate, score_candidates
+from app.recommend.ppr import Candidate, explain, score_candidates
 from app.recommend.select import select_mmr
+from app.releases.service import user_follows
 
 
 class NoProfile(Exception):
@@ -31,6 +35,10 @@ class NoProfile(Exception):
 
 
 class NoGraph(Exception):
+    pass
+
+
+class NoReleases(Exception):
     pass
 
 
@@ -42,10 +50,7 @@ class Scored:
     cands: list[Candidate]
 
 
-def compute_candidates(
-    db: Session, user_id, now: datetime, cfg: RecommendSettings, pcfg: ProfileSettings,
-    gcfg: GraphSettings,
-) -> Scored:
+def latest_profile_graph(db: Session, user_id, gcfg: GraphSettings):
     row = db.scalar(
         select(TasteProfile)
         .where(TasteProfile.user_id == user_id)
@@ -57,7 +62,14 @@ def compute_candidates(
     built = get_matrix(db, gcfg)
     if built is None:
         raise NoGraph
-    graph_version, gm = built
+    return row, built[0], built[1]
+
+
+def compute_candidates(
+    db: Session, user_id, now: datetime, cfg: RecommendSettings, pcfg: ProfileSettings,
+    gcfg: GraphSettings,
+) -> Scored:
+    row, graph_version, gm = latest_profile_graph(db, user_id, gcfg)
     known = {
         v.artist_id for v in load_profile_votes(db, user_id, now, pcfg) if v.artist_id is not None
     }
@@ -90,7 +102,7 @@ def slot_outcomes(db: Session, user_id) -> dict[str, tuple[int, int]]:
                 GeneratedList.created_at,
             )
             .join(GeneratedList, GeneratedList.id == ListItem.list_id)
-            .where(GeneratedList.user_id == user_id)
+            .where(GeneratedList.user_id == user_id, GeneratedList.kind == "main")
         )
     ]
     if not items:
@@ -199,6 +211,75 @@ def generate_list(
                 reasons=[
                     {"seed_id": r.seed_id, "share": r.share, "is_anchor": r.is_anchor}
                     for r in c.reasons
+                ],
+            )
+        )
+    db.commit()
+    return lst
+
+
+def window_releases(
+    db: Session, artist_ids, today: date, days: int, exclude_release_ids=()
+) -> list[FreshRelease]:
+    """Verilen sanatçıların pencere içindeki yayınları (sanatçı, yayın) çiftleri."""
+    if not artist_ids:
+        return []
+    rows = db.execute(
+        select(Release.id, ReleaseArtist.artist_id, Release.first_release_date)
+        .join(ReleaseArtist, ReleaseArtist.release_id == Release.id)
+        .where(
+            ReleaseArtist.artist_id.in_(list(artist_ids)),
+            Release.first_release_date >= today - timedelta(days=days),
+            Release.first_release_date <= today,
+        )
+    ).all()
+    skip = set(exclude_release_ids)
+    return [FreshRelease(*r) for r in rows if r[0] not in skip]
+
+
+def generate_fresh(
+    db: Session, user_id, now: datetime, cfg: RecommendSettings, gcfg: GraphSettings
+) -> GeneratedList:
+    """Haftalık Taze liste: takip edilen sanatçıların yayınları (albüm düzeyi), gerekçeli."""
+    prof, graph_version, gm = latest_profile_graph(db, user_id, gcfg)
+    follows = user_follows(db, user_id)
+    seen = set(
+        db.scalars(
+            select(ListItem.release_id)
+            .join(GeneratedList, GeneratedList.id == ListItem.list_id)
+            .where(
+                GeneratedList.user_id == user_id, GeneratedList.kind == "fresh",
+                ListItem.release_id.is_not(None),
+            )
+        )
+    )
+    today = now.date()
+    releases = window_releases(db, follows, today, cfg.fresh_window_days, seen)
+    scores = explain(gm, prof.body, {r.artist_id for r in releases}, cfg)
+    ranked = rank_fresh(releases, scores, today, cfg)
+    if not ranked:
+        raise NoReleases
+    lst = GeneratedList(
+        user_id=user_id, kind="fresh", algo_version=cfg.fresh_algo_version,
+        candidate_algo_version=cfg.recommend_algo_version, profile_version=prof.version,
+        graph_version=graph_version,
+        params={
+            "fresh_list_size": cfg.fresh_list_size, "fresh_window_days": cfg.fresh_window_days,
+            "fresh_half_life_days": cfg.fresh_half_life_days, "ppr_alpha": cfg.ppr_alpha,
+            "ppr_iterations": cfg.ppr_iterations, "anchor_boost": cfg.anchor_boost,
+            "novelty_gamma": cfg.novelty_gamma, "followed": len(follows),
+        },
+    )
+    db.add(lst)
+    db.flush()
+    for pos, i in enumerate(ranked, start=1):
+        db.add(
+            ListItem(
+                list_id=lst.id, position=pos, artist_id=i.artist_id, release_id=i.release_id,
+                score=i.score, slot="fresh",
+                reasons=[
+                    {"seed_id": r.seed_id, "share": r.share, "is_anchor": r.is_anchor}
+                    for r in i.reasons
                 ],
             )
         )

@@ -137,6 +137,11 @@ class RecommendSettings(BaseSettings):
     slot_floor_share: float = 0.1  # her slotun taban payı
     bandit_min_outcomes: int = 10  # bundan az sonuçta pay öncüle eşit
     familiar_fraction: float = 0.5  # havuzsuz adayların üst kesri = familiar, kalanı explore
+    # Taze liste (Faz 5 S5): takip edilen sanatçıların son yayınları, albüm düzeyinde
+    fresh_algo_version: str = "fresh-1"
+    fresh_list_size: int = 15
+    fresh_window_days: int = 30  # yalnız bu kadar gün içindeki yayınlar
+    fresh_half_life_days: float = 14.0  # yenilik çarpanı yarılanma süresi
 
 
 class ReleasesSettings(BaseSettings):

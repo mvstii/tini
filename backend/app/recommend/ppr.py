@@ -119,13 +119,46 @@ def artist_scores(gm: GraphMatrix, profile: dict, cfg: RecommendSettings) -> dic
     return {int(gm.node_ids[i]): float(prop.final[i]) for i in nz}
 
 
+def _reasons(
+    prop: _Propagated, c: int, anchors: set[int], cfg: RecommendSettings
+) -> list[Reason]:
+    """Düğüm c için tohum katkılarının pozitif paylarından gerekçeler (doğrusal ayrışım)."""
+    contrib = prop.acc[c] * prop.w
+    positive = np.where(contrib > 0, contrib, 0.0)
+    total = float(positive.sum())
+    top = np.lexsort((prop.seed_ids, -positive))[: cfg.reason_count]
+    return [
+        Reason(int(prop.seed_ids[i]), float(positive[i] / total), float(contrib[i]),
+               int(prop.seed_ids[i]) in anchors)
+        for i in top
+        if positive[i] > 0
+    ]
+
+
+def explain(
+    gm: GraphMatrix, profile: dict, artist_ids: set[int], cfg: RecommendSettings
+) -> dict[int, tuple[float, list[Reason]]]:
+    """Verilen sanatçılar için (nihai skor, gerekçeler); graftaki olmayanlar dönmez.
+
+    Bilinen/kaçınılan maskesi yok: takip edilen sanatçılar zaten profilin tohumlarıdır."""
+    prop = _propagate(gm, profile, cfg)
+    if prop is None:
+        return {}
+    anchors = {a["artist_id"] for a in profile.get("anchors", [])}
+    out: dict[int, tuple[float, list[Reason]]] = {}
+    for a in sorted(artist_ids):
+        if (p := gm.position(a)) is not None:
+            out[a] = (float(prop.final[p]), _reasons(prop, p, anchors, cfg))
+    return out
+
+
 def score_candidates(
     gm: GraphMatrix, profile: dict, known: set[int], cfg: RecommendSettings
 ) -> list[Candidate]:
     prop = _propagate(gm, profile, cfg)
     if prop is None:
         return []
-    seed_ids, w, acc, mask, seed_pos = prop.seed_ids, prop.w, prop.acc, prop.mask, prop.seed_pos
+    w, acc, mask, seed_pos = prop.w, prop.acc, prop.mask, prop.seed_pos
     raw, final, novelty = prop.raw, prop.final, prop.novelty
     n = gm.node_ids.size
 
@@ -146,15 +179,7 @@ def score_candidates(
     out: list[Candidate] = []
     for c in order:
         contrib = acc[c] * w
-        positive = np.where(contrib > 0, contrib, 0.0)
-        total = float(positive.sum())
-        top = np.lexsort((seed_ids, -positive))[: cfg.reason_count]
-        reasons = [
-            Reason(int(seed_ids[i]), float(positive[i] / total), float(contrib[i]),
-                   int(seed_ids[i]) in anchors)
-            for i in top
-            if positive[i] > 0
-        ]
+        reasons = _reasons(prop, int(c), anchors, cfg)
         out.append(
             Candidate(
                 int(gm.node_ids[c]), float(final[c]), float(raw[c]), float(novelty[c]),

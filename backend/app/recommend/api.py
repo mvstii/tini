@@ -28,12 +28,20 @@ from app.models import (
     GeneratedList,
     ListFeedback,
     ListItem,
+    Release,
     ServiceConnection,
     Track,
     User,
     UserTrackMeta,
 )
-from app.recommend.service import NoGraph, NoProfile, compute_candidates, generate_list
+from app.recommend.service import (
+    NoGraph,
+    NoProfile,
+    NoReleases,
+    compute_candidates,
+    generate_fresh,
+    generate_list,
+)
 
 router = APIRouter(prefix="/recommend")
 lists_router = APIRouter(prefix="/lists")
@@ -93,6 +101,13 @@ def candidates(
     }
 
 
+def _release_out(r: Release | None) -> dict | None:
+    if r is None:
+        return None
+    return {"id": r.id, "title": r.title, "type": r.primary_type,
+            "released": r.first_release_date.isoformat()}
+
+
 def _list_out(db: Session, lst: GeneratedList) -> dict:
     items = db.scalars(
         select(ListItem).where(ListItem.list_id == lst.id).order_by(ListItem.position)
@@ -108,8 +123,15 @@ def _list_out(db: Session, lst: GeneratedList) -> dict:
             )
         )
     }
+    releases = {
+        r.id: r
+        for r in db.scalars(
+            select(Release).where(Release.id.in_([i.release_id for i in items if i.release_id]))
+        )
+    }
     return {
         "id": lst.id,
+        "kind": lst.kind,
         "created_at": lst.created_at.isoformat(),
         "algo_version": lst.algo_version,
         "candidate_algo_version": lst.candidate_algo_version,
@@ -124,6 +146,7 @@ def _list_out(db: Session, lst: GeneratedList) -> dict:
                 "slot": i.slot,
                 "track_id": i.track_id,
                 "title": metas[i.track_id].title if i.track_id in metas else None,
+                "release": _release_out(releases.get(i.release_id)),
                 "score": round(i.score, 6),
                 "reasons": [_reason(r, names) for r in i.reasons],
             }
@@ -146,6 +169,24 @@ def generate(
         raise HTTPException(404, "Henüz profil üretilmedi") from None
     except NoGraph:
         raise HTTPException(409, "Grafik henüz kurulmadı") from None
+    return _list_out(db, lst)
+
+
+@lists_router.post("/generate-fresh", status_code=201)
+def generate_fresh_list(
+    user: User = Depends(current_user),
+    db: Session = Depends(get_db),
+    cfg: RecommendSettings = Depends(get_recommend_settings),
+    gcfg: GraphSettings = Depends(get_graph_settings),
+) -> dict:
+    try:
+        lst = generate_fresh(db, user.id, datetime.now(UTC), cfg, gcfg)
+    except NoProfile:
+        raise HTTPException(404, "Henüz profil üretilmedi") from None
+    except NoGraph:
+        raise HTTPException(409, "Grafik henüz kurulmadı") from None
+    except NoReleases:
+        raise HTTPException(409, "Takip ettiklerinde yeni yayın yok") from None
     return _list_out(db, lst)
 
 
