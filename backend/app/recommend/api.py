@@ -263,12 +263,17 @@ def export_list(
     isrcs = dict(db.execute(
         select(Track.id, Track.isrc).where(Track.id.in_([i.track_id for i in items if i.track_id]))
     ).all())
+    names = dict(db.execute(
+        select(Artist.id, Artist.name).where(Artist.id.in_([i.artist_id for i in items]))
+    ).all())
     ids: list[str] = []
     skipped: list[int] = []
     try:
         for i in items:
             tid = adapter.find_track(isrcs[i.track_id]) if i.track_id in isrcs else None
-            if tid:
+            if not tid:
+                tid = adapter.find_artist_track(names.get(i.artist_id, ""))
+            if tid and tid not in ids:
                 ids.append(tid)
             else:
                 skipped.append(i.position)

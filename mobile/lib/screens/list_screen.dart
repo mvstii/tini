@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show PlatformException;
 import 'package:url_launcher/url_launcher.dart';
 
 import '../api.dart';
@@ -84,7 +85,13 @@ class _ListScreenState extends State<ListScreen> {
   Future<void> _open(ListEntry e) async {
     try {
       final url = await widget.api.openUrl(_list!.id, e.position);
-      if (!await widget.launch(url) && mounted) {
+      var opened = false;
+      try {
+        opened = await widget.launch(url);
+      } on PlatformException {
+        // Uygulama kurulu değilse launchUrl istisna fırlatabilir.
+      }
+      if (!opened && mounted) {
         setState(() => _error = 'Spotify açılamadı. Uygulama kurulu mu?');
       }
     } on ApiException catch (ex) {

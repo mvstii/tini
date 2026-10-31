@@ -57,7 +57,7 @@ Kapı: telefonda oylayıp gerekçeli listeyi Spotify'a kaydedebiliyorsun.
 - [x] Kaydırmalı oylama kartları (6 oy + Unheard), başlangıç turu
 - [x] "Spotify'da aç" (`spotify:` bağlantısı, ISRC çözümü); App Remote ile uygulama içi dinleme Faz 5+'a ertelendi (Development Mode'da doğrulanmadı)
 - [x] Keşif listesi ekranı: gerekçe, slot tipi, gerekçe itirazı
-- [x] Listeyi Spotify'a yazma; oy geçmişi ve oy değiştirme (kod ve testler hazır; kapı için emülatörde canlı doğrulama bekliyor)
+- [x] Listeyi Spotify'a yazma; oy geçmişi ve oy değiştirme (emülatörde canlı doğrulandı, 31 Ekim 2026: 20 öğenin 17'si Spotify'a yazıldı; Faz 4 kapısı geçildi)
 
 ## Faz 5 — Keşif döngüsü ve yeni çıkanlar (Hafta 10–11: 4–17 Ocak)
 

@@ -59,10 +59,8 @@ class SpotifyAdapter:
         return lib
 
     def create_playlist(self, name: str, external_ids: list[str]) -> str:
-        me = self._request("GET", "/me")["id"]
-        pl = self._request(
-            "POST", f"/users/{me}/playlists", json={"name": name, "public": False}
-        )
+        # /users/{id}/playlists canlıda 403 veriyor (31 Ekim 2026); /me/playlists çalışır.
+        pl = self._request("POST", "/me/playlists", json={"name": name, "public": False})
         # /tracks artık 403 veriyor; Faz 0'da doğrulandı, /items kullanılır.
         for i in range(0, len(external_ids), 100):
             uris = [f"spotify:track:{x}" for x in external_ids[i : i + 100]]
@@ -77,8 +75,24 @@ class SpotifyAdapter:
         items = (body.get("tracks") or {}).get("items") or []
         return items[0]["id"] if items and items[0].get("id") else None
 
+    def find_artist_track(self, artist_name: str) -> str | None:
+        """Sanatçının aramada çıkan ilk parçası (artist top-tracks kapalı); ad eşleşmezse None."""
+        if not artist_name:
+            return None
+        q = f'artist:"{artist_name}"'
+        body = self._request("GET", "/search", params={"q": q, "type": "track", "limit": 5})
+        wanted = artist_name.casefold()
+        for t in (body.get("tracks") or {}).get("items") or []:
+            names = {a.get("name", "").casefold() for a in t.get("artists") or []}
+            if t.get("id") and wanted in names:
+                return t["id"]
+        return None
+
     def open_url(self, isrc: str | None, artist_name: str) -> tuple[str, str]:
-        tid = self.find_track(isrc) if isrc else None
+        try:
+            tid = (self.find_track(isrc) if isrc else None) or self.find_artist_track(artist_name)
+        except httpx.HTTPError:
+            tid = None  # servis yanıt vermiyorsa arama bağlantısına düş
         if tid:
             return "track", f"spotify:track:{tid}"
         return "search", f"spotify:search:{quote(artist_name)}"

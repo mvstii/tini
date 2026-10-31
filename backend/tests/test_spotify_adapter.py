@@ -87,9 +87,7 @@ def test_create_playlist_uses_items_endpoint_in_chunks():
     posted = []
 
     def handler(req):
-        if req.url.path == "/v1/me":
-            return httpx.Response(200, json={"id": "u1"})
-        if req.url.path == "/v1/users/u1/playlists":
+        if req.url.path == "/v1/me/playlists":
             return httpx.Response(201, json={"id": "pl1"})
         posted.append((req.url.path, len(req.read().decode().split("spotify:track:")) - 1))
         return httpx.Response(201, json={})
@@ -155,5 +153,23 @@ def test_open_url_falls_back_to_artist_search():
     empty = _adapter(lambda r: httpx.Response(200, json={"tracks": {"items": []}}))
     assert empty.open_url("USAAA0000001", "Tyler, The Creator") == (
         "search", "spotify:search:Tyler%2C%20The%20Creator")
-    no_isrc = _adapter(lambda r: pytest.fail("ISRC yoksa çağrı yapılmaz"))
-    assert no_isrc.open_url(None, "Drake") == ("search", "spotify:search:Drake")
+    assert empty.open_url(None, "Drake") == ("search", "spotify:search:Drake")
+
+
+def test_find_artist_track_requires_matching_artist_name():
+    seen = []
+
+    def handler(req):
+        seen.append(dict(req.url.params))
+        items = [
+            {"id": "X1", "artists": [{"name": "Baska"}]},
+            {"id": "X2", "artists": [{"name": "Feat"}, {"name": "DRAKE"}]},
+        ]
+        return httpx.Response(200, json={"tracks": {"items": items}})
+
+    a = _adapter(handler)
+    assert a.find_artist_track("Drake") == "X2"
+    assert seen[0]["q"] == 'artist:"Drake"' and seen[0]["type"] == "track"
+    assert a.find_artist_track("Kimse") is None
+    assert a.find_artist_track("") is None
+    assert a.open_url(None, "Drake") == ("track", "spotify:track:X2")

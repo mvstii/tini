@@ -103,6 +103,19 @@ S1 notu: `stale > 0` ise istemci `POST /library/import` ile önbelleği yeniler 
 S2 notu: Unheard backend'e yazılmaz (oy 1–6); oturum içinde atlanır, parça sonraki oturumda kuyruğa yeniden gelebilir. Geri al, kartı yeniden gösterir; verilen yeni oy yeni bir olaydır (eski olay silinmez).
 S4 notu: ISRC çözümü tıklama anında yapılır ve saklanmaz (Spotify kimliği hiçbir yerde kalıcı değil); plandaki "kullanıcıya özel önbellek" bu yüzden gerekmedi, her tıklama bir arama çağrısıdır (429 geri çekilme adaptörde). Spotify hata verirse veya parça katalogda yoksa sanatçı araması açılır. App Remote spike'ı yapılmadı: uygulama içi dinleme Faz 5+'a ertelendi (Development Mode ve Premium doğrulanmadı). Canlı doğrulama (telefon/emülatörde Spotify uygulaması) henüz yapılmadı.
 S5 notu: Dışa aktarma yalnızca katalogda parçası olan öğeleri yazar; sanatçı düzeyindeki (parçasız) öğeler atlanır ve konumlarıyla raporlanır, hiçbiri çözülemezse çalma listesi oluşturulmaz. Önerilen sanatçıların çoğunun parçası olmadığından çalma listesi kısa çıkabilir; canlı ölçümden sonra `/search?q=artist:` ile sanatçı başına parça çözümü ayrıca onaya sunulacak. 403 (kapsam yok) 409 olarak döner; istemci yeniden bağlamayı söyler. Oy geçmişi ekranında oy değiştirme yeni bir `POST /votes` olayıdır. **Faz 4 kapısı** (emülatörde oyla, listeyi Spotify'a kaydet) canlı doğrulamayla kapanacak.
+
+**Canlı test bulguları (31 Ekim 2026, emülatör):**
+- Bağlama, kütüphane aktarma, oylama, profil, liste üretimi, oy geçmişi çalışıyor.
+- Spotify `POST /users/{id}/playlists` 403 veriyor; `POST /me/playlists` çalışıyor (istemci buna geçirildi).
+- İlk dışa aktarma 20 öğenin yalnızca 3'ünü yazdı (sanatçı düzeyindeki öğelerin ISRC'li parçası yok). Onaylanan çözüm: `find_artist_track` (`/search?q=artist:"<ad>"`, sonuçta sanatçı adı eşleşmeli; ISRC yoksa/çözülmezse yedek; hem `export` hem `open` yolunda). 169 backend testi geçiyor, ruff temiz. **Canlı denendi (31 Ekim 2026): 20 öğenin 17'si yazıldı, 3'ü atlandı** (önceki 3/20). **Faz 4 kapısı geçildi.**
+- Emülatörde Spotify uygulaması kurulu olmadığı için "Spotify'da aç" açılmaz (mesaj düzeltildi); gerçek telefonda denenmeli.
+- `backend/.env` içinde `CREDENTIAL_KEY` ve `SPOTIFY_CLIENT_ID` boştu, dolduruldu. Anahtar değişince eski `service_connection` satırları çözülemez (InvalidToken → 500); satırlar silindi, yeniden bağlandı. Emülatörde OAuth dönüşü için `adb reverse tcp:8000 tcp:8000` gerekir (adb: `C:\src\android-sdk\platform-tools\adb.exe`).
+
+**Yapılacaklar (sırayla):**
+1. ~~Artist-track canlı denemesi, commit + PR #29, kapı~~ Yapıldı (17/20). Kalan: #28 ardından #29'u birleştir (#29 tabanını `main` yap). Auto-fix #29'da reddedilmişti.
+2. Sağlamlaştırma: `InvalidToken` → 409 "Spotify'ı yeniden bağla" (500 yerine), testle.
+3. Faz 5 (sistemsel): Unheard durum makinesi + aktif öğrenme kuyruğu, Thompson sampling slot dağılımı, takip listesi/yayın tespiti/haftalık Taze listesi, "Yeni" akışı, değerlendirme betikleri. Önce plan sunulup onay alınır (`docs/FAZ5_PLAN.md`).
+4. En sonda: UI yenileme ve şarkı kapakları. Plan: kapak URL'si `user_track_meta.image_url` (Spotify, TTL'li, kullanıcıya özel; dosya saklanmaz); liste/kuyruk/geçmiş yanıtlarına `image_url`; kapak yoksa yer tutucu; koyu temalı, kapak ağırlıklı kart tasarımı. Şema değişikliği olduğundan başlamadan onay alınır.
 S3 notu: Gerekçe itirazı yalnızca kayıttır; profile/algoritmaya etkisi Faz 5'te. Liste öğeleri parça başlığı taşımaz (önerilen parçalar kütüphanede olmadığından); başlık/çalma S4'te.
 
 

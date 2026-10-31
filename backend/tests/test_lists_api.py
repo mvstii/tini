@@ -176,8 +176,8 @@ def test_item_open_resolves_track_then_falls_back_to_search(client, db, monkeypa
     assert r.json() == {"kind": "track", "url": "spotify:track:T1"}
     assert calls == ["isrc:ZZLE00000099"]
     r = client.get(f"/lists/{lst['id']}/items/{pos[c2.id]}/open", headers=h)  # parçası yok
-    assert r.json() == {"kind": "search", "url": "spotify:search:LEB"}
-    assert len(calls) == 1
+    assert r.json() == {"kind": "search", "url": "spotify:search:LEB"}  # ad eşleşen parça yok
+    assert calls == ["isrc:ZZLE00000099", 'artist:"LEB"']
 
 
 def test_item_open_search_fallback_on_service_error(client, db, monkeypatch):
@@ -219,9 +219,7 @@ def test_export_writes_playlist_and_reports_skipped(client, db, monkeypatch):
     def handler(req):
         if req.url.path == "/v1/search":
             return httpx.Response(200, json={"tracks": {"items": [{"id": "T1"}]}})
-        if req.url.path == "/v1/me":
-            return httpx.Response(200, json={"id": "me"})
-        if req.url.path == "/v1/users/me/playlists":
+        if req.url.path == "/v1/me/playlists":
             return httpx.Response(201, json={"id": "PL1"})
         posted.append((req.url.path, req.content))
         return httpx.Response(201, json={})
@@ -232,6 +230,30 @@ def test_export_writes_playlist_and_reports_skipped(client, db, monkeypatch):
     body = r.json()
     assert body["playlist_id"] == "PL1" and body["added"] == 1 and len(body["skipped"]) == 1
     assert posted[0][0] == "/v1/playlists/PL1/items" and b"spotify:track:T1" in posted[0][1]
+
+
+def test_export_resolves_trackless_items_via_artist_search(client, db, monkeypatch):
+    import httpx
+
+    posted = []
+
+    def handler(req):
+        if req.url.path == "/v1/search":
+            q = req.url.params["q"]
+            if q.startswith("isrc:"):
+                return httpx.Response(200, json={"tracks": {"items": []}})
+            name = q.removeprefix('artist:"').removesuffix('"')
+            item = {"id": f"S-{name}", "artists": [{"name": name}]}
+            return httpx.Response(200, json={"tracks": {"items": [item]}})
+        if req.url.path == "/v1/me/playlists":
+            return httpx.Response(201, json={"id": "PL2"})
+        posted.append(req.content)
+        return httpx.Response(201, json={})
+
+    h, lst = _export_setup(client, db, monkeypatch, "e5@example.com", "EE", handler)
+    body = client.post(f"/lists/{lst['id']}/export/spotify", headers=h).json()
+    assert body == {"playlist_id": "PL2", "added": 2, "skipped": []}
+    assert b"S-EEA" in posted[0] and b"S-EEB" in posted[0]
 
 
 def test_export_with_nothing_resolvable_creates_no_playlist(client, db, monkeypatch):
