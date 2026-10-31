@@ -229,6 +229,7 @@ def test_export_writes_playlist_and_reports_skipped(client, db, monkeypatch):
     assert r.status_code == 201
     body = r.json()
     assert body["playlist_id"] == "PL1" and body["added"] == 1 and len(body["skipped"]) == 1
+    assert len(body["skipped_names"]) == 1 and body["skipped_names"][0] in {"EAA", "EAB"}
     assert posted[0][0] == "/v1/playlists/PL1/items" and b"spotify:track:T1" in posted[0][1]
 
 
@@ -252,7 +253,7 @@ def test_export_resolves_trackless_items_via_artist_search(client, db, monkeypat
 
     h, lst = _export_setup(client, db, monkeypatch, "e5@example.com", "EE", handler)
     body = client.post(f"/lists/{lst['id']}/export/spotify", headers=h).json()
-    assert body == {"playlist_id": "PL2", "added": 2, "skipped": []}
+    assert body == {"playlist_id": "PL2", "added": 2, "skipped": [], "skipped_names": []}
     assert b"S-EEA" in posted[0] and b"S-EEB" in posted[0]
 
 
@@ -266,7 +267,9 @@ def test_export_with_nothing_resolvable_creates_no_playlist(client, db, monkeypa
 
     h, lst = _export_setup(client, db, monkeypatch, "e2@example.com", "EB", handler)
     r = client.post(f"/lists/{lst['id']}/export/spotify", headers=h)
-    assert r.json() == {"playlist_id": None, "added": 0, "skipped": [1, 2]}
+    body = r.json()
+    assert body["playlist_id"] is None and body["added"] == 0 and body["skipped"] == [1, 2]
+    assert sorted(body["skipped_names"]) == ["EBA", "EBB"]
 
 
 def test_export_maps_scope_error_and_checks_access(client, db, monkeypatch):

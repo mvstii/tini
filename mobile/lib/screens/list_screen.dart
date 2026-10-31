@@ -64,10 +64,12 @@ class _ListScreenState extends State<ListScreen> {
     try {
       final r = await widget.api.exportList(_list!.id);
       if (!mounted) return;
+      final named = r.skippedNames.where((n) => n.isNotEmpty).toList();
+      final detail = named.isEmpty ? '' : ' (${named.join(', ')})';
       final msg = r.added == 0
-          ? 'Bu listedeki öğelerin çalınabilir parçası bulunamadı.'
+          ? 'Bu listedeki öğelerin çalınabilir parçası bulunamadı.$detail'
           : "Spotify'a kaydedildi: ${r.added} parça"
-              "${r.skipped > 0 ? ', ${r.skipped} öğe atlandı' : ''}";
+              "${r.skipped > 0 ? ', ${r.skipped} öğe atlandı$detail' : ''}";
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
     } on ApiException catch (ex) {
       if (mounted) {
