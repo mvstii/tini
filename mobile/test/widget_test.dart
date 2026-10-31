@@ -272,6 +272,30 @@ void main() {
       ],
     };
 
+    testWidgets('shows a release item in the main list as "yeni"', (tester) async {
+      final withRelease = {
+        'id': 8,
+        'items': [
+          {
+            'position': 1,
+            'name': 'Gama',
+            'title': null,
+            'release': {'id': 1, 'title': 'Yeni Albüm', 'type': 'album', 'released': '2026-10-30'},
+            'reasons': [
+              {'seed_id': 10, 'seed_name': 'Seed A', 'share': 1.0, 'is_anchor': true},
+            ],
+          }
+        ],
+      };
+      final api = _api((req) async =>
+          http.Response.bytes(utf8.encode(jsonEncode(withRelease)), 201), _MemoryStorage());
+      await tester.pumpWidget(MaterialApp(home: ListScreen(api: api)));
+      await tester.tap(find.text('Liste üret'));
+      await tester.pumpAndSettle();
+      expect(find.text('yeni'), findsOneWidget);
+      expect(find.text('Yeni Albüm · album · 2026-10-30'), findsOneWidget);
+    });
+
     test('reasonText orders by share and marks anchors', () {
       final e = ListEntry(1, 'X', null, [
         Reason(2, 'Low', 0.1, false),

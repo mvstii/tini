@@ -109,3 +109,35 @@ def test_new_releases_feed_follows_only_newest_first_and_private(client, db):  #
     assert body["items"][0]["follow"] == "auto" and body["total"] == 2
     h2 = register(client, "f3@example.com")
     assert client.get("/releases/new", headers=h2).json() == {"items": [], "total": 0}
+
+
+def test_main_list_reserves_fresh_slot_at_the_end(client, db):  # noqa: F811
+    h, seed, c1, c2 = setup_user(client, db, "f4@example.com", "FM")
+    base = client.post("/lists/generate", headers=h).json()
+    assert base["params"]["fresh_count"] == 0
+    assert {i["slot"] for i in base["items"]} <= {"familiar", "unheard", "explore"}
+
+    rel = add_release(db, seed, "Yeni Albüm", 3)
+    body = client.post("/lists/generate", headers=h).json()
+    assert body["algo_version"] == "list-3" and body["params"]["fresh_count"] == 1
+    last = body["items"][-1]
+    assert last["slot"] == "fresh" and last["release"]["id"] == rel.id
+    assert last["track_id"] is None and last["reasons"][0]["seed_name"] == "FMSeed"
+    assert {i["artist_id"] for i in body["items"][:-1]} == {c1.id, c2.id}
+    assert "fresh" not in body["params"]["slot_outcomes"]  # fresh slot banditi etkilemez
+
+    # ana listede çıkan yayın Taze listede tekrarlanmaz
+    assert client.post("/lists/generate-fresh", headers=h).status_code == 409
+
+
+def test_fresh_slot_artist_is_removed_from_other_slots(client, db):  # noqa: F811
+    from app.models import UserTrackLink  # noqa: F401
+
+    h, seed, c1, c2 = setup_user(client, db, "f5@example.com", "FD")
+    client.put(f"/releases/following/{c1.id}", headers=h)  # c1 elle takip, aday da
+    add_release(db, c1, "C1 Albüm", 1)
+    body = client.post("/lists/generate", headers=h).json()
+    by_artist = [i["artist_id"] for i in body["items"]]
+    assert by_artist.count(c1.id) == 1
+    assert next(i for i in body["items"] if i["artist_id"] == c1.id)["slot"] == "fresh"
+    assert c2.id in by_artist

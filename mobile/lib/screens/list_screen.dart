@@ -176,6 +176,8 @@ class _ListScreenState extends State<ListScreen> {
                         Chip(label: Text(e.slot)),
                       ]),
                       if (e.title != null) Text(e.title!),
+                      if (e.release != null)
+                        Text('${e.release!.title} · ${e.release!.type} · ${e.release!.released}'),
                       const SizedBox(height: 4),
                       Text(reasonText(e)),
                       Row(
