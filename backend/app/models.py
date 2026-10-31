@@ -6,11 +6,12 @@ Paylaşılan katalog (artist, track): kişisel veri ve Spotify metadata'sı içe
 ISRC/MBID ve kendi türettiğimiz veri.
 """
 import uuid
-from datetime import datetime
+from datetime import date, datetime
 
 from sqlalchemy import (
     BigInteger,
     CheckConstraint,
+    Date,
     DateTime,
     Float,
     ForeignKey,
@@ -316,3 +317,40 @@ class OAuthState(Base):
     )
     verifier: Mapped[str] = mapped_column(String(128))
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class Release(Base):
+    """Paylaşılan katalog: MusicBrainz release-group. Spotify verisi içermez."""
+
+    __tablename__ = "release"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    mb_rgid: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), unique=True)
+    title: Mapped[str] = mapped_column(Text)
+    primary_type: Mapped[str] = mapped_column(String(16))
+    first_release_date: Mapped[date] = mapped_column(Date, index=True)
+
+
+class ReleaseArtist(Base):
+    __tablename__ = "release_artist"
+
+    release_id: Mapped[int] = mapped_column(
+        ForeignKey("release.id", ondelete="CASCADE"), primary_key=True
+    )
+    artist_id: Mapped[int] = mapped_column(ForeignKey("artist.id"), primary_key=True, index=True)
+
+
+class FollowedArtist(Base):
+    """Kişisel: elle takip (manual) veya otomatik takibin bırakılması (muted). Hesapla silinir."""
+
+    __tablename__ = "followed_artist"
+    __table_args__ = (
+        CheckConstraint("source IN ('manual','muted')", name="followed_source"),
+    )
+
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("user_account.id", ondelete="CASCADE"), primary_key=True
+    )
+    artist_id: Mapped[int] = mapped_column(ForeignKey("artist.id"), primary_key=True)
+    source: Mapped[str] = mapped_column(String(16))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=_now)
