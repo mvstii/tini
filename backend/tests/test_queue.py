@@ -3,7 +3,7 @@ from datetime import UTC, datetime, timedelta
 import pytest
 from cryptography.fernet import Fernet
 from fastapi.testclient import TestClient
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.config import Settings
@@ -125,3 +125,36 @@ def test_queue_and_history_are_private(client, db):
     h2 = register(client, "q4@example.com")
     assert client.get("/votes/queue", headers=h2).json()["items"] == []
     assert client.get("/votes/history", headers=h2).json()["total"] == 0
+
+
+def test_queue_pool_bonus_awaiting_and_expired(client, db):
+    from app.models import UnheardEvent
+
+    h = register(client, "q5@example.com")
+    u = db.scalar(select(User).where(User.email == "q5@example.com"))
+    a, b, c = mk_artist(db, "QX"), mk_artist(db, "QY"), mk_artist(db, "QZ")
+    pooled = lib_track(db, "q5@example.com", "ZZQ000000031", a, "Havuz")
+    other = lib_track(db, "q5@example.com", "ZZQ000000032", b, "Diger")
+    gone = lib_track(db, "q5@example.com", "ZZQ000000033", c, "Bitti")
+    assert client.post("/votes/unheard", json={"track": pooled.id}, headers=h).status_code == 201
+    for _ in range(3):
+        client.post("/votes/unheard", json={"track": gone.id}, headers=h)
+
+    body = client.get("/votes/queue", headers=h).json()
+    ids = [i["track"] for i in body["items"]]
+    assert body["algo_version"] == "queue-2"
+    assert gone.id not in ids and ids[0] == pooled.id and set(ids) == {pooled.id, other.id}
+    states = [
+        e.state for e in db.scalars(
+            select(UnheardEvent).where(
+                UnheardEvent.user_id == u.id, UnheardEvent.track_id == pooled.id
+            ).order_by(UnheardEvent.id)
+        )
+    ]
+    assert states == ["pooled", "awaiting"]
+    client.get("/votes/queue", headers=h)  # tekrar sunum yeni awaiting yazmaz
+    assert db.scalar(
+        select(func.count()).select_from(UnheardEvent).where(
+            UnheardEvent.user_id == u.id, UnheardEvent.track_id == pooled.id
+        )
+    ) == 2

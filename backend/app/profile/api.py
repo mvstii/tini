@@ -7,7 +7,14 @@ from sqlalchemy import func, select
 from sqlalchemy.dialects.postgresql import distinct_on
 from sqlalchemy.orm import Session
 
-from app.config import GraphSettings, ProfileSettings, get_graph_settings, get_profile_settings
+from app.config import (
+    GraphSettings,
+    ProfileSettings,
+    RecommendSettings,
+    get_graph_settings,
+    get_profile_settings,
+    get_recommend_settings,
+)
 from app.deps import current_user, get_db
 from app.models import (
     TasteProfile,
@@ -18,7 +25,8 @@ from app.models import (
     UserTrackMeta,
     VoteEvent,
 )
-from app.profile.queue import order_queue
+from app.profile.active import order_active
+from app.profile.active_service import artist_uncertainties, mark_awaiting
 from app.profile.scoring import VoteEvt, score_votes
 from app.profile.service import rebuild_profile, unheard_statuses
 from app.profile.unheard import next_state
@@ -103,6 +111,8 @@ def queue(
     user: User = Depends(current_user),
     db: Session = Depends(get_db),
     cfg: ProfileSettings = Depends(get_profile_settings),
+    rcfg: RecommendSettings = Depends(get_recommend_settings),
+    gcfg: GraphSettings = Depends(get_graph_settings),
 ) -> dict:
     """Oylanacak parçalar. Başlık/sanatçı kullanıcıya özel önbellekten gelir; süresi dolmuş
     önbellekli parçalar atlanır ve `stale` ile sayılır (istemci kütüphaneyi yeniden aktarır)."""
@@ -135,8 +145,16 @@ def queue(
             .where(VoteEvent.user_id == user.id, Track.artist_id.is_not(None))
         )
     )
-    order = order_queue([(r[0], r[1]) for r in fresh.values()], voted_artists, seed)[:size]
+    statuses = unheard_statuses(db, user.id, cfg)
+    expired = {s.track_id for s in statuses if s.state == "expired"}
+    pool = {s.track_id for s in statuses} - expired
+    fresh = {t: r for t, r in fresh.items() if t not in expired}
+    cands = [(r[0], r[1]) for r in fresh.values()]
+    unc = artist_uncertainties(db, user.id, {a for _, a in cands}, cfg, rcfg, gcfg)
+    order = order_active(cands, unc, pool & set(fresh), voted_artists, seed, cfg)[:size]
+    mark_awaiting(db, user.id, pool & set(order), statuses)
     return {
+        "algo_version": cfg.queue_algo_version,
         "remaining": len(fresh),
         "stale": len(rows) - len(fresh),
         "items": [

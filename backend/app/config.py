@@ -101,6 +101,10 @@ class ProfileSettings(BaseSettings):
     # Unheard (Faz 5 S1): bu kadar sunumda oy gelmezse süresi dolar ve zayıf örtük negatif sayılır.
     unheard_expire_after: int = 3
     unheard_expired_score: float = -0.05
+    # Aktif öğrenme kuyruğu (Faz 5 S2)
+    queue_algo_version: str = "queue-2"
+    active_unknown_uncertainty: float = 0.75  # sinyali olmayan sanatçı için belirsizlik
+    active_pool_bonus: float = 0.5  # Unheard havuzundaki parçanın sıralama bonusu
     # Oylama kuyruğu (Faz 4 S1)
     queue_size: int = 20
     queue_max_size: int = 100

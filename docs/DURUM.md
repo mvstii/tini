@@ -124,7 +124,8 @@ S3 notu: Gerekçe itirazı yalnızca kayıttır; profile/algoritmaya etkisi Faz 
 
 | # | Aşama | Durum | PR |
 |---|---|---|---|
-| S1 | Unheard durum makinesi (göç 0010 `unheard_event`, saf `profile/unheard.py`, `POST /votes/unheard`, mobil sola kaydırma, N=3 sunumda −0,05 sönümlü örtük negatif, `profile-2`) | Kod ve testler hazır (187 backend testi, Flutter 15 test, analyze temiz) | PR bekliyor |
+| S1 | Unheard durum makinesi (göç 0010 `unheard_event`, saf `profile/unheard.py`, `POST /votes/unheard`, mobil sola kaydırma, N=3 sunumda −0,05 sönümlü örtük negatif, `profile-2`) | Kod ve testler hazır (187 backend testi, Flutter 15 test, analyze temiz); emülatörde doğrulandı | #32 (birleşti) |
+| S2 | Aktif öğrenme kuyruğu (göç yok; saf `profile/active.py`, `profile/active_service.py`, `ppr.artist_scores`, `GET /votes/queue` → `queue-2`: belirsizlik = PPR skorunun persentil yakınlığı, havuz bonusu, süresi dolanlar dışarıda, sunulan havuz parçası `awaiting`) | Kod ve testler hazır (196 backend testi, ruff temiz) | PR bekliyor |
 | S2–S6 | Aktif öğrenme kuyruğu, slot dağılımı, yayın tespiti, Taze liste, değerlendirme | Başlamadı | |
 
 S1 notu: Sola kaydırma geri alınamaz olay yazar (olay kaydı silinmez); mobildeki "geri al" yalnızca kartı oturumda geri getirir. S2'de kuyruk, havuzdaki parçaları sunar.
@@ -135,3 +136,5 @@ S1 notu: Sola kaydırma geri alınamaz olay yazar (olay kaydı silinmez); mobild
 - Apple Music Android SDK ve Flutter bağlayıcısı doğrulanmadı (Faz 7 öncesi kontrol).
 - Spotify Şubat 2026 duyurusu okunmadı.
 - Faz 0 örneği tek kişinin müzik sahnesi; kapsam sayıları genellenmeyebilir.
+
+S2 notu: Belirsizlik = 1 − |2p − 1|; p = sanatçının PPR skorunun, sinyalli sanatçıların skor dağılımındaki mid-rank persentili. Sinyali olmayan sanatçı `active_unknown_uncertainty` (0,75) alır; havuzdaki parça `active_pool_bonus` (0,5) kazanır. Profil/graf yoksa herkes 'bilinmiyor' sayılır. Oy almamış sanatçılar ve sanatçı başına tur sırası korunur.
