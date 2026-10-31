@@ -61,14 +61,24 @@ def _novelty(gm: GraphMatrix) -> np.ndarray:
     return 1.0 - pct
 
 
-def score_candidates(
-    gm: GraphMatrix, profile: dict, known: set[int], cfg: RecommendSettings
-) -> list[Candidate]:
+@dataclass(frozen=True)
+class _Propagated:
+    seed_ids: np.ndarray
+    w: np.ndarray
+    acc: np.ndarray  # (düğüm, tohum): tohum başına PPR vektörleri
+    mask: np.ndarray
+    seed_pos: np.ndarray
+    raw: np.ndarray
+    final: np.ndarray
+    novelty: np.ndarray
+
+
+def _propagate(gm: GraphMatrix, profile: dict, cfg: RecommendSettings) -> _Propagated | None:
     pos_w, neg_w = _seeds(profile, cfg)
     pos = [(a, w) for a, w in _top(pos_w, cfg.max_seeds, +1) if gm.position(a) is not None]
     neg = [(a, w) for a, w in _top(neg_w, cfg.max_negative_seeds, -1) if gm.position(a) is not None]
     if not pos:
-        return []
+        return None
 
     seeds = sorted(pos + neg)  # artist_id'ye göre: sütun sırası girdi sırasından bağımsız
     seed_ids = np.array([a for a, _ in seeds], dtype=np.int64)
@@ -94,6 +104,30 @@ def score_candidates(
     raw = acc @ w
     novelty = _novelty(gm)
     final = raw * (1.0 + cfg.novelty_gamma * novelty)
+    return _Propagated(seed_ids, w, acc, mask, seed_pos, raw, final, novelty)
+
+
+def artist_scores(gm: GraphMatrix, profile: dict, cfg: RecommendSettings) -> dict[int, float]:
+    """Graftaki her sanatçının nihai PPR skoru (yalnız sinyali olanlar, skor != 0).
+
+    score_candidates ile aynı hesap; kaçınma/bilinen maskesi uygulanmaz (aktif öğrenme için
+    oylanmış sanatçılar da dâhil edilir)."""
+    prop = _propagate(gm, profile, cfg)
+    if prop is None:
+        return {}
+    nz = np.flatnonzero(prop.final != 0)
+    return {int(gm.node_ids[i]): float(prop.final[i]) for i in nz}
+
+
+def score_candidates(
+    gm: GraphMatrix, profile: dict, known: set[int], cfg: RecommendSettings
+) -> list[Candidate]:
+    prop = _propagate(gm, profile, cfg)
+    if prop is None:
+        return []
+    seed_ids, w, acc, mask, seed_pos = prop.seed_ids, prop.w, prop.acc, prop.mask, prop.seed_pos
+    raw, final, novelty = prop.raw, prop.final, prop.novelty
+    n = gm.node_ids.size
 
     blocked = np.zeros(n, dtype=bool)
     blocked[mask == 0.0] = True
