@@ -121,6 +121,7 @@ def _list_out(db: Session, lst: GeneratedList) -> dict:
                 "position": i.position,
                 "artist_id": i.artist_id,
                 "name": names.get(i.artist_id),
+                "slot": i.slot,
                 "track_id": i.track_id,
                 "title": metas[i.track_id].title if i.track_id in metas else None,
                 "score": round(i.score, 6),

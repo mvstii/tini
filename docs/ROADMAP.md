@@ -64,7 +64,7 @@ Kapı: telefonda oylayıp gerekçeli listeyi Spotify'a kaydedebiliyorsun.
 Kapı: Unheard döngüsü uçtan uca çalışıyor, ilk haftalık Taze listesi üretildi.
 
 - [ ] Unheard durum makinesi (S1 bitti) ve aktif öğrenme kuyruğu (S2 bitti)
-- [ ] Thompson sampling ile slot dağılımı
+- [x] Thompson sampling ile slot dağılımı
 - [ ] Takip listesi, yayın tespiti, haftalık Taze listesi, ana listede %10–15 pay
 - [ ] Uygulama içi "Yeni" akışı
 - [ ] Değerlendirme betikleri

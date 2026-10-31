@@ -127,9 +127,16 @@ class RecommendSettings(BaseSettings):
     novelty_gamma: float = 0.4
     candidate_top_n: int = 100
     reason_count: int = 3
-    list_algo_version: str = "list-1"
+    list_algo_version: str = "list-2"
     list_size: int = 20
     mmr_lambda: float = 0.6  # 1 = yalnız alaka, 0 = yalnız çeşitlilik
+    # Slot dağılımı (Faz 5 S3): Thompson sampling
+    slot_prior_shares: dict[str, float] = {"familiar": 0.4, "unheard": 0.35, "explore": 0.25}
+    slot_prior_a: float = 1.0  # Beta öncülü (başarı)
+    slot_prior_b: float = 1.0  # Beta öncülü (başarısızlık)
+    slot_floor_share: float = 0.1  # her slotun taban payı
+    bandit_min_outcomes: int = 10  # bundan az sonuçta pay öncüle eşit
+    familiar_fraction: float = 0.5  # havuzsuz adayların üst kesri = familiar, kalanı explore
 
 
 @lru_cache
