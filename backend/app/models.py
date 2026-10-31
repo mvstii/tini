@@ -251,6 +251,7 @@ class GeneratedList(Base):
         ForeignKey("user_account.id", ondelete="CASCADE"), index=True
     )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=_now)
+    kind: Mapped[str] = mapped_column(String(16), server_default="main")
     algo_version: Mapped[str] = mapped_column(String(32))
     candidate_algo_version: Mapped[str] = mapped_column(String(32))
     profile_version: Mapped[int] = mapped_column(Integer)
@@ -270,6 +271,7 @@ class ListItem(Base):
     score: Mapped[float] = mapped_column(Float)
     reasons: Mapped[list] = mapped_column(JSONB)
     slot: Mapped[str] = mapped_column(String(16), server_default="explore")
+    release_id: Mapped[int | None] = mapped_column(ForeignKey("release.id"), index=True)
 
 
 class ListFeedback(Base):

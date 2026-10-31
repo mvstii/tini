@@ -67,14 +67,33 @@ class ExportResult {
 }
 
 class ListEntry {
-  ListEntry(this.position, this.name, this.title, this.reasons);
+  ListEntry(this.position, this.name, this.title, this.reasons, {this.release});
   final int position;
   final String name;
   final String? title;
   final List<Reason> reasons;
 
+  /// Yalnızca Taze liste öğelerinde: albüm düzeyinde yayın.
+  final ReleaseInfo? release;
+
   /// Faz 4'te tek slot tipi var.
   String get slot => 'keşif';
+}
+
+class ReleaseInfo {
+  ReleaseInfo(this.title, this.type, this.released);
+  final String title;
+  final String type;
+  final String released;
+}
+
+class NewRelease {
+  NewRelease(this.title, this.type, this.released, this.artist, this.follow);
+  final String title;
+  final String type;
+  final String released;
+  final String artist;
+  final String follow; // 'auto' | 'manual'
 }
 
 class DiscoveryList {
@@ -182,8 +201,22 @@ class Api {
     );
   }
 
-  Future<DiscoveryList> generateList() async {
-    final body = await _send('POST', '/lists/generate');
+  Future<DiscoveryList> generateList() => _generate('/lists/generate');
+
+  /// Haftalık Taze liste: takip edilen sanatçıların yeni yayınları (albüm düzeyi).
+  Future<DiscoveryList> generateFresh() => _generate('/lists/generate-fresh');
+
+  /// "Yeni" akışı: takip edilen sanatçıların son yayınları, yeniden eskiye.
+  Future<List<NewRelease>> newReleases() async {
+    final body = await _send('GET', '/releases/new');
+    return (body['items'] as List)
+        .map((e) => NewRelease(e['title'] as String, e['type'] as String,
+            e['released'] as String, (e['artist'] as String?) ?? '?', e['follow'] as String))
+        .toList();
+  }
+
+  Future<DiscoveryList> _generate(String path) async {
+    final body = await _send('POST', path);
     return DiscoveryList(
       body['id'] as int,
       (body['items'] as List)
@@ -195,6 +228,10 @@ class Api {
                     .map((r) => Reason(r['seed_id'] as int, (r['seed_name'] as String?) ?? '?',
                         (r['share'] as num).toDouble(), r['is_anchor'] as bool))
                     .toList(),
+                release: e['release'] == null
+                    ? null
+                    : ReleaseInfo(e['release']['title'] as String, e['release']['type'] as String,
+                        e['release']['released'] as String),
               ))
           .toList(),
     );

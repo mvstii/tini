@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../api.dart';
+import 'fresh_screen.dart';
 import 'history_screen.dart';
 import 'list_screen.dart';
 import 'rating_screen.dart';
@@ -117,6 +118,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             onPressed: () => Navigator.of(context).push(MaterialPageRoute<void>(
                 builder: (_) => ListScreen(api: widget.api, onLogout: widget.onLogout))),
             child: const Text('Keşif listesi'),
+          ),
+          const SizedBox(height: 8),
+          OutlinedButton(
+            onPressed: () => Navigator.of(context).push(MaterialPageRoute<void>(
+                builder: (_) => FreshScreen(api: widget.api, onLogout: widget.onLogout))),
+            child: const Text('Yeni çıkanlar'),
           ),
           const SizedBox(height: 8),
           OutlinedButton(
