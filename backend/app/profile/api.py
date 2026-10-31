@@ -9,10 +9,19 @@ from sqlalchemy.orm import Session
 
 from app.config import GraphSettings, ProfileSettings, get_graph_settings, get_profile_settings
 from app.deps import current_user, get_db
-from app.models import TasteProfile, Track, User, UserTrackLink, UserTrackMeta, VoteEvent
+from app.models import (
+    TasteProfile,
+    Track,
+    UnheardEvent,
+    User,
+    UserTrackLink,
+    UserTrackMeta,
+    VoteEvent,
+)
 from app.profile.queue import order_queue
 from app.profile.scoring import VoteEvt, score_votes
-from app.profile.service import rebuild_profile
+from app.profile.service import rebuild_profile, unheard_statuses
+from app.profile.unheard import next_state
 
 router = APIRouter(prefix="/votes")
 profile_router = APIRouter(prefix="/profile")
@@ -21,6 +30,10 @@ profile_router = APIRouter(prefix="/profile")
 class VoteIn(BaseModel):
     track: int
     vote: int = Field(ge=1, le=6)
+
+
+class UnheardIn(BaseModel):
+    track: int
 
 
 def _events(db: Session, user_id) -> list[VoteEvt]:
@@ -47,6 +60,40 @@ def cast_vote(
     db.add(ev)
     db.commit()
     return {"id": ev.id, "track": ev.track_id, "vote": ev.vote}
+
+
+@router.post("/unheard", status_code=201)
+def mark_unheard(
+    body: UnheardIn,
+    user: User = Depends(current_user),
+    db: Session = Depends(get_db),
+    cfg: ProfileSettings = Depends(get_profile_settings),
+) -> dict:
+    """Sola kaydırma: "bu parçayı dinlemedim". Yeni bir Unheard olayı yazılır (silinmez)."""
+    owned = db.scalar(
+        select(UserTrackLink.id)
+        .where(UserTrackLink.user_id == user.id, UserTrackLink.track_id == body.track)
+        .limit(1)
+    )
+    if owned is None:
+        raise HTTPException(404, "Parça kütüphanede yok")
+    prior = db.scalar(
+        select(func.count())
+        .select_from(UnheardEvent)
+        .where(UnheardEvent.user_id == user.id, UnheardEvent.track_id == body.track)
+    )
+    ev = UnheardEvent(user_id=user.id, track_id=body.track, state=next_state(prior))
+    db.add(ev)
+    db.commit()
+    status = next(
+        (s for s in unheard_statuses(db, user.id, cfg) if s.track_id == body.track), None
+    )
+    return {
+        "id": ev.id,
+        "track": ev.track_id,
+        "state": status.state if status else ev.state,
+        "presentations": status.presentations if status else 0,
+    }
 
 
 @router.get("/queue")

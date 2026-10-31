@@ -204,6 +204,25 @@ class VoteEvent(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=_now)
 
 
+class UnheardEvent(Base):
+    """Silinmeyen Unheard olay kaydı (pooled/presented/awaiting/expired). UPDATE engelli."""
+
+    __tablename__ = "unheard_event"
+    __table_args__ = (
+        CheckConstraint(
+            "state IN ('pooled','presented','awaiting','expired')", name="unheard_state"
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("user_account.id", ondelete="CASCADE"), index=True
+    )
+    track_id: Mapped[int] = mapped_column(ForeignKey("track.id"), index=True)
+    state: Mapped[str] = mapped_column(String(16))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=_now)
+
+
 class TasteProfile(Base):
     """Kişisel, sürümlü profil anlık görüntüsü (oy olaylarından türetilir). Hesapla silinir."""
 

@@ -69,7 +69,7 @@ def test_revote_appends_event_and_current_is_last(client, db):
     events = db.scalars(select(VoteEvent).where(VoteEvent.user_id == u.id)).all()
     assert len(events) == 2  # silinmez, yeni olay eklenir
     body = client.get("/votes/current", headers=h).json()
-    assert body["algo_version"] == "profile-1"
+    assert body["algo_version"] == "profile-2"
     assert [(v["track"], v["vote"], v["score"]) for v in body["votes"]] == [(t.id, 2, -0.6)]
 
 
@@ -79,3 +79,49 @@ def test_current_is_per_user(client, db):
     r = client.post("/auth/register", json={"email": "o@example.com", "password": "uzun-parola-1"})
     h2 = {"Authorization": f"Bearer {r.json()['token']}"}
     assert client.get("/votes/current", headers=h2).json()["votes"] == []
+
+
+def test_unheard_requires_owned_track_and_auth(client, db):
+    h, _, t = setup_user(db, client)
+    assert client.post("/votes/unheard", json={"track": t.id}).status_code == 401
+    assert client.post("/votes/unheard", json={"track": t.id + 999}, headers=h).status_code == 404
+
+
+def test_unheard_appends_events_and_expires_after_n(client, db):
+    from app.models import UnheardEvent
+
+    h, u, t = setup_user(db, client)
+    got = [client.post("/votes/unheard", json={"track": t.id}, headers=h).json() for _ in range(3)]
+    assert [(g["state"], g["presentations"]) for g in got] == [
+        ("pooled", 1), ("presented", 2), ("expired", 3)
+    ]
+    assert len(db.scalars(select(UnheardEvent).where(UnheardEvent.user_id == u.id)).all()) == 3
+
+
+def test_unheard_event_update_is_blocked(client, db):
+    from sqlalchemy import text
+    from sqlalchemy.exc import DBAPIError
+
+    h, _, t = setup_user(db, client)
+    client.post("/votes/unheard", json={"track": t.id}, headers=h)
+    with pytest.raises(DBAPIError):
+        with db.begin_nested():
+            db.execute(text("UPDATE unheard_event SET state='expired'"))
+
+
+def test_expired_unheard_enters_profile_as_weak_negative(client, db):
+    h, _, t = setup_user(db, client)
+    for _ in range(3):
+        client.post("/votes/unheard", json={"track": t.id}, headers=h)
+    # artist çözülmemiş parça profile girmez ama oy sayısına yansır
+    body = client.post("/profile/rebuild", headers=h).json()
+    assert body["algo_version"] == "profile-2" and body["vote_count"] == 1
+
+
+def test_vote_after_unheard_removes_track_from_pool(client, db):
+    h, _, t = setup_user(db, client)
+    for _ in range(3):
+        client.post("/votes/unheard", json={"track": t.id}, headers=h)
+    client.post("/votes", json={"track": t.id, "vote": 5}, headers=h)
+    body = client.post("/profile/rebuild", headers=h).json()
+    assert body["vote_count"] == 1  # yalnız gerçek oy; örtük negatif eklenmedi

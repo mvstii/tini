@@ -151,6 +151,9 @@ class Api {
   Future<void> castVote(int track, int vote) =>
       _send('POST', '/votes', {'track': track, 'vote': vote});
 
+  /// Sola kaydırma: Unheard olayı yazar (silinmez; 3 sunumda oy gelmezse zayıf negatif olur).
+  Future<void> markUnheard(int track) => _send('POST', '/votes/unheard', {'track': track});
+
   Future<int> voteTotal() async {
     final body = await _send('GET', '/votes/history?limit=1');
     return body['total'] as int;

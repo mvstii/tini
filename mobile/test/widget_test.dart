@@ -147,6 +147,7 @@ void main() {
       await tester.drag(find.text('Beta'), const Offset(-600, 0));
       await tester.pumpAndSettle();
       expect(f.votes.length, 1);
+      expect(f.calls, contains('POST /votes/unheard'));
       expect(find.text('Gamma'), findsOneWidget);
     });
 
