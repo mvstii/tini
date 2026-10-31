@@ -1,6 +1,6 @@
 # Tını — Güncel Durum
 
-Son güncelleme: 30 Ekim 2026 · Her aşama (PR) sonrasında güncellenir.
+Son güncelleme: 31 Ekim 2026 · Her aşama (PR) sonrasında güncellenir.
 
 ## Özet
 
@@ -120,9 +120,18 @@ S5 notu: Dışa aktarma yalnızca katalogda parçası olan öğeleri yazar; sana
 S3 notu: Gerekçe itirazı yalnızca kayıttır; profile/algoritmaya etkisi Faz 5'te. Liste öğeleri parça başlığı taşımaz (önerilen parçalar kütüphanede olmadığından); başlık/çalma S4'te.
 
 
+## Faz 5 aşamaları (plan: `docs/FAZ5_PLAN.md`, onaylandı)
+
+| # | Aşama | Durum | PR |
+|---|---|---|---|
+| S1 | Unheard durum makinesi (göç 0010 `unheard_event`, saf `profile/unheard.py`, `POST /votes/unheard`, mobil sola kaydırma, N=3 sunumda −0,05 sönümlü örtük negatif, `profile-2`) | Kod ve testler hazır (187 backend testi, Flutter 15 test, analyze temiz) | PR bekliyor |
+| S2–S6 | Aktif öğrenme kuyruğu, slot dağılımı, yayın tespiti, Taze liste, değerlendirme | Başlamadı | |
+
+S1 notu: Sola kaydırma geri alınamaz olay yazar (olay kaydı silinmez); mobildeki "geri al" yalnızca kartı oturumda geri getirir. S2'de kuyruk, havuzdaki parçaları sunar.
+
 ## Açık riskler
 
-- Last.fm ticari izni gelmeyebilir; yedek: ListenBrainz + kendi birlikte-oluşum matrisi.
+- Last.fm ticari izni gelmeyebilir (Faz 5 S4'te MBID'siz sanatçılar için ikincil yayın kaynağı olarak denenecek; mağaza yayını öncesi izin hatırlatılacak); yedek: ListenBrainz + kendi birlikte-oluşum matrisi.
 - Apple Music Android SDK ve Flutter bağlayıcısı doğrulanmadı (Faz 7 öncesi kontrol).
 - Spotify Şubat 2026 duyurusu okunmadı.
 - Faz 0 örneği tek kişinin müzik sahnesi; kapsam sayıları genellenmeyebilir.

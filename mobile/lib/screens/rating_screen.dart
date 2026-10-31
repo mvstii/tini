@@ -5,7 +5,7 @@ import '../api.dart';
 /// Başlangıç turu: ilk bu kadar oydan sonra profil kurulabilir.
 const tourVotes = 30;
 
-/// Sağa kaydırma "Great" oyudur; sola kaydırma "Unheard" (oy olayı yazılmaz).
+/// Sağa kaydırma "Great" oyudur; sola kaydırma "Unheard" olayı yazar (oy değildir).
 const swipeRightVote = 5;
 
 const voteLabels = <int, String>{
@@ -109,6 +109,7 @@ class _RatingScreenState extends State<RatingScreen> {
         await widget.api.castVote(item.track, vote);
         _total++;
       } else {
+        await widget.api.markUnheard(item.track);
         _skipped.add(item.track);
       }
       _history.add(_Step(item, vote));

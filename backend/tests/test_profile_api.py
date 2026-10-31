@@ -82,7 +82,7 @@ def test_rebuild_versions_and_latest(client, db):
     r2 = client.post("/profile/rebuild", headers=h)
     assert r2.json()["version"] == 2
     got = client.get("/profile", headers=h).json()
-    assert got["version"] == 2 and got["algo_version"] == "profile-1"
+    assert got["version"] == 2 and got["algo_version"] == "profile-2"
     assert got["graph_version"] == db.scalar(select(func.max(GraphSnapshot.version)))
     assert got["anchors"] == [{"artist_id": a.id, "weight": 1.0}]
     assert got["avoid"] == [{"artist_id": b.id, "strength": 1.0, "hard": True}]

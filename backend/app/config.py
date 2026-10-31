@@ -79,7 +79,7 @@ class ProfileSettings(BaseSettings):
 
     model_config = SettingsConfigDict(env_file=".env", env_prefix="PROFILE_", extra="ignore")
 
-    profile_algo_version: str = "profile-1"
+    profile_algo_version: str = "profile-2"
     # Soğuk başlangıç skorları (CLAUDE.md oylama ölçeği)
     vote_scores: dict[int, float] = {1: -1.0, 2: -0.6, 3: -0.15, 4: 0.35, 5: 0.7, 6: 1.0}
     # Persentil normalizasyonu: en az bu kadar güncel oydan sonra devreye girer; işaret korunur,
@@ -98,6 +98,9 @@ class ProfileSettings(BaseSettings):
     cluster_min_artists: int = 3
     cluster_seed: int = 0
     cluster_n_init: int = 10
+    # Unheard (Faz 5 S1): bu kadar sunumda oy gelmezse süresi dolar ve zayıf örtük negatif sayılır.
+    unheard_expire_after: int = 3
+    unheard_expired_score: float = -0.05
     # Oylama kuyruğu (Faz 4 S1)
     queue_size: int = 20
     queue_max_size: int = 100

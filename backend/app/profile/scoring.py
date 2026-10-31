@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from datetime import datetime
 
 from app.config import ProfileSettings
+from app.profile.unheard import UnheardStatus
 
 
 @dataclass(frozen=True)
@@ -60,6 +61,19 @@ def decay_weight(vote: int, created_at: datetime, now: datetime, cfg: ProfileSet
         return 1.0
     age_days = max((now - created_at).total_seconds() / 86400, 0.0)
     return max(0.5 ** (age_days / cfg.decay_half_life_days), cfg.decay_floor)
+
+
+def implicit_negatives(
+    statuses: Iterable[UnheardStatus], now: datetime, cfg: ProfileSettings
+) -> list[ScoredVote]:
+    """Süresi dolan Unheard parçalar: çok zayıf, sönümlü örtük negatif (vote=0, gerçek oy değil)."""
+    return [
+        ScoredVote(
+            s.track_id, 0, cfg.unheard_expired_score, decay_weight(0, s.last_at, now, cfg)
+        )
+        for s in statuses
+        if s.state == "expired"
+    ]
 
 
 def score_votes(events: Iterable[VoteEvt], now: datetime, cfg: ProfileSettings) -> list[ScoredVote]:
