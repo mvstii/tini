@@ -177,7 +177,7 @@ def test_item_open_resolves_track_then_falls_back_to_search(client, db, monkeypa
     assert calls == ["isrc:ZZLE00000099"]
     r = client.get(f"/lists/{lst['id']}/items/{pos[c2.id]}/open", headers=h)  # parçası yok
     assert r.json() == {"kind": "search", "url": "spotify:search:LEB"}  # ad eşleşen parça yok
-    assert calls == ["isrc:ZZLE00000099", 'artist:"LEB"']
+    assert calls == ["isrc:ZZLE00000099"] + ['artist:"LEB"'] * 3  # eşleşme yok: 3 sayfa taranır
 
 
 def test_item_open_search_fallback_on_service_error(client, db, monkeypatch):

@@ -5,9 +5,17 @@ from urllib.parse import quote
 import httpx
 
 from app.adapters.base import Library, LibraryTrack
+from app.catalog.names import normalize_name
 
 API = "https://api.spotify.com/v1"
 MAX_RETRIES = 4
+_SEARCH_PAGE = 10  # Development Mode'da /search en çok 10 sonuç döner
+_ARTIST_SEARCH_PAGES = 3
+
+
+def _match_key(name: str) -> str:
+    """Sanatçı adı karşılaştırma anahtarı: aksan/noktalama yok sayılır, `$` → `s` (Travi$ Scott)."""
+    return normalize_name(name.replace("$", "s")).replace(" ", "")
 
 
 class SpotifyAdapter:
@@ -80,12 +88,18 @@ class SpotifyAdapter:
         if not artist_name:
             return None
         q = f'artist:"{artist_name}"'
-        body = self._request("GET", "/search", params={"q": q, "type": "track", "limit": 5})
-        wanted = artist_name.casefold()
-        for t in (body.get("tracks") or {}).get("items") or []:
-            names = {a.get("name", "").casefold() for a in t.get("artists") or []}
-            if t.get("id") and wanted in names:
-                return t["id"]
+        wanted = _match_key(artist_name)
+        # Kısa adlarda ("NAV") doğru sanatçı ilk sayfada çıkmayabilir; birkaç sayfa taranır.
+        for page in range(_ARTIST_SEARCH_PAGES):
+            params = {"q": q, "type": "track", "limit": _SEARCH_PAGE, "offset": page * _SEARCH_PAGE}
+            body = self._request("GET", "/search", params=params)
+            items = (body.get("tracks") or {}).get("items") or []
+            for t in items:
+                names = {_match_key(a.get("name", "")) for a in t.get("artists") or []}
+                if t.get("id") and wanted in names:
+                    return t["id"]
+            if not items:  # sayfa limitten kısa dönebilir (canlıda 5 öğe geldi); yalnız boşta dur
+                break
         return None
 
     def open_url(self, isrc: str | None, artist_name: str) -> tuple[str, str]:
