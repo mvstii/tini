@@ -268,6 +268,7 @@ class ListItem(Base):
     track_id: Mapped[int | None] = mapped_column(ForeignKey("track.id"))
     score: Mapped[float] = mapped_column(Float)
     reasons: Mapped[list] = mapped_column(JSONB)
+    slot: Mapped[str] = mapped_column(String(16), server_default="explore")
 
 
 class ListFeedback(Base):

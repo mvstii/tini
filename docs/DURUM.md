@@ -125,7 +125,8 @@ S3 notu: Gerekçe itirazı yalnızca kayıttır; profile/algoritmaya etkisi Faz 
 | # | Aşama | Durum | PR |
 |---|---|---|---|
 | S1 | Unheard durum makinesi (göç 0010 `unheard_event`, saf `profile/unheard.py`, `POST /votes/unheard`, mobil sola kaydırma, N=3 sunumda −0,05 sönümlü örtük negatif, `profile-2`) | Kod ve testler hazır (187 backend testi, Flutter 15 test, analyze temiz); emülatörde doğrulandı | #32 (birleşti) |
-| S2 | Aktif öğrenme kuyruğu (göç yok; saf `profile/active.py`, `profile/active_service.py`, `ppr.artist_scores`, `GET /votes/queue` → `queue-2`: belirsizlik = PPR skorunun persentil yakınlığı, havuz bonusu, süresi dolanlar dışarıda, sunulan havuz parçası `awaiting`) | Kod ve testler hazır (196 backend testi, ruff temiz) | PR bekliyor |
+| S2 | Aktif öğrenme kuyruğu (göç yok; saf `profile/active.py`, `profile/active_service.py`, `ppr.artist_scores`, `GET /votes/queue` → `queue-2`: belirsizlik = PPR skorunun persentil yakınlığı, havuz bonusu, süresi dolanlar dışarıda, sunulan havuz parçası `awaiting`) | Kod ve testler hazır (196 backend testi, ruff temiz) | #33 (birleşti) |
+| S3 | Slot dağılımı (göç 0011 `list_item.slot`, saf `recommend/bandit.py` Thompson sampling, `recommend/outcomes.py` türetilen sonuçlar, `generate_list` slot başına MMR, `list-2`) | Kod ve testler hazır (203 backend testi, ruff temiz) | PR bekliyor |
 | S2–S6 | Aktif öğrenme kuyruğu, slot dağılımı, yayın tespiti, Taze liste, değerlendirme | Başlamadı | |
 
 S1 notu: Sola kaydırma geri alınamaz olay yazar (olay kaydı silinmez); mobildeki "geri al" yalnızca kartı oturumda geri getirir. S2'de kuyruk, havuzdaki parçaları sunar.
@@ -138,3 +139,5 @@ S1 notu: Sola kaydırma geri alınamaz olay yazar (olay kaydı silinmez); mobild
 - Faz 0 örneği tek kişinin müzik sahnesi; kapsam sayıları genellenmeyebilir.
 
 S2 notu: Belirsizlik = 1 − |2p − 1|; p = sanatçının PPR skorunun, sinyalli sanatçıların skor dağılımındaki mid-rank persentili. Sinyali olmayan sanatçı `active_unknown_uncertainty` (0,75) alır; havuzdaki parça `active_pool_bonus` (0,5) kazanır. Profil/graf yoksa herkes 'bilinmiyor' sayılır. Oy almamış sanatçılar ve sanatçı başına tur sırası korunur.
+
+S3 notu: Slotlar: `unheard` (havuz sanatçısı, öğenin parçası havuz parçası), `familiar` (kalan adayların üst yarısı, PPR), `explore` (alt yarısı). Havuz sanatçısı aday listesinde (PPR üst-N, bilinen sanatçılar hariç) değilse unheard'e giremez; gerekçe zorunluluğu bunu gerektirir. Toplam sonuç < 10 iken pay öncüldür (0,40/0,35/0,25); sonra Beta(1+başarı, 1+başarısızlık) örneği, %10 taban payla harmanlanır; tohum = profil sürümü. Başarı = liste sonrası sanatçıya son oy ≥ 4; başarısızlık = itiraz veya son oy ≤ 2. Eski listelerin öğeleri `explore` sayılır. Slotun adayı yetmezse taşan kontenjan diğerlerine gider. Paylar ve sonuçlar `generated_list.params` içinde.

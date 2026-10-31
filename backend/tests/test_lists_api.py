@@ -95,7 +95,7 @@ def test_generate_persists_list_with_reasons_and_track(client, db):
     r = client.post("/lists/generate", headers=h)
     assert r.status_code == 201
     body = r.json()
-    assert body["algo_version"] == "list-1" and body["profile_version"] == 1
+    assert body["algo_version"] == "list-2" and body["profile_version"] == 1
     items = {i["artist_id"]: i for i in body["items"]}
     assert set(items) == {c1.id, c2.id}
     assert [i["position"] for i in body["items"]] == [1, 2]
@@ -285,3 +285,16 @@ def test_export_maps_scope_error_and_checks_access(client, db, monkeypatch):
     assert client.post(f"/lists/{lst['id']}/export/nope", headers=h).status_code == 400
     h2 = register(client, "e4@example.com")
     assert client.post(f"/lists/{lst['id']}/export/spotify", headers=h2).status_code == 404
+
+
+def test_generate_assigns_slots_and_unheard_uses_pooled_track(client, db):
+    h, seed, c1, c2 = setup_user(client, db, "l5@example.com", "LS")
+    pooled = library_track(db, "l5@example.com", "ZZLS00000050", c2)
+    assert client.post("/votes/unheard", json={"track": pooled.id}, headers=h).status_code == 201
+
+    body = client.post("/lists/generate", headers=h).json()
+    items = {i["artist_id"]: i for i in body["items"]}
+    assert items[c2.id]["slot"] == "unheard" and items[c2.id]["track_id"] == pooled.id
+    assert items[c1.id]["slot"] in ("familiar", "explore")
+    assert sum(body["params"]["slot_counts"].values()) == 2
+    assert body["params"]["slot_outcomes"] == {}
