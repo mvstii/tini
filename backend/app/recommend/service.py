@@ -102,7 +102,9 @@ def slot_outcomes(db: Session, user_id) -> dict[str, tuple[int, int]]:
                 GeneratedList.created_at,
             )
             .join(GeneratedList, GeneratedList.id == ListItem.list_id)
-            .where(GeneratedList.user_id == user_id, GeneratedList.kind == "main")
+            .where(GeneratedList.user_id == user_id, GeneratedList.kind == "main",
+                ListItem.slot != "fresh",
+            )
         )
     ]
     if not items:
@@ -171,11 +173,16 @@ def generate_list(
     gcfg: GraphSettings,
 ) -> GeneratedList:
     sc = compute_candidates(db, user_id, now, cfg, pcfg, gcfg)
+    fresh, _ = fresh_ranked(db, user_id, sc.profile, sc.gm, now.date(), cfg)
+    fresh = fresh[: round(cfg.list_size * cfg.fresh_share)]
+    fresh_artists = {i.artist_id for i in fresh}
     pool = _pool_tracks(db, user_id, pcfg)
-    pools = split_slots(sc.cands, pool, cfg.familiar_fraction)
+    pools = split_slots(
+        [c for c in sc.cands if c.artist_id not in fresh_artists], pool, cfg.familiar_fraction
+    )
     outcomes = slot_outcomes(db, user_id)
     shares = slot_shares(outcomes, cfg, sc.profile.version)
-    counts = allocate(cfg.list_size, shares, {s: len(pools[s]) for s in SLOTS})
+    counts = allocate(cfg.list_size - len(fresh), shares, {s: len(pools[s]) for s in SLOTS})
     slot_of: dict[int, str] = {}
     chosen = []
     for slot in SLOTS:
@@ -198,6 +205,7 @@ def generate_list(
             "novelty_gamma": cfg.novelty_gamma, "candidate_top_n": cfg.candidate_top_n,
             "slot_shares": {k: round(v, 6) for k, v in shares.items()},
             "slot_counts": counts,
+            "fresh_share": cfg.fresh_share, "fresh_count": len(fresh),
             "slot_outcomes": {k: list(v) for k, v in outcomes.items()},
         },
     )
@@ -214,6 +222,8 @@ def generate_list(
                 ],
             )
         )
+    for pos, i in enumerate(fresh, start=len(chosen) + 1):  # "Yeni" yuvası listenin sonunda
+        db.add(_fresh_item(lst.id, pos, i))
     db.commit()
     return lst
 
@@ -237,26 +247,39 @@ def window_releases(
     return [FreshRelease(*r) for r in rows if r[0] not in skip]
 
 
-def generate_fresh(
-    db: Session, user_id, now: datetime, cfg: RecommendSettings, gcfg: GraphSettings
-) -> GeneratedList:
-    """Haftalık Taze liste: takip edilen sanatçıların yayınları (albüm düzeyi), gerekçeli."""
-    prof, graph_version, gm = latest_profile_graph(db, user_id, gcfg)
+def fresh_ranked(
+    db: Session, user_id, prof: TasteProfile, gm: GraphMatrix, today: date, cfg: RecommendSettings
+):
+    """Takip edilen sanatçıların, önceki listelerde çıkmamış yayınları; sıralı ve gerekçeli."""
     follows = user_follows(db, user_id)
     seen = set(
         db.scalars(
             select(ListItem.release_id)
             .join(GeneratedList, GeneratedList.id == ListItem.list_id)
-            .where(
-                GeneratedList.user_id == user_id, GeneratedList.kind == "fresh",
-                ListItem.release_id.is_not(None),
-            )
+            .where(GeneratedList.user_id == user_id, ListItem.release_id.is_not(None))
         )
     )
-    today = now.date()
     releases = window_releases(db, follows, today, cfg.fresh_window_days, seen)
     scores = explain(gm, prof.body, {r.artist_id for r in releases}, cfg)
-    ranked = rank_fresh(releases, scores, today, cfg)
+    return rank_fresh(releases, scores, today, cfg), len(follows)
+
+
+def _fresh_item(list_id: int, pos: int, i) -> ListItem:
+    return ListItem(
+        list_id=list_id, position=pos, artist_id=i.artist_id, release_id=i.release_id,
+        score=i.score, slot="fresh",
+        reasons=[
+            {"seed_id": r.seed_id, "share": r.share, "is_anchor": r.is_anchor} for r in i.reasons
+        ],
+    )
+
+
+def generate_fresh(
+    db: Session, user_id, now: datetime, cfg: RecommendSettings, gcfg: GraphSettings
+) -> GeneratedList:
+    """Haftalık Taze liste: takip edilen sanatçıların yayınları (albüm düzeyi), gerekçeli."""
+    prof, graph_version, gm = latest_profile_graph(db, user_id, gcfg)
+    ranked, followed = fresh_ranked(db, user_id, prof, gm, now.date(), cfg)
     if not ranked:
         raise NoReleases
     lst = GeneratedList(
@@ -267,21 +290,12 @@ def generate_fresh(
             "fresh_list_size": cfg.fresh_list_size, "fresh_window_days": cfg.fresh_window_days,
             "fresh_half_life_days": cfg.fresh_half_life_days, "ppr_alpha": cfg.ppr_alpha,
             "ppr_iterations": cfg.ppr_iterations, "anchor_boost": cfg.anchor_boost,
-            "novelty_gamma": cfg.novelty_gamma, "followed": len(follows),
+            "novelty_gamma": cfg.novelty_gamma, "followed": followed,
         },
     )
     db.add(lst)
     db.flush()
     for pos, i in enumerate(ranked, start=1):
-        db.add(
-            ListItem(
-                list_id=lst.id, position=pos, artist_id=i.artist_id, release_id=i.release_id,
-                score=i.score, slot="fresh",
-                reasons=[
-                    {"seed_id": r.seed_id, "share": r.share, "is_anchor": r.is_anchor}
-                    for r in i.reasons
-                ],
-            )
-        )
+        db.add(_fresh_item(lst.id, pos, i))
     db.commit()
     return lst

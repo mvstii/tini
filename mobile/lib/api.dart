@@ -76,8 +76,8 @@ class ListEntry {
   /// Yalnızca Taze liste öğelerinde: albüm düzeyinde yayın.
   final ReleaseInfo? release;
 
-  /// Faz 4'te tek slot tipi var.
-  String get slot => 'keşif';
+  /// Yayın öğeleri "yeni" yuvasıdır; diğerleri keşif.
+  String get slot => release != null ? 'yeni' : 'keşif';
 }
 
 class ReleaseInfo {

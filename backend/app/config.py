@@ -127,7 +127,7 @@ class RecommendSettings(BaseSettings):
     novelty_gamma: float = 0.4
     candidate_top_n: int = 100
     reason_count: int = 3
-    list_algo_version: str = "list-2"
+    list_algo_version: str = "list-3"
     list_size: int = 20
     mmr_lambda: float = 0.6  # 1 = yalnız alaka, 0 = yalnız çeşitlilik
     # Slot dağılımı (Faz 5 S3): Thompson sampling
@@ -139,6 +139,7 @@ class RecommendSettings(BaseSettings):
     familiar_fraction: float = 0.5  # havuzsuz adayların üst kesri = familiar, kalanı explore
     # Taze liste (Faz 5 S5): takip edilen sanatçıların son yayınları, albüm düzeyinde
     fresh_algo_version: str = "fresh-1"
+    fresh_share: float = 0.12  # ana listede "Yeni" yuvasının sabit payı (bandit dışı)
     fresh_list_size: int = 15
     fresh_window_days: int = 30  # yalnız bu kadar gün içindeki yayınlar
     fresh_half_life_days: float = 14.0  # yenilik çarpanı yarılanma süresi
