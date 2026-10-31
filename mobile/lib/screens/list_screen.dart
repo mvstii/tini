@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../api.dart';
 
@@ -11,10 +12,16 @@ String reasonText(ListEntry e, {int top = 3}) {
   return 'Sevdiğin sanatçılara benzediği için: ${parts.join(', ')}';
 }
 
+Future<bool> _launchExternal(String url) =>
+    launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+
 class ListScreen extends StatefulWidget {
-  const ListScreen({super.key, required this.api, this.onLogout});
+  const ListScreen({super.key, required this.api, this.onLogout, this.launch = _launchExternal});
   final Api api;
   final VoidCallback? onLogout;
+
+  /// Testte değiştirilebilir; varsayılan servis uygulamasını açar.
+  final Future<bool> Function(String url) launch;
 
   @override
   State<ListScreen> createState() => _ListScreenState();
@@ -45,6 +52,21 @@ class _ListScreenState extends State<ListScreen> {
       if (mounted) setState(() => _error = 'Sunucuya ulaşılamadı');
     } finally {
       if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _open(ListEntry e) async {
+    try {
+      final url = await widget.api.openUrl(_list!.id, e.position);
+      if (!await widget.launch(url) && mounted) {
+        setState(() => _error = 'Spotify açılamadı. Uygulama kurulu mu?');
+      }
+    } on ApiException catch (ex) {
+      if (mounted) {
+        setState(() => _error = ex.status == 409 ? "Önce Spotify'ı bağla." : ex.message);
+      }
+    } catch (_) {
+      if (mounted) setState(() => _error = 'Sunucuya ulaşılamadı');
     }
   }
 
@@ -116,12 +138,18 @@ class _ListScreenState extends State<ListScreen> {
                       if (e.title != null) Text(e.title!),
                       const SizedBox(height: 4),
                       Text(reasonText(e)),
-                      Align(
-                        alignment: Alignment.centerRight,
-                        child: TextButton(
-                          onPressed: () => _object(e),
-                          child: const Text('Bu gerekçe yanlış'),
-                        ),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          TextButton(
+                            onPressed: () => _object(e),
+                            child: const Text('Bu gerekçe yanlış'),
+                          ),
+                          FilledButton.tonal(
+                            onPressed: () => _open(e),
+                            child: const Text("Spotify'da aç"),
+                          ),
+                        ],
                       ),
                     ],
                   ),

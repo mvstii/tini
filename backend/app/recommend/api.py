@@ -5,6 +5,7 @@ Yanıtlardaki adlar yalnızca paylaşılan katalogdaki sanatçı adlarıdır.
 from datetime import UTC, datetime
 from typing import Literal
 
+import httpx
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy import select
@@ -18,8 +19,20 @@ from app.config import (
     get_profile_settings,
     get_recommend_settings,
 )
+from app.connect import get_http
+from app.connections import valid_access_value
 from app.deps import current_user, get_db
-from app.models import Artist, GeneratedList, ListFeedback, ListItem, User, UserTrackMeta
+from app.library import ADAPTERS
+from app.models import (
+    Artist,
+    GeneratedList,
+    ListFeedback,
+    ListItem,
+    ServiceConnection,
+    Track,
+    User,
+    UserTrackMeta,
+)
 from app.recommend.service import NoGraph, NoProfile, compute_candidates, generate_list
 
 router = APIRouter(prefix="/recommend")
@@ -177,3 +190,44 @@ def item_feedback(
     db.commit()
     return {"id": ev.id, "list": list_id, "position": position, "seed_id": ev.seed_id,
             "kind": ev.kind}
+
+
+@lists_router.get("/{list_id}/items/{position}/open")
+def item_open(
+    list_id: int, position: int, service: str = "spotify",
+    user: User = Depends(current_user), db: Session = Depends(get_db),
+    http: httpx.Client = Depends(get_http),
+) -> dict:
+    """Öğeyi servis uygulamasında açan bağlantı. Parça ISRC'den çözülür (tıklama anında, saklanmaz);
+    çözülemezse sanatçı araması bağlantısı döner."""
+    item = db.scalar(
+        select(ListItem)
+        .join(GeneratedList, GeneratedList.id == ListItem.list_id)
+        .where(
+            ListItem.list_id == list_id, ListItem.position == position,
+            GeneratedList.user_id == user.id,
+        )
+    )
+    if item is None:
+        raise HTTPException(404, "Liste öğesi yok")
+    adapter_cls = ADAPTERS.get(service)
+    if adapter_cls is None:
+        raise HTTPException(400, "Bilinmeyen servis")
+    conn = db.scalars(
+        select(ServiceConnection).where(
+            ServiceConnection.user_id == user.id, ServiceConnection.service == service
+        )
+    ).first()
+    if conn is None:
+        raise HTTPException(409, "Servis bağlı değil")
+    try:
+        adapter = adapter_cls(http, valid_access_value(db, conn, http))
+    except PermissionError as e:
+        raise HTTPException(409, str(e)) from e
+    name = db.scalar(select(Artist.name).where(Artist.id == item.artist_id)) or ""
+    isrc = db.scalar(select(Track.isrc).where(Track.id == item.track_id)) if item.track_id else None
+    try:
+        kind, url = adapter.open_url(isrc, name)
+    except httpx.HTTPError:
+        kind, url = adapter.open_url(None, name)
+    return {"kind": kind, "url": url}

@@ -245,6 +245,45 @@ void main() {
       expect(find.text('Geri bildirimin kaydedildi'), findsOneWidget);
     });
 
+    testWidgets('opens the item in Spotify via the resolved link', (tester) async {
+      String? launched;
+      final api = _api((req) async {
+        if (req.url.path == '/lists/generate') {
+          return http.Response.bytes(utf8.encode(jsonEncode(listJson)), 201);
+        }
+        if (req.url.path == '/lists/7/items/1/open') {
+          return http.Response('{"kind": "track", "url": "spotify:track:T1"}', 200);
+        }
+        return http.Response('{}', 200);
+      }, _MemoryStorage());
+      await tester.pumpWidget(MaterialApp(
+        home: ListScreen(api: api, launch: (u) async {
+          launched = u;
+          return true;
+        }),
+      ));
+      await tester.tap(find.text('Liste üret'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text("Spotify'da aç"));
+      await tester.pumpAndSettle();
+      expect(launched, 'spotify:track:T1');
+    });
+
+    testWidgets('shows a hint when the service is not connected', (tester) async {
+      final api = _api((req) async {
+        if (req.url.path == '/lists/generate') {
+          return http.Response.bytes(utf8.encode(jsonEncode(listJson)), 201);
+        }
+        return http.Response.bytes(utf8.encode('{"detail": "Servis bağlı değil"}'), 409);
+      }, _MemoryStorage());
+      await tester.pumpWidget(MaterialApp(home: ListScreen(api: api)));
+      await tester.tap(find.text('Liste üret'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text("Spotify'da aç"));
+      await tester.pumpAndSettle();
+      expect(find.text("Önce Spotify'ı bağla."), findsOneWidget);
+    });
+
     testWidgets('no profile yet shows a hint', (tester) async {
       final api = _api((req) async => http.Response('{"detail": "x"}', 404), _MemoryStorage());
       await tester.pumpWidget(MaterialApp(home: ListScreen(api: api)));

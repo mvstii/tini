@@ -140,3 +140,63 @@ def test_item_feedback_validation_and_privacy(client, db):
 
     h2 = register(client, "l6@example.com")
     assert client.post(f"/lists/{lid}/items/1/feedback", json={}, headers=h2).status_code == 404
+
+
+def _connect_spotify(db, email, monkeypatch, handler):
+    import httpx
+
+    from app.connect import get_http
+    from app.models import ServiceConnection
+
+    u = db.scalar(select(User).where(User.email == email))
+    db.add(ServiceConnection(user_id=u.id, service="spotify", external_user_id="sp",
+                             access_token_enc=b"x"))
+    db.flush()
+    monkeypatch.setattr("app.recommend.api.valid_access_value", lambda *_: "AT")
+    app.dependency_overrides[get_http] = lambda: httpx.Client(
+        transport=httpx.MockTransport(handler))
+
+
+def test_item_open_resolves_track_then_falls_back_to_search(client, db, monkeypatch):
+    import httpx
+
+    h, seed, c1, c2 = setup_user(client, db, "l6@example.com", "LE")
+    db.add(Track(isrc="ZZLE00000099", artist_id=c1.id))
+    db.flush()
+    lst = client.post("/lists/generate", headers=h).json()
+    pos = {i["artist_id"]: i["position"] for i in lst["items"]}
+    calls = []
+
+    def handler(req):
+        calls.append(req.url.params["q"])
+        return httpx.Response(200, json={"tracks": {"items": [{"id": "T1"}]}})
+
+    _connect_spotify(db, "l6@example.com", monkeypatch, handler)
+    r = client.get(f"/lists/{lst['id']}/items/{pos[c1.id]}/open", headers=h)
+    assert r.json() == {"kind": "track", "url": "spotify:track:T1"}
+    assert calls == ["isrc:ZZLE00000099"]
+    r = client.get(f"/lists/{lst['id']}/items/{pos[c2.id]}/open", headers=h)  # parçası yok
+    assert r.json() == {"kind": "search", "url": "spotify:search:LEB"}
+    assert len(calls) == 1
+
+
+def test_item_open_search_fallback_on_service_error(client, db, monkeypatch):
+    import httpx
+
+    h, seed, c1, c2 = setup_user(client, db, "l7@example.com", "LF")
+    db.add(Track(isrc="ZZLF00000099", artist_id=c1.id))
+    db.flush()
+    lst = client.post("/lists/generate", headers=h).json()
+    pos = {i["artist_id"]: i["position"] for i in lst["items"]}
+    _connect_spotify(db, "l7@example.com", monkeypatch, lambda r: httpx.Response(500))
+    r = client.get(f"/lists/{lst['id']}/items/{pos[c1.id]}/open", headers=h)
+    assert r.json() == {"kind": "search", "url": "spotify:search:LFA"}
+
+
+def test_item_open_requires_connection_and_ownership(client, db):
+    h1, *_ = setup_user(client, db, "l8@example.com", "LG")
+    lid = client.post("/lists/generate", headers=h1).json()["id"]
+    assert client.get(f"/lists/{lid}/items/1/open", headers=h1).status_code == 409
+    assert client.get(f"/lists/{lid}/items/99/open", headers=h1).status_code == 404
+    h2 = register(client, "l9@example.com")
+    assert client.get(f"/lists/{lid}/items/1/open", headers=h2).status_code == 404

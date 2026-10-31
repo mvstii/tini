@@ -1,5 +1,6 @@
 """Spotify adaptörü. Kapalı uç noktalar kullanılmaz (bkz. CLAUDE.md)."""
 import time
+from urllib.parse import quote
 
 import httpx
 
@@ -67,3 +68,13 @@ class SpotifyAdapter:
             uris = [f"spotify:track:{x}" for x in external_ids[i : i + 100]]
             self._request("POST", f"/playlists/{pl['id']}/items", json={"uris": uris})
         return pl["id"]
+
+    def open_url(self, isrc: str | None, artist_name: str) -> tuple[str, str]:
+        if isrc:
+            body = self._request(
+                "GET", "/search", params={"q": f"isrc:{isrc}", "type": "track", "limit": 1}
+            )
+            items = (body.get("tracks") or {}).get("items") or []
+            if items and items[0].get("id"):
+                return "track", f"spotify:track:{items[0]['id']}"
+        return "search", f"spotify:search:{quote(artist_name)}"

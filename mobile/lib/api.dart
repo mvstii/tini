@@ -165,6 +165,12 @@ class Api {
   Future<void> reasonFeedback(int listId, int position, {int? seedId}) => _send(
       'POST', '/lists/$listId/items/$position/feedback', {'kind': 'wrong_reason', 'seed_id': seedId});
 
+  /// Öğeyi servis uygulamasında açan bağlantı (parça bulunamazsa sanatçı araması).
+  Future<String> openUrl(int listId, int position) async {
+    final body = await _send('GET', '/lists/$listId/items/$position/open');
+    return body['url'] as String;
+  }
+
   Future<Map<String, dynamic>> _send(String method, String path, [Object? json]) async {
     final req = http.Request(method, Uri.parse('$apiBase$path'));
     if (_session != null) req.headers['Authorization'] = 'Bearer $_session';
