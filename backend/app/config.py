@@ -143,6 +143,7 @@ class RecommendSettings(BaseSettings):
     fresh_list_size: int = 15
     fresh_window_days: int = 30  # yalnız bu kadar gün içindeki yayınlar
     fresh_half_life_days: float = 14.0  # yenilik çarpanı yarılanma süresi
+    eval_min_sample: int = 10  # değerlendirme raporunda bunun altındaki oranlar "yetersiz veri"
 
 
 class ReleasesSettings(BaseSettings):

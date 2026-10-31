@@ -63,11 +63,12 @@ Kapı: telefonda oylayıp gerekçeli listeyi Spotify'a kaydedebiliyorsun.
 
 Kapı: Unheard döngüsü uçtan uca çalışıyor, ilk haftalık Taze listesi üretildi.
 
-- [ ] Unheard durum makinesi (S1 bitti) ve aktif öğrenme kuyruğu (S2 bitti)
+- [x] Unheard durum makinesi ve aktif öğrenme kuyruğu
 - [x] Thompson sampling ile slot dağılımı
-- [ ] Takip listesi, yayın tespiti, haftalık Taze listesi, ana listede %10–15 pay
-- [ ] Uygulama içi "Yeni" akışı
-- [ ] Değerlendirme betikleri
+- [x] Takip listesi, yayın tespiti, haftalık Taze listesi, ana listede %10–15 pay
+- [x] Uygulama içi "Yeni" akışı
+- [x] Değerlendirme betikleri (`python -m app.jobs.evaluate EPOSTA`)
+- [ ] Kapı: Unheard döngüsü canlı denendi, ilk Taze liste üretildi
 
 ## Faz 6 — Kapalı test (Hafta 12: 18–24 Ocak)
 
