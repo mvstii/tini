@@ -35,6 +35,16 @@ COMPOSE_PROJECT_NAME=tini-prod ./scripts/backup.sh
 
 - İstek günlüğü: `docker compose -p tini-prod -f docker-compose.yml -f docker-compose.prod.yml logs -f backend`. Her istek tek satır JSON (`request_id`, `path`, `status`, `ms`, `user`); 5xx satırları ERROR düzeyinde ve yığın izi ile. Kullanıcı bir hata bildirirse saatine bakıp `status >= 500` satırlarını ara.
 - Geri bildirimler: `docker compose -p tini-prod -f docker-compose.yml -f docker-compose.prod.yml exec backend python -m app.jobs.feedback --kind bug`.
+- İlerleme (oy sayıları): `docker compose -p tini-prod -f docker-compose.yml -f docker-compose.prod.yml exec backend python -m app.jobs.evaluate`.
+
+## Hesap silme (S4)
+
+Uygulamada silme uç noktası yok (v1); kullanıcı isterse geliştirici siler. Önce neyin silineceğine bak, sonra `--yes` ile sil. Kişisel tablolar `ON DELETE CASCADE` ile birlikte gider, paylaşılan katalog kalır:
+
+```bash
+docker compose -p tini-prod -f docker-compose.yml -f docker-compose.prod.yml exec backend python -m app.jobs.delete_user kisi@example.com
+docker compose -p tini-prod -f docker-compose.yml -f docker-compose.prod.yml exec backend python -m app.jobs.delete_user kisi@example.com --yes
+```
 
 ## Sınırlar
 
