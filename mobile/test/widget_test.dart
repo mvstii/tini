@@ -7,6 +7,7 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:tini/api.dart';
 import 'package:tini/main.dart';
+import 'package:tini/screens/feedback_screen.dart';
 import 'package:tini/screens/fresh_screen.dart';
 import 'package:tini/screens/history_screen.dart';
 import 'package:tini/screens/list_screen.dart';
@@ -454,6 +455,41 @@ void main() {
       await tester.tap(find.text('6 · Amazing'));
       await tester.pumpAndSettle();
       expect(cast, {'track': 5, 'vote': 6});
+    });
+  });
+
+  group('feedback screen', () {
+    testWidgets('sends kind, version and message', (tester) async {
+      Map<String, dynamic>? sent;
+      final api = _api((req) async {
+        if (req.url.path == '/feedback' && req.method == 'POST') {
+          sent = jsonDecode(req.body) as Map<String, dynamic>;
+          return http.Response('{"id": 1}', 201);
+        }
+        return http.Response('{}', 200);
+      }, _MemoryStorage());
+      await tester.pumpWidget(MaterialApp(home: FeedbackScreen(api: api)));
+      await tester.tap(find.text('Öneri'));
+      await tester.enterText(find.byType(TextField), 'Kapak olsun');
+      await tester.tap(find.text('Gönder'));
+      await tester.pumpAndSettle();
+      expect(sent,
+          {'kind': 'idea', 'screen': 'home', 'app_version': appVersion, 'message': 'Kapak olsun'});
+      expect(find.text('Teşekkürler, iletildi.'), findsOneWidget);
+    });
+
+    testWidgets('rejects a too short message without calling the server', (tester) async {
+      var calls = 0;
+      final api = _api((req) async {
+        calls++;
+        return http.Response('{}', 200);
+      }, _MemoryStorage());
+      await tester.pumpWidget(MaterialApp(home: FeedbackScreen(api: api)));
+      await tester.enterText(find.byType(TextField), 'a');
+      await tester.tap(find.text('Gönder'));
+      await tester.pumpAndSettle();
+      expect(find.text('En az 3 karakter yaz'), findsOneWidget);
+      expect(calls, 0);
     });
   });
 }

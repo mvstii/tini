@@ -7,6 +7,9 @@ import 'package:http/http.dart' as http;
 /// `--dart-define=API_BASE=https://<alan-adı>` (docs/DAGITIM.md).
 const apiBase = String.fromEnvironment('API_BASE', defaultValue: 'http://10.0.2.2:8000');
 
+/// Geri bildirimle sunucuya gönderilir; derlemede `--dart-define=APP_VERSION=...` ile verilir.
+const appVersion = String.fromEnvironment('APP_VERSION', defaultValue: '1.0.0');
+
 class ApiException implements Exception {
   ApiException(this.status, this.message);
   final int status;
@@ -177,6 +180,10 @@ class Api {
     final body = await _send('GET', '/votes/history?limit=1');
     return body['total'] as int;
   }
+
+  /// Uygulama içi geri bildirim: kind = bug | idea | other.
+  Future<void> sendFeedback(String kind, String screen, String message) => _send('POST', '/feedback',
+      {'kind': kind, 'screen': screen, 'app_version': appVersion, 'message': message});
 
   Future<void> rebuildProfile() => _send('POST', '/profile/rebuild');
 
