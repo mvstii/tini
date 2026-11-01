@@ -68,7 +68,7 @@ Kapı: Unheard döngüsü uçtan uca çalışıyor, ilk haftalık Taze listesi �
 - [x] Takip listesi, yayın tespiti, haftalık Taze listesi, ana listede %10–15 pay
 - [x] Uygulama içi "Yeni" akışı
 - [x] Değerlendirme betikleri (`python -m app.jobs.evaluate EPOSTA`)
-- [ ] Kapı: Unheard döngüsü canlı denendi, ilk Taze liste üretildi
+- [x] Kapı: Unheard döngüsü canlı denendi, ilk Taze liste üretildi (1 Kasım 2026, emülatör)
 
 ## Faz 6 — Kapalı test (Hafta 12: 18–24 Ocak)
 

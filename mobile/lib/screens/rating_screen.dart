@@ -100,10 +100,14 @@ class _RatingScreenState extends State<RatingScreen> {
   Future<void> _answer(int? vote) async {
     final item = _current;
     if (item == null || _busy) return;
+    // Dismissible kartı ağaçtan hemen çıkarmayı bekler; sunucu yanıtı beklenirse debug'da
+    // "dismissed Dismissible is still part of the tree" hatası (kırmızı ekran) çıkar.
     setState(() {
       _busy = true;
       _error = null;
+      _cards.removeAt(0);
     });
+    var saved = false;
     await _guard(() async {
       if (vote != null) {
         await widget.api.castVote(item.track, vote);
@@ -112,14 +116,19 @@ class _RatingScreenState extends State<RatingScreen> {
         await widget.api.markUnheard(item.track);
         _skipped.add(item.track);
       }
+      saved = true;
       _history.add(_Step(item, vote));
-      if (mounted) setState(() => _cards.removeAt(0));
       if (_cards.length < 3) {
         _seed++;
         await _fill();
       }
     });
-    if (mounted) setState(() => _busy = false);
+    if (mounted) {
+      setState(() {
+        if (!saved) _cards.insert(0, item); // kayıt başarısızsa kart geri gelir
+        _busy = false;
+      });
+    }
   }
 
   void _undo() {
