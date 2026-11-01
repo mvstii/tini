@@ -121,7 +121,7 @@ def queue(
     rows = db.execute(
         select(
             Track.id, Track.artist_id, UserTrackMeta.title, UserTrackMeta.artist_names,
-            UserTrackMeta.expires_at,
+            UserTrackMeta.expires_at, UserTrackMeta.image_url,
         )
         .join(UserTrackLink, UserTrackLink.track_id == Track.id)
         .outerjoin(
@@ -158,7 +158,8 @@ def queue(
         "remaining": len(fresh),
         "stale": len(rows) - len(fresh),
         "items": [
-            {"track": t, "title": fresh[t][2], "artists": fresh[t][3]} for t in order
+            {"track": t, "title": fresh[t][2], "artists": fresh[t][3], "image": fresh[t][5]}
+            for t in order
         ],
     }
 

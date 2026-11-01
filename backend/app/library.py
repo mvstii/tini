@@ -58,7 +58,7 @@ def store_library(
         ids[t.isrc]: {
             "user_id": user_id, "track_id": ids[t.isrc], "title": t.title,
             "artist_names": list(t.artist_names), "duration_ms": t.duration_ms,
-            "fetched_at": now, "expires_at": now + ttl,
+            "image_url": t.image_url, "fetched_at": now, "expires_at": now + ttl,
         }
         for t in lib.tracks
     }
@@ -68,7 +68,9 @@ def store_library(
             index_elements=["user_id", "track_id"],
             set_={
                 c: getattr(stmt.excluded, c)
-                for c in ("title", "artist_names", "duration_ms", "fetched_at", "expires_at")
+                for c in (
+                    "title", "artist_names", "duration_ms", "image_url", "fetched_at", "expires_at"
+                )
             },
         )
     )
