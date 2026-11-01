@@ -36,3 +36,22 @@ COMPOSE_PROJECT_NAME=tini-prod ./scripts/backup.sh
 - Makine ve Docker test saatlerinde açık olmalı; kapalıyken testçiler bağlanamaz.
 - Veritabanı portu dışarı açılmaz; backend yalnızca `127.0.0.1:8000`'e bağlanır, dışarıya yalnızca tünel çıkar.
 - Token'lar veritabanında şifreli (`CREDENTIAL_KEY`); anahtarı kaybetmek bağlantıları çözülemez yapar, `.env`'i yedekle.
+
+## Android APK (Faz 6 / S2)
+
+Bir kerelik imza anahtarı (depo dışına `%USERPROFILE%/tini-gizli/`, `mobile/android/key.properties`, ikisi de ignore'lu):
+
+```bash
+powershell -ExecutionPolicy Bypass -File scripts/android-imza.ps1
+```
+
+Anahtar dosyasını yedekle; kaybolursa testçiler güncelleme yapamaz, uygulamayı kaldırıp yeniden kurmak zorunda kalır. `key.properties` yoksa release debug anahtarıyla imzalanır (CI için).
+
+APK derleme (tünel adresiyle):
+
+```bash
+cd mobile
+flutter build apk --release --dart-define=API_BASE=https://<NGROK_DOMAIN>
+```
+
+Çıktı: `mobile/build/app/outputs/flutter-apk/app-release.apk` (~49 MB). Testçilere dosya olarak gönder; telefonda "bilinmeyen kaynaklardan yükleme" izni gerekir. Release yapıda düz http kapalıdır (yalnızca debug yapıda açık).

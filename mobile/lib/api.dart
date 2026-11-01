@@ -3,8 +3,8 @@ import 'dart:convert';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 
-/// Emülatörde 10.0.2.2 ana makineyi gösterir; gerçek cihaz için
-/// `--dart-define=API_BASE=http://<lan-ip>:8000` verilir.
+/// Emülatörde 10.0.2.2 ana makineyi gösterir. Kapalı test APK'sı tünel adresiyle derlenir:
+/// `--dart-define=API_BASE=https://<alan-adı>` (docs/DAGITIM.md).
 const apiBase = String.fromEnvironment('API_BASE', defaultValue: 'http://10.0.2.2:8000');
 
 class ApiException implements Exception {
