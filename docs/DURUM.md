@@ -4,7 +4,7 @@ Son güncelleme: 31 Ekim 2026 · Her aşama (PR) sonrasında güncellenir.
 
 ## Özet
 
-- **Faz:** Faz 1, 2 ve 3 tamamlandı (Faz 3: S1–S5 ve işbirliği düğümü düzeltmesi birleşti, kapı geçildi, 30 Ekim 2026; plan `docs/FAZ3_PLAN.md`). Güncel faz: Faz 4 — Mobil deneyim ve çıktı (plan `docs/FAZ4_PLAN.md`, onaylandı). Açık kalemler: sanatçı etiketleri, Last.fm izin e-postası (senin işin), Deezer/Apple MusicKit doğrulaması (Faz 6 öncesi).
+- **Faz:** Faz 0–5 tamamlandı (Faz 5 kapısı 1 Kasım 2026). Güncel faz: Faz 6 — Kapalı test (plan `docs/FAZ6_PLAN.md`, onaylandı 2 Kasım 2026; ücretli hiçbir şey yayın öncesine kadar yapılmaz: barındırma = makine + ücretsiz ngrok tüneli, testçiler Android/APK). Açık kalemler: sanatçı etiketleri, Last.fm izin e-postası (senin işin), Deezer/Apple MusicKit doğrulaması (Faz 7 öncesi).
 - **Faz 1 kapısı geçildi (30 Ekim 2026):** emülatörde hesap açıldı, Spotify bağlandı, kütüphane aktarıldı (531 bağlantı, 524 parça veritabanında).
 - **Faz 0:** tamamlandı. Kalan kullanıcı işleri: partners@last.fm'e izin e-postası, `.env.example` şablonunu geri koymak, Spotify'daki "tini-spike" ve "tini-spike-2" çalma listelerini silmek.
 
@@ -154,3 +154,14 @@ S6 notu: Ölçütler FAZ5_PLAN'dakiyle aynı, tek fark: "tahmin hatası" yerine 
 **Faz 5 kapı denemesi (1 Kasım 2026, emülatör + gerçek backend):** sola kaydırma Unheard olayı yazdı (havuz 4 parça), Taze liste üretildi ve "Yeni çıkanlar" ekranında albüm kartları gerekçeleriyle göründü (örn. The Game 'Unreleased Lost Files', Snoop Dogg 'The Hollow'); ana listelerde 9 "fresh" öğe. `evaluate` raporu: 127 sunulan öğe, 0 liste sonrası oylanan (oylanan parçalar önerilen sanatçılardan değildi), itiraz %0; oranlar anlamlı olmak için gerçek oylama gerektirir (Faz 6'da 5 kullanıcıyla). Canlıda bulunan hata: sola/sağa kaydırınca debug'da kırmızı ekran ("dismissed Dismissible is still part of the tree"): `_answer` kartı sunucu yanıtından sonra siliyordu. Düzeltildi: kart hemen çıkar, kayıt başarısızsa geri gelir; regresyon testi (yavaş sunucu) eklendi.
 
 S5b notu: Ana listede "Yeni" yuvası bandit dışı sabit paydır (`round(list_size x fresh_share)`, uygun yayın kadar); kalan kontenjan üç yuvaya dağıtılır, yeni yuva listenin sonuna eklenir. Yuvadaki sanatçı diğer yuvalardan çıkarılır. Öğe albüm kartıdır (parça yok, oylama yok; "Spotify'da aç" sanatçı aramasına gider); yayın -> parça eşlemesi ve oylama sonraya. Ana veya Taze listede çıkan yayın bir daha önerilmez. Yeni yuva slot sonuçlarına (bandit) girmez.
+
+## Faz 6 aşamaları (plan: `docs/FAZ6_PLAN.md`, onaylandı)
+
+| # | Aşama | Durum | PR |
+|---|---|---|---|
+| S1 | Dağıtım (`docker-compose.prod.yml`: DB portu kapalı, backend yalnızca 127.0.0.1, açılışta `alembic upgrade head`, ngrok `tunnel` profili; `scripts/backup.sh`; `docs/DAGITIM.md`) | Kod hazır; prod yığını ayrı proje adıyla ayağa kalktı (`/health` ok, göç 0013). Yedek betiği ve ngrok tüneli henüz denenmedi (ngrok hesabı gerekli, senin işin) | S1 PR'ı |
+| S2 | Mobil paketleme (Android APK, `API_BASE`) | Başlamadı | — |
+| S3 | Geri bildirim ve hata izleme (göç 0014, onay gerekli) | Başlamadı | — |
+| S4 | Test yürütme (rehber, davet, takip) | Başlamadı | — |
+| S5 | Ölçüt ve ayar | Başlamadı | — |
+| S6 | MVP etiketi ve kapı | Başlamadı | — |
