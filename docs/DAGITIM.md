@@ -39,7 +39,7 @@ COMPOSE_PROJECT_NAME=tini-prod ./scripts/backup.sh
 
 ## Android APK (Faz 6 / S2)
 
-Bir kerelik imza anahtarı (depo dışına `%USERPROFILE%	ini-gizli\`, `mobile/android/key.properties`, ikisi de ignore'lu):
+Bir kerelik imza anahtarı (depo dışına `%USERPROFILE%/tini-gizli/`, `mobile/android/key.properties`, ikisi de ignore'lu):
 
 ```bash
 powershell -ExecutionPolicy Bypass -File scripts/android-imza.ps1
