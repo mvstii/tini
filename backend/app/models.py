@@ -295,6 +295,22 @@ class ListFeedback(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=_now)
 
 
+class AppFeedback(Base):
+    """Kişisel kayıt: kullanıcının uygulama içinden gönderdiği hata/öneri notu (Faz 6)."""
+
+    __tablename__ = "app_feedback"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("user_account.id", ondelete="CASCADE"), index=True
+    )
+    kind: Mapped[str] = mapped_column(String(16))
+    screen: Mapped[str] = mapped_column(String(64))
+    app_version: Mapped[str] = mapped_column(String(32))
+    message: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=_now)
+
+
 class UserSession(Base):
     """Oturum kaydı; veritabanında yalnızca SHA-256 özeti durur."""
 

@@ -31,6 +31,11 @@ COMPOSE_PROJECT_NAME=tini-prod ./scripts/backup.sh
 
 `backups/` altına gzip'li `pg_dump` yazar, son 14 yedeği tutar (depoya girmez). Test süresince günde bir kez, ya da Windows Görev Zamanlayıcı'yla.
 
+## Günlük ve geri bildirim (S3)
+
+- İstek günlüğü: `docker compose -p tini-prod -f docker-compose.yml -f docker-compose.prod.yml logs -f backend`. Her istek tek satır JSON (`request_id`, `path`, `status`, `ms`, `user`); 5xx satırları ERROR düzeyinde ve yığın izi ile. Kullanıcı bir hata bildirirse saatine bakıp `status >= 500` satırlarını ara.
+- Geri bildirimler: `docker compose -p tini-prod -f docker-compose.yml -f docker-compose.prod.yml exec backend python -m app.jobs.feedback --kind bug`.
+
 ## Sınırlar
 
 - Makine ve Docker test saatlerinde açık olmalı; kapalıyken testçiler bağlanamaz.

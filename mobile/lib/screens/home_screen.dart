@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../api.dart';
+import 'feedback_screen.dart';
 import 'fresh_screen.dart';
 import 'history_screen.dart';
 import 'list_screen.dart';
@@ -130,6 +131,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             onPressed: () => Navigator.of(context).push(MaterialPageRoute<void>(
                 builder: (_) => HistoryScreen(api: widget.api, onLogout: widget.onLogout))),
             child: const Text('Oy geçmişi'),
+          ),
+          const SizedBox(height: 8),
+          TextButton(
+            onPressed: () => Navigator.of(context).push(MaterialPageRoute<void>(
+                builder: (_) => FeedbackScreen(api: widget.api, onLogout: widget.onLogout))),
+            child: const Text('Geri bildirim gönder'),
           ),
         ],
       ),

@@ -1,7 +1,10 @@
+import logging
+
 from fastapi import FastAPI
 
 from app.auth import router as auth_router
 from app.connect import router as connect_router
+from app.feedback import router as feedback_router
 from app.graph.api import router as graph_router
 from app.library import router as library_router
 from app.profile.api import profile_router
@@ -9,8 +12,16 @@ from app.profile.api import router as votes_router
 from app.recommend.api import lists_router
 from app.recommend.api import router as recommend_router
 from app.releases.api import router as releases_router
+from app.requestlog import install as install_request_log
+
+logging.getLogger("tini.request").setLevel(logging.INFO)
+if not logging.getLogger("tini.request").handlers:
+    _h = logging.StreamHandler()
+    _h.setFormatter(logging.Formatter("%(asctime)s %(message)s"))
+    logging.getLogger("tini.request").addHandler(_h)
 
 app = FastAPI(title="Tını")
+install_request_log(app)
 app.include_router(votes_router)
 app.include_router(profile_router)
 app.include_router(recommend_router)
@@ -20,6 +31,7 @@ app.include_router(graph_router)
 app.include_router(auth_router)
 app.include_router(connect_router)
 app.include_router(library_router)
+app.include_router(feedback_router)
 
 
 @app.get("/health")

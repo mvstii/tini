@@ -161,7 +161,7 @@ S5b notu: Ana listede "Yeni" yuvası bandit dışı sabit paydır (`round(list_s
 |---|---|---|---|
 | S1 | Dağıtım (`docker-compose.prod.yml`: DB portu kapalı, backend yalnızca 127.0.0.1, açılışta `alembic upgrade head`, ngrok `tunnel` profili; `scripts/backup.sh`; `docs/DAGITIM.md`) | Kod hazır; prod yığını ayrı proje adıyla ayağa kalktı (`/health` ok, göç 0013). Yedek betiği ve ngrok tüneli henüz denenmedi (ngrok hesabı gerekli, senin işin) | S1 PR'ı |
 | S2 | Mobil paketleme (release imza yapılandırması `key.properties`, `scripts/android-imza.ps1`, düz http yalnızca debug manifest'te, `API_BASE` ile tünel adresi) | Release APK derlendi (48,5 MB, imza anahtarı henüz üretilmedi: debug anahtarına düşüyor); release manifest'te cleartext yok. Gerçek telefonda kurulum ve Spotify dönüşü tünel + imza anahtarı sonrası denenecek | S2 PR'ı |
-| S3 | Geri bildirim ve hata izleme (göç 0014, onay gerekli) | Başlamadı | — |
+| S3 | Geri bildirim ve hata izleme (göç 0014 `app_feedback`, `POST /feedback`, `python -m app.jobs.feedback [--kind bug]`; istek günlüğü `requestlog.py`: tek satır JSON, `X-Request-Id`, gövde/başlık yazılmaz; mobil `FeedbackScreen` + ana ekranda buton) | Kod ve testler hazır (backend 4 yeni test, ruff temiz; Flutter 21 test, analyze temiz) | S3 PR'ı |
 | S4 | Test yürütme (rehber, davet, takip) | Başlamadı | — |
 | S5 | Ölçüt ve ayar | Başlamadı | — |
 | S6 | MVP etiketi ve kapı | Başlamadı | — |
