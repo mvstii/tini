@@ -160,7 +160,7 @@ S5b notu: Ana listede "Yeni" yuvası bandit dışı sabit paydır (`round(list_s
 | # | Aşama | Durum | PR |
 |---|---|---|---|
 | S1 | Dağıtım (`docker-compose.prod.yml`: DB portu kapalı, backend yalnızca 127.0.0.1, açılışta `alembic upgrade head`, ngrok `tunnel` profili; `scripts/backup.sh`; `docs/DAGITIM.md`) | Kod hazır; prod yığını ayrı proje adıyla ayağa kalktı (`/health` ok, göç 0013). Yedek betiği ve ngrok tüneli henüz denenmedi (ngrok hesabı gerekli, senin işin) | S1 PR'ı |
-| S2 | Mobil paketleme (Android APK, `API_BASE`) | Başlamadı | — |
+| S2 | Mobil paketleme (release imza yapılandırması `key.properties`, `scripts/android-imza.ps1`, düz http yalnızca debug manifest'te, `API_BASE` ile tünel adresi) | Release APK derlendi (48,5 MB, imza anahtarı henüz üretilmedi: debug anahtarına düşüyor); release manifest'te cleartext yok. Gerçek telefonda kurulum ve Spotify dönüşü tünel + imza anahtarı sonrası denenecek | S2 PR'ı |
 | S3 | Geri bildirim ve hata izleme (göç 0014, onay gerekli) | Başlamadı | — |
 | S4 | Test yürütme (rehber, davet, takip) | Başlamadı | — |
 | S5 | Ölçüt ve ayar | Başlamadı | — |

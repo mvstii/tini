@@ -6,9 +6,8 @@
             <data android:scheme="https"/>
         </intent>
     </queries>
-    <!-- Geliştirme için düz http; yayın öncesi HTTPS'e geçilip kaldırılacak. -->
+    <!-- Düz http yalnızca debug yapıda açık (src/debug/AndroidManifest.xml); release HTTPS ister. -->
     <application
-        android:usesCleartextTraffic="true"
         android:label="Tını"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
