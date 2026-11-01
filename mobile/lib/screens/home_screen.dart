@@ -7,6 +7,10 @@ import 'fresh_screen.dart';
 import 'history_screen.dart';
 import 'list_screen.dart';
 import 'rating_screen.dart';
+import '../widgets/cover_art.dart';
+
+Future<bool> _launchExternal(String url) =>
+    launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({
@@ -15,7 +19,11 @@ class HomeScreen extends StatefulWidget {
     required this.onLogout,
     this.themeMode = ThemeMode.system,
     this.onThemeChanged,
+    this.launch = _launchExternal,
   });
+
+  /// Testte değiştirilebilir; varsayılan servis uygulamasını açar.
+  final Future<bool> Function(String url) launch;
   final Api api;
   final VoidCallback onLogout;
   final ThemeMode themeMode;
@@ -29,6 +37,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   List<Connection>? _connections;
   String? _message;
   bool _busy = false;
+  DailySong? _daily;
 
   bool get _spotifyConnected => _connections?.any((c) => c.service == 'spotify') ?? false;
 
@@ -37,6 +46,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _refresh();
+    _loadDaily();
   }
 
   @override
@@ -82,6 +92,58 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         final r = await widget.api.importLibrary();
         if (mounted) setState(() => _message = '${r.imported} şarkı aktarıldı, ${r.skipped} atlandı');
       });
+
+  // Günün şarkısı yardımcı bir özelliktir: hata ya da profil yokluğu ana ekranı bozmaz.
+  Future<void> _loadDaily() async {
+    try {
+      final d = await widget.api.dailySong();
+      if (mounted) setState(() => _daily = d);
+    } catch (_) {}
+  }
+
+  Future<void> _openDaily(DailySong d) async {
+    try {
+      final url = await widget.api.openUrl(d.listId, d.entry.position);
+      await widget.launch(url);
+    } catch (_) {
+      if (mounted) setState(() => _message = 'Şarkı açılamadı');
+    }
+  }
+
+  Widget _dailyCard(DailySong d) {
+    final title = d.entry.title ?? d.entry.name;
+    final artist = d.artists.isNotEmpty ? d.artists.join(', ') : (d.entry.title != null ? d.entry.name : null);
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: () => _openDaily(d),
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              CoverArt(url: d.image, size: 96),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Günün şarkısı', style: Theme.of(context).textTheme.labelMedium),
+                    const SizedBox(height: 4),
+                    Text(title, style: Theme.of(context).textTheme.titleMedium, maxLines: 2),
+                    if (artist != null) Text(artist, maxLines: 1, overflow: TextOverflow.ellipsis),
+                    const SizedBox(height: 4),
+                    Text(reasonText(d.entry, top: 2),
+                        style: Theme.of(context).textTheme.bodySmall, maxLines: 3),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 
   Future<void> _logout() async {
     await widget.api.logout();
@@ -156,6 +218,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 builder: (_) => FeedbackScreen(api: widget.api, onLogout: widget.onLogout))),
             child: const Text('Geri bildirim gönder'),
           ),
+          if (_daily != null) ...[
+            const SizedBox(height: 16),
+            _dailyCard(_daily!),
+          ],
         ],
       ),
     );

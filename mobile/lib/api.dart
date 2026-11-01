@@ -73,6 +73,14 @@ class ExportResult {
   int get skipped => skippedNames.length;
 }
 
+class DailySong {
+  DailySong({required this.listId, required this.entry, required this.artists, this.image});
+  final int listId;
+  final ListEntry entry;
+  final List<String> artists;
+  final String? image;
+}
+
 class ListEntry {
   ListEntry(this.position, this.name, this.title, this.reasons, {this.release});
   final int position;
@@ -277,6 +285,31 @@ class Api {
   Future<String> openUrl(int listId, int position) async {
     final body = await _send('GET', '/lists/$listId/items/$position/open');
     return body['url'] as String;
+  }
+
+  /// Günün şarkısı; profil/liste yoksa (404, 409) null. Başlık ve kapak servis bağlı değilse boş gelir.
+  Future<DailySong?> dailySong() async {
+    final Map<String, dynamic> body;
+    try {
+      body = await _send('GET', '/recommend/daily');
+    } on ApiException catch (e) {
+      if (e.status == 404 || e.status == 409) return null;
+      rethrow;
+    }
+    return DailySong(
+      listId: body['list_id'] as int,
+      entry: ListEntry(
+        body['position'] as int,
+        (body['name'] as String?) ?? '?',
+        body['title'] as String?,
+        (body['reasons'] as List)
+            .map((r) => Reason(r['seed_id'] as int, (r['seed_name'] as String?) ?? '?',
+                (r['share'] as num).toDouble(), r['is_anchor'] as bool))
+            .toList(),
+      ),
+      artists: (body['artists'] as List?)?.cast<String>() ?? const <String>[],
+      image: body['image'] as String?,
+    );
   }
 
   Future<Map<String, dynamic>> _send(String method, String path, [Object? json]) async {

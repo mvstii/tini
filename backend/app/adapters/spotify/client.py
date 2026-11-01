@@ -4,7 +4,7 @@ from urllib.parse import quote
 
 import httpx
 
-from app.adapters.base import Library, LibraryTrack
+from app.adapters.base import Library, LibraryTrack, TrackCard
 from app.catalog.names import normalize_name
 
 API = "https://api.spotify.com/v1"
@@ -89,16 +89,35 @@ class SpotifyAdapter:
             self._request("POST", f"/playlists/{pl['id']}/items", json={"uris": uris})
         return pl["id"]
 
-    def find_track(self, isrc: str) -> str | None:
-        """ISRC'den servis parça kimliği; bulunamazsa None. Kimlik saklanmaz."""
+    def _isrc_item(self, isrc: str) -> dict | None:
         body = self._request(
             "GET", "/search", params={"q": f"isrc:{isrc}", "type": "track", "limit": 1}
         )
         items = (body.get("tracks") or {}).get("items") or []
-        return items[0]["id"] if items and items[0].get("id") else None
+        return items[0] if items and items[0].get("id") else None
+
+    def find_track(self, isrc: str) -> str | None:
+        """ISRC'den servis parça kimliği; bulunamazsa None. Kimlik saklanmaz."""
+        item = self._isrc_item(isrc)
+        return item["id"] if item else None
 
     def find_artist_track(self, artist_name: str) -> str | None:
         """Sanatçının aramada çıkan ilk parçası (artist top-tracks kapalı); ad eşleşmezse None."""
+        item = self._artist_item(artist_name)
+        return item["id"] if item else None
+
+    def find_card(self, isrc: str | None, artist_name: str) -> TrackCard | None:
+        """Gösterim için başlık/sanatçı/kapak: ISRC varsa onunla, yoksa sanatçı aramasıyla.
+        Hiçbir şey saklanmaz; çağıran yalnızca isteğe yanıt verir."""
+        item = (self._isrc_item(isrc) if isrc else None) or self._artist_item(artist_name)
+        if item is None:
+            return None
+        names = tuple(a["name"] for a in item.get("artists") or [] if a.get("name"))
+        return TrackCard(
+            item.get("name") or "", names, _cover_url((item.get("album") or {}).get("images"))
+        )
+
+    def _artist_item(self, artist_name: str) -> dict | None:
         if not artist_name:
             return None
         q = f'artist:"{artist_name}"'
@@ -111,7 +130,7 @@ class SpotifyAdapter:
             for t in items:
                 names = {_match_key(a.get("name", "")) for a in t.get("artists") or []}
                 if t.get("id") and wanted in names:
-                    return t["id"]
+                    return t
             if not items:  # sayfa limitten kısa dönebilir (canlıda 5 öğe geldi); yalnız boşta dur
                 break
         return None

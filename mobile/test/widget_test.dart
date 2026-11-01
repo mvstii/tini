@@ -10,6 +10,7 @@ import 'package:tini/main.dart';
 import 'package:tini/screens/feedback_screen.dart';
 import 'package:tini/screens/fresh_screen.dart';
 import 'package:tini/screens/history_screen.dart';
+import 'package:tini/screens/home_screen.dart';
 import 'package:tini/screens/list_screen.dart';
 import 'package:tini/screens/rating_screen.dart';
 
@@ -544,6 +545,59 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('En az 3 karakter yaz'), findsOneWidget);
       expect(calls, 0);
+    });
+  });
+  group('daily song', () {
+    Api daily(int status, [Map<String, Object?>? body]) => _api((req) async {
+          if (req.url.path == '/recommend/daily') {
+            return http.Response.bytes(utf8.encode(jsonEncode(body ?? {'detail': 'x'})), status);
+          }
+          if (req.url.path == '/lists/7/items/3/open') {
+            return http.Response(jsonEncode({'kind': 'track', 'url': 'spotify:track:T1'}), 200);
+          }
+          if (req.url.path == '/connect') return http.Response('[]', 200);
+          return http.Response('[]', 200);
+        }, _MemoryStorage()..data['session'] = 'T');
+
+    final song = {
+      'list_id': 7,
+      'position': 3,
+      'name': 'Sanatçı',
+      'title': 'Şarkı Adı',
+      'artists': ['Sanatçı', 'Konuk'],
+      'image': null,
+      'reasons': [
+        {'seed_id': 1, 'seed_name': 'Seed', 'share': 0.6, 'is_anchor': true},
+      ],
+    };
+
+    testWidgets('card shows title, artists and the reason, and opens the song', (tester) async {
+      final api = daily(200, song);
+      await api.restore();
+      final opened = <String>[];
+      await tester.pumpWidget(MaterialApp(
+          home: HomeScreen(api: api, onLogout: () {}, launch: (u) async {
+            opened.add(u);
+            return true;
+          })));
+      await tester.pumpAndSettle();
+      await tester.scrollUntilVisible(find.text('Günün şarkısı'), 200);
+      expect(find.text('Şarkı Adı'), findsOneWidget);
+      expect(find.text('Sanatçı, Konuk'), findsOneWidget);
+      expect(find.textContaining('★ Seed %60'), findsOneWidget);
+
+      await tester.tap(find.text('Şarkı Adı'));
+      await tester.pumpAndSettle();
+      expect(opened, ['spotify:track:T1']);
+    });
+
+    testWidgets('card is hidden when there is no profile yet', (tester) async {
+      final api = daily(404);
+      await api.restore();
+      await tester.pumpWidget(MaterialApp(home: HomeScreen(api: api, onLogout: () {})));
+      await tester.pumpAndSettle();
+      expect(find.text('Günün şarkısı'), findsNothing);
+      expect(find.text('Oylamaya başla'), findsOneWidget);
     });
   });
 }

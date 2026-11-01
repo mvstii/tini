@@ -13,6 +13,15 @@ class LibraryTrack:
     image_url: str | None = None  # kapak görseli; yalnızca kullanıcıya özel TTL önbelleğine girer
 
 
+@dataclass(frozen=True)
+class TrackCard:
+    """Yalnızca anlık gösterim içindir; hiçbir yerde saklanmaz."""
+
+    title: str
+    artist_names: tuple[str, ...]
+    image_url: str | None = None
+
+
 @dataclass
 class Library:
     tracks: list[LibraryTrack] = field(default_factory=list)
@@ -34,6 +43,9 @@ class MusicServiceAdapter(Protocol):
 
     def find_artist_track(self, artist_name: str) -> str | None:
         """Sanatçının servisteki bir parçasının kimliği (ISRC'siz öğeler için); bulunamazsa None."""
+
+    def find_card(self, isrc: str | None, artist_name: str) -> TrackCard | None:
+        """Başlık, sanatçılar ve kapak (ISRC'den ya da sanatçı aramasından); bulunamazsa None."""
 
     def open_url(self, isrc: str | None, artist_name: str) -> tuple[str, str]:
         """Servis uygulamasında açılacak bağlantı: ("track", url) ya da ("search", url) yedeği.
