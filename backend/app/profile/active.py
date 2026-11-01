@@ -24,6 +24,13 @@ def uncertainty(score: float | None, ref_sorted: Sequence[float], unknown: float
     return 1.0 - abs(2.0 * p - 1.0)
 
 
+def order_unresolved(tracks: Sequence[int], pool: set[int], seed: int) -> list[int]:
+    """Sanatçısı eşlenmemiş parçalar (belirsizlik hesaplanamaz): havuzdakiler önce, sonra
+    tohumlu özet sırası. Eşlenmişlerden sonra gösterilir; oy olay olarak kaydolur, profil
+    sanatçı eşlenince bunu kullanır."""
+    return sorted(tracks, key=lambda t: (t not in pool, _key(seed, t)))
+
+
 def order_active(
     cands: list[tuple[int, int]],
     unc: Mapping[int, float],
