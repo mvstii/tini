@@ -75,6 +75,7 @@ void main() {
       int total = 0,
       List<Map<String, Object>>? items,
       int stale = 0,
+      Duration delay = Duration.zero,
     }) {
       final votes = <Map<String, int>>[];
       final calls = <String>[];
@@ -89,6 +90,9 @@ void main() {
       ];
       final api = _api((req) async {
         calls.add('${req.method} ${req.url.path}');
+        if (req.method == 'POST' && req.url.path.startsWith('/votes')) {
+          await Future<void>.delayed(delay);
+        }
         switch (req.url.path) {
           case '/votes/history':
             return http.Response(jsonEncode({'total': total + votes.length, 'items': []}), 200);
@@ -150,6 +154,21 @@ void main() {
       expect(f.votes.length, 1);
       expect(f.calls, contains('POST /votes/unheard'));
       expect(find.text('Gamma'), findsOneWidget);
+    });
+
+    testWidgets('swipe with a slow server removes the card at once (no Dismissible error)',
+        (tester) async {
+      final f = fake(delay: const Duration(seconds: 1));
+      await open(tester, f.api);
+
+      await tester.drag(find.text('Alpha'), const Offset(-600, 0));
+      await tester.pump(const Duration(milliseconds: 500)); // sunucu henüz yanıtlamadı
+      await tester.pump(const Duration(milliseconds: 500));
+      expect(tester.takeException(), isNull);
+      expect(find.text('Alpha'), findsNothing);
+      await tester.pumpAndSettle(const Duration(seconds: 2));
+      expect(f.calls, contains('POST /votes/unheard'));
+      expect(find.text('Beta'), findsOneWidget);
     });
 
     testWidgets('undo brings the card back and a new vote is a new event', (tester) async {
