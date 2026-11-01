@@ -64,6 +64,16 @@ void main() {
     expect(storage.data.containsKey('session'), isFalse);
   });
 
+  test('theme preference is stored and defaults to system', () async {
+    final storage = _MemoryStorage();
+    final api = _api((r) async => http.Response('{}', 200), storage);
+    expect(await api.loadTheme(), ThemeMode.system);
+    await api.saveTheme(ThemeMode.dark);
+    expect(await api.loadTheme(), ThemeMode.dark);
+    storage.data['theme'] = 'bozuk';
+    expect(await api.loadTheme(), ThemeMode.system);
+  });
+
   testWidgets('logged-out app shows the login form', (tester) async {
     await tester.pumpWidget(TiniApp(api: _api((r) async => http.Response('{}', 200), _MemoryStorage())));
     expect(find.text('Giriş yap'), findsOneWidget);
@@ -219,7 +229,34 @@ void main() {
       await tester.tap(find.text('Profili kur'));
       await tester.pumpAndSettle();
       expect(f.calls, contains('POST /profile/rebuild'));
-      expect(find.text('Profil güncellendi'), findsOneWidget);
+      expect(find.byType(ListScreen), findsOneWidget); // profil kurulunca keşif listesine geçer
+    });
+
+    testWidgets('progress bar levels up and refills after each tour', (tester) async {
+      final f = fake(total: tourVotes - 1);
+      await open(tester, f.api);
+      await tester.tap(find.text('4 · Good'));
+      await tester.pumpAndSettle();
+      expect(find.text('Seviye 2 · 0 / $tourVotes oy · toplam $tourVotes'), findsOneWidget);
+      expect(tester.widget<LinearProgressIndicator>(find.byType(LinearProgressIndicator)).value,
+          0.0);
+    });
+
+    testWidgets('rapid votes never show the empty state while the queue refills', (tester) async {
+      final items = [
+        for (var i = 1; i <= 9; i++) {'track': i, 'title': 'T$i', 'artists': ['A$i']},
+      ];
+      final f = fake(items: items);
+      await open(tester, f.api);
+      for (var i = 1; i <= 8; i++) {
+        // Son parça oylanınca boş durum meşrudur; ondan önce hiç görünmemeli.
+        await tester.tap(find.text('4 · Good'));
+        await tester.pump(); // beklemeden art arda
+        await tester.pump(const Duration(milliseconds: 10));
+        expect(find.text('Yeniden dene'), findsNothing);
+      }
+      await tester.pumpAndSettle();
+      expect(f.votes.length, 8);
     });
 
     testWidgets('empty queue with stale metadata offers a library refresh', (tester) async {

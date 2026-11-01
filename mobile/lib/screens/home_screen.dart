@@ -9,9 +9,17 @@ import 'list_screen.dart';
 import 'rating_screen.dart';
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key, required this.api, required this.onLogout});
+  const HomeScreen({
+    super.key,
+    required this.api,
+    required this.onLogout,
+    this.themeMode = ThemeMode.system,
+    this.onThemeChanged,
+  });
   final Api api;
   final VoidCallback onLogout;
+  final ThemeMode themeMode;
+  final ValueChanged<ThemeMode>? onThemeChanged;
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -131,6 +139,16 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             onPressed: () => Navigator.of(context).push(MaterialPageRoute<void>(
                 builder: (_) => HistoryScreen(api: widget.api, onLogout: widget.onLogout))),
             child: const Text('Oy geçmişi'),
+          ),
+          const SizedBox(height: 16),
+          SegmentedButton<ThemeMode>(
+            segments: const [
+              ButtonSegment(value: ThemeMode.system, icon: Icon(Icons.brightness_auto), label: Text('Sistem')),
+              ButtonSegment(value: ThemeMode.light, icon: Icon(Icons.light_mode), label: Text('Açık')),
+              ButtonSegment(value: ThemeMode.dark, icon: Icon(Icons.dark_mode), label: Text('Koyu')),
+            ],
+            selected: {widget.themeMode},
+            onSelectionChanged: (s) => widget.onThemeChanged?.call(s.first),
           ),
           const SizedBox(height: 8),
           TextButton(
