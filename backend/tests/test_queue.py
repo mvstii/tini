@@ -80,19 +80,29 @@ def mk_artist(db, name):
     return a
 
 
-def test_queue_skips_voted_unresolved_and_stale(client, db):
+def test_queue_skips_voted_and_stale_and_lists_unresolved_last(client, db):
     h = register(client, "q1@example.com")
     a, b = mk_artist(db, "QA"), mk_artist(db, "QB")
     t1 = lib_track(db, "q1@example.com", "ZZQ000000001", a, "Bir")
     t2 = lib_track(db, "q1@example.com", "ZZQ000000002", b, "Iki")
-    lib_track(db, "q1@example.com", "ZZQ000000003", None, "Sanatçısız")
+    t3 = lib_track(db, "q1@example.com", "ZZQ000000003", None, "Sanatçısız")
     lib_track(db, "q1@example.com", "ZZQ000000004", b, "Eski", expired=True)
     client.post("/votes", json={"track": t1.id, "vote": 5}, headers=h)
 
     body = client.get("/votes/queue", headers=h).json()
-    assert [i["track"] for i in body["items"]] == [t2.id]
-    assert body["items"][0]["title"] == "Iki" and body["remaining"] == 1 and body["stale"] == 1
+    # Sanatçısı eşlenmemiş parça da oylanabilir, ama eşlenmişlerden sonra gelir.
+    assert [i["track"] for i in body["items"]] == [t2.id, t3.id]
+    assert body["items"][0]["title"] == "Iki" and body["remaining"] == 2 and body["stale"] == 1
     assert body["items"][0]["image"] is None
+    assert body["algo_version"] == "queue-3"
+
+
+def test_unresolved_order_is_seeded_pool_first():
+    from app.profile.active import order_unresolved
+
+    a = order_unresolved([1, 2, 3, 4], set(), seed=0)
+    assert a == order_unresolved([4, 3, 2, 1], set(), seed=0) and sorted(a) == [1, 2, 3, 4]
+    assert order_unresolved([1, 2, 3, 4], {3}, seed=0)[0] == 3
 
 
 def test_queue_includes_cover_image(client, db):
@@ -153,7 +163,7 @@ def test_queue_pool_bonus_awaiting_and_expired(client, db):
 
     body = client.get("/votes/queue", headers=h).json()
     ids = [i["track"] for i in body["items"]]
-    assert body["algo_version"] == "queue-2"
+    assert body["algo_version"] == "queue-3"
     assert gone.id not in ids and ids[0] == pooled.id and set(ids) == {pooled.id, other.id}
     states = [
         e.state for e in db.scalars(

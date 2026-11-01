@@ -25,7 +25,7 @@ from app.models import (
     UserTrackMeta,
     VoteEvent,
 )
-from app.profile.active import order_active
+from app.profile.active import order_active, order_unresolved
 from app.profile.active_service import artist_uncertainties, mark_awaiting
 from app.profile.scoring import VoteEvt, score_votes
 from app.profile.service import rebuild_profile, unheard_statuses
@@ -130,7 +130,6 @@ def queue(
         )
         .where(
             UserTrackLink.user_id == user.id,
-            Track.artist_id.is_not(None),
             Track.id.not_in(voted),
         )
         .ext(distinct_on(Track.id))
@@ -149,9 +148,11 @@ def queue(
     expired = {s.track_id for s in statuses if s.state == "expired"}
     pool = {s.track_id for s in statuses} - expired
     fresh = {t: r for t, r in fresh.items() if t not in expired}
-    cands = [(r[0], r[1]) for r in fresh.values()]
+    cands = [(r[0], r[1]) for r in fresh.values() if r[1] is not None]
+    unresolved = [t for t, r in fresh.items() if r[1] is None]
     unc = artist_uncertainties(db, user.id, {a for _, a in cands}, cfg, rcfg, gcfg)
-    order = order_active(cands, unc, pool & set(fresh), voted_artists, seed, cfg)[:size]
+    order = order_active(cands, unc, pool & set(fresh), voted_artists, seed, cfg)
+    order = (order + order_unresolved(unresolved, pool, seed))[:size]
     mark_awaiting(db, user.id, pool & set(order), statuses)
     return {
         "algo_version": cfg.queue_algo_version,
