@@ -33,7 +33,9 @@ from app.models import (
     Track,
     User,
     UserTrackMeta,
+    VoteEvent,
 )
+from app.recommend.daily import pick_daily
 from app.recommend.service import (
     NoGraph,
     NoProfile,
@@ -153,6 +155,67 @@ def _list_out(db: Session, lst: GeneratedList) -> dict:
             for i in items
         ],
     }
+
+
+@router.get("/daily")
+def daily(
+    service: str = "spotify",
+    user: User = Depends(current_user),
+    db: Session = Depends(get_db),
+    http: httpx.Client = Depends(get_http),
+    cfg: RecommendSettings = Depends(get_recommend_settings),
+    pcfg: ProfileSettings = Depends(get_profile_settings),
+    gcfg: GraphSettings = Depends(get_graph_settings),
+) -> dict:
+    """Günün şarkısı: son ana listeden (yoksa üretilir) gün ve kullanıcıya göre seçilen öğe.
+    Gerekçe listeden gelir. Başlık/kapak servisten isteğe bağlı çözülür ve saklanmaz; servis
+    bağlı değilse ya da yanıt vermezse yalnızca sanatçı adı ve gerekçe döner."""
+    lst = db.scalar(
+        select(GeneratedList)
+        .where(GeneratedList.user_id == user.id, GeneratedList.kind == "main")
+        .order_by(GeneratedList.id.desc())
+        .limit(1)
+    )
+    if lst is None:
+        try:
+            lst = generate_list(db, user.id, datetime.now(UTC), cfg, pcfg, gcfg)
+        except NoProfile:
+            raise HTTPException(404, "Henüz profil üretilmedi") from None
+        except NoGraph:
+            raise HTTPException(409, "Grafik henüz kurulmadı") from None
+    items = db.scalars(select(ListItem).where(ListItem.list_id == lst.id)).all()
+    voted = set(db.scalars(select(VoteEvent.track_id).where(VoteEvent.user_id == user.id)))
+    day = datetime.now(UTC).date()
+    pos = pick_daily(
+        [(i.position, i.track_id) for i in items], day, str(user.id), voted, cfg.daily_algo_version
+    )
+    if pos is None:
+        raise HTTPException(404, "Önerilecek şarkı kalmadı")
+    item = next(i for i in items if i.position == pos)
+    ids = {item.artist_id} | {r["seed_id"] for r in item.reasons}
+    names = _names(db, ids)
+    out = {
+        "algo_version": cfg.daily_algo_version,
+        "date": day.isoformat(),
+        "list_id": lst.id,
+        "position": item.position,
+        "name": names.get(item.artist_id),
+        "title": None,
+        "artists": None,
+        "image": None,
+        "reasons": [_reason(r, names) for r in item.reasons],
+    }
+    try:
+        adapter = _service_adapter(db, user, service, http)
+        isrc = None
+        if item.track_id:
+            isrc = db.scalar(select(Track.isrc).where(Track.id == item.track_id))
+        card = adapter.find_card(isrc, names.get(item.artist_id) or "")
+    except (HTTPException, httpx.HTTPError):
+        card = None
+    if card is not None:
+        out.update(title=card.title, artists=list(card.artist_names), image=card.image_url)
+    return out
 
 
 @lists_router.post("/generate", status_code=201)

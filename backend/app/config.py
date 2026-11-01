@@ -116,6 +116,7 @@ class RecommendSettings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_prefix="RECOMMEND_", extra="ignore")
 
     recommend_algo_version: str = "recommend-1"
+    daily_algo_version: str = "daily-1"  # günün şarkısı seçimi (tarih + kullanıcı tohumlu)
     # PPR: r = (1 - alpha) * Σ_k alpha^k S^k e (kesik kuvvet serisi; çapa başına doğrusal)
     ppr_alpha: float = 0.7
     ppr_iterations: int = 8
