@@ -100,6 +100,29 @@ def test_full_connect_flow_stores_encrypted_tokens(client, monkeypatch):
     assert again.status_code == 400
 
 
+def test_callback_unregistered_user_gets_clear_403_and_logged_reason(client, monkeypatch, caplog):
+    c, _ = client
+    monkeypatch.setattr("app.connect.get_settings", app.dependency_overrides[get_settings])
+    monkeypatch.setattr("app.auth.get_settings", app.dependency_overrides[get_settings])
+
+    def forbidden_me(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/v1/me":
+            return httpx.Response(403, text="User not registered in the Developer Dashboard")
+        return _spotify_mock(request)
+
+    app.dependency_overrides[get_http] = lambda: httpx.Client(
+        transport=httpx.MockTransport(forbidden_me)
+    )
+    h = _login(c)
+    url = c.post("/connect/spotify/start", headers=h).json()["authorize_url"]
+    state = parse_qs(urlparse(url).query)["state"][0]
+    with caplog.at_level("WARNING", logger="tini.connect"):
+        r = c.get("/connect/spotify/callback", params={"code": "abc", "state": state})
+    assert r.status_code == 403 and "test listesinde değil" in r.json()["detail"]
+    assert "403" in caplog.text and "not registered" in caplog.text
+    assert "AT" not in caplog.text.replace("WARNING", "")  # token günlüğe sızmaz
+
+
 def test_callback_rejects_unknown_state(client):
     c, _ = client
     r = c.get("/connect/spotify/callback", params={"code": "x", "state": "yok"})

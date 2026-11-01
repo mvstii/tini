@@ -1,3 +1,4 @@
+import logging
 from collections.abc import Iterator
 from datetime import UTC, datetime, timedelta
 
@@ -13,6 +14,7 @@ from app.deps import current_user, get_db
 from app.models import OAuthState, ServiceConnection, User
 from app.security import encrypt_value
 
+log = logging.getLogger("tini.connect")
 router = APIRouter()
 STATE_TTL = timedelta(minutes=10)
 
@@ -65,8 +67,21 @@ def callback(
             http, cfg.spotify_client_id, cfg.spotify_redirect_uri, code, pending.verifier
         )
         external_id = oauth.fetch_profile_id(http, tokens.access)
+    except httpx.HTTPStatusError as exc:
+        db.rollback()
+        # Gövde token içermez (hata açıklaması); yalnızca nedeni teşhis için günlüğe yazılır.
+        log.warning(
+            "spotify %s %s -> %s %s", exc.request.method, exc.request.url.path,
+            exc.response.status_code, exc.response.text[:200],
+        )
+        if exc.response.status_code == 403:
+            raise HTTPException(
+                403, "Bu Spotify hesabı test listesinde değil; geliştiriciden eklemesini iste"
+            ) from exc
+        raise HTTPException(502, "Spotify yanıt vermedi") from exc
     except httpx.HTTPError as exc:
         db.rollback()
+        log.warning("spotify bağlantı hatası: %r", exc)
         raise HTTPException(502, "Spotify yanıt vermedi") from exc
 
     conn = db.scalar(
