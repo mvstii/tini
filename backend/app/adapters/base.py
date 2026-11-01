@@ -10,6 +10,7 @@ class LibraryTrack:
     title: str
     artist_names: tuple[str, ...]
     duration_ms: int | None = None
+    image_url: str | None = None  # kapak görseli; yalnızca kullanıcıya özel TTL önbelleğine girer
 
 
 @dataclass

@@ -92,6 +92,17 @@ def test_queue_skips_voted_unresolved_and_stale(client, db):
     body = client.get("/votes/queue", headers=h).json()
     assert [i["track"] for i in body["items"]] == [t2.id]
     assert body["items"][0]["title"] == "Iki" and body["remaining"] == 1 and body["stale"] == 1
+    assert body["items"][0]["image"] is None
+
+
+def test_queue_includes_cover_image(client, db):
+    h = register(client, "q2@example.com")
+    t = lib_track(db, "q2@example.com", "ZZQ000000010", mk_artist(db, "QC"), "Kapakli")
+    meta = db.scalar(select(UserTrackMeta).where(UserTrackMeta.track_id == t.id))
+    meta.image_url = "https://i.scdn.co/image/abc"
+    db.flush()
+    item = client.get("/votes/queue", headers=h).json()["items"][0]
+    assert item["image"] == "https://i.scdn.co/image/abc"
     assert client.get("/votes/queue?seed=3", headers=h).json() == client.get(
         "/votes/queue?seed=3", headers=h
     ).json()

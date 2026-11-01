@@ -18,6 +18,17 @@ def _match_key(name: str) -> str:
     return normalize_name(name.replace("$", "s")).replace(" ", "")
 
 
+_COVER_SIZE = 300  # oylama kartı için yeterli; en yakın genişlikteki görsel seçilir
+
+
+def _cover_url(images: list[dict] | None) -> str | None:
+    """Albüm görselleri arasından ~300 px olanı; boyutsuz kayıtlar sona kalır."""
+    usable = [i for i in images or [] if i.get("url")]
+    if not usable:
+        return None
+    return min(usable, key=lambda i: abs((i.get("width") or 10_000) - _COVER_SIZE))["url"]
+
+
 class SpotifyAdapter:
     service = "spotify"
 
@@ -62,7 +73,10 @@ class SpotifyAdapter:
                 lib.skipped += 1
                 continue
             lib.tracks.append(
-                LibraryTrack(tid, isrc.upper(), t["name"], names, t.get("duration_ms"))
+                LibraryTrack(
+                    tid, isrc.upper(), t["name"], names, t.get("duration_ms"),
+                    _cover_url((t.get("album") or {}).get("images")),
+                )
             )
         return lib
 

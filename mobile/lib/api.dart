@@ -31,10 +31,13 @@ class ImportResult {
 }
 
 class QueueItem {
-  QueueItem(this.track, this.title, this.artists);
+  QueueItem(this.track, this.title, this.artists, [this.image]);
   final int track;
   final String title;
   final List<String> artists;
+
+  /// Albüm kapağı URL'si (yoksa null); sunucu kullanıcıya özel önbellekten verir.
+  final String? image;
 
   String get artistLine => artists.join(', ');
 }
@@ -164,7 +167,8 @@ class Api {
       body['stale'] as int,
       (body['items'] as List)
           .map((e) => QueueItem(
-              e['track'] as int, e['title'] as String, (e['artists'] as List).cast<String>()))
+              e['track'] as int, e['title'] as String, (e['artists'] as List).cast<String>(),
+              e['image'] as String?))
           .toList(),
     );
   }

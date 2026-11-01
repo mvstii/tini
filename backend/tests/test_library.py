@@ -88,6 +88,50 @@ def test_store_library_is_idempotent_and_refreshes_meta(db):
     assert len(links) == 3
 
 
+def test_store_library_saves_and_refreshes_image_url(db):
+    u = _user(db)
+    first = Library(tracks=[LibraryTrack("a1", "ZZTEST000001", "Bir", ("X",), 1, "https://i/1")])
+    store_library(db, u.id, "spotify", first, TTL)
+    url = lambda: db.scalar(  # noqa: E731
+        select(UserTrackMeta.image_url).where(UserTrackMeta.user_id == u.id)
+    )
+    assert url() == "https://i/1"
+    again = Library(tracks=[LibraryTrack("a1", "ZZTEST000001", "Bir", ("X",), 1, None)])
+    store_library(db, u.id, "spotify", again, TTL)
+    db.expire_all()
+    assert url() is None
+
+
+def test_spotify_cover_url_picks_nearest_300_and_tolerates_missing():
+    from app.adapters.spotify.client import _cover_url
+
+    imgs = [
+        {"url": "big", "width": 640}, {"url": "mid", "width": 300}, {"url": "small", "width": 64},
+    ]
+    assert _cover_url(imgs) == "mid"
+    assert _cover_url([{"url": "x"}, {"url": "y", "width": 64}]) == "y"
+    assert _cover_url([]) is None and _cover_url(None) is None
+    assert _cover_url([{"width": 300}]) is None
+
+
+def test_spotify_read_library_includes_album_cover():
+    from app.adapters.spotify.client import SpotifyAdapter
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        track = {
+            "id": "sp1", "name": "Sarki", "duration_ms": 1,
+            "external_ids": {"isrc": "ZZTEST000009"}, "artists": [{"name": "S"}],
+            "album": {"images": [{"url": "https://i/300", "width": 300}]},
+        }
+        if request.url.path == "/v1/me/tracks":
+            return httpx.Response(200, json={"items": [{"track": track}], "next": None})
+        return httpx.Response(200, json={"items": []})
+
+    http = httpx.Client(transport=httpx.MockTransport(handler))
+    lib = SpotifyAdapter(http, "tok").read_library()
+    assert lib.tracks[0].image_url == "https://i/300"
+
+
 def test_store_empty_library_noop(db):
     u = _user(db)
     assert store_library(db, u.id, "spotify", Library(), TTL) == 0

@@ -186,6 +186,7 @@ class UserTrackMeta(Base):
     title: Mapped[str] = mapped_column(Text)
     artist_names: Mapped[list[str]] = mapped_column(ARRAY(Text))
     duration_ms: Mapped[int | None] = mapped_column(Integer)
+    image_url: Mapped[str | None] = mapped_column(Text)  # kapak URL'si; görsel dosyası saklanmaz
     fetched_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=_now)
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
 

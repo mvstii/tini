@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../api.dart';
+import '../widgets/cover_art.dart';
 
 /// Başlangıç turu: ilk bu kadar oydan sonra profil kurulabilir.
 const tourVotes = 30;
@@ -224,22 +225,28 @@ class _RatingScreenState extends State<RatingScreen> {
             background: _hint(Icons.thumb_up, 'Great', Alignment.centerLeft),
             secondaryBackground: _hint(Icons.skip_next, 'Unheard', Alignment.centerRight),
             child: Card(
-              child: Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.album, size: 96),
-                      const SizedBox(height: 16),
-                      Text(item.title,
-                          textAlign: TextAlign.center,
-                          style: Theme.of(context).textTheme.headlineSmall),
-                      const SizedBox(height: 8),
-                      Text(item.artistLine, textAlign: TextAlign.center),
-                    ],
-                  ),
-                ),
+              child: LayoutBuilder(
+                builder: (context, box) {
+                  // Kapak, başlık ve sanatçıdan artan yüksekliğe göre küçülür (küçük ekranlar).
+                  final cover = (box.maxHeight - 220).clamp(48.0, 220.0);
+                  return Center(
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.all(24),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          CoverArt(url: item.image, size: cover),
+                          const SizedBox(height: 16),
+                          Text(item.title,
+                              textAlign: TextAlign.center,
+                              style: Theme.of(context).textTheme.headlineSmall),
+                          const SizedBox(height: 8),
+                          Text(item.artistLine, textAlign: TextAlign.center),
+                        ],
+                      ),
+                    ),
+                  );
+                },
               ),
             ),
           ),

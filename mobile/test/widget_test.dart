@@ -123,6 +123,23 @@ void main() {
       await tester.pumpAndSettle();
     }
 
+    testWidgets('card shows cover when present and a placeholder when absent', (tester) async {
+      final f = fake(items: [
+        {'track': 1, 'title': 'Alpha', 'artists': ['A'], 'image': 'https://i/cover.jpg'},
+        {'track': 2, 'title': 'Beta', 'artists': ['B']},
+      ]);
+      await open(tester, f.api);
+      // Test ortamında ağ yoktur: görsel yüklenemese de kart çökmeden yer tutucuya düşer.
+      expect(find.byType(Image), findsOneWidget);
+      expect(find.text('Alpha'), findsOneWidget);
+
+      await tester.tap(find.text('6 · Amazing'));
+      await tester.pumpAndSettle();
+      expect(find.text('Beta'), findsOneWidget);
+      expect(find.byType(Image), findsNothing);
+      expect(find.byIcon(Icons.album), findsOneWidget);
+    });
+
     testWidgets('shows the first card and casts a button vote', (tester) async {
       final f = fake();
       await open(tester, f.api);
