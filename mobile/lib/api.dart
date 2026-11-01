@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:flutter/material.dart' show ThemeMode;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 
@@ -121,6 +122,26 @@ class Api {
   bool get loggedIn => _session != null;
 
   Future<void> restore() async => _session = await _storage.read(key: _key);
+
+  static const _themeKey = 'theme';
+
+  /// Kayıtlı tema tercihi; yoksa ya da okunamazsa sistemi izler.
+  Future<ThemeMode> loadTheme() async {
+    try {
+      final v = await _storage.read(key: _themeKey);
+      return ThemeMode.values.firstWhere((m) => m.name == v, orElse: () => ThemeMode.system);
+    } catch (_) {
+      return ThemeMode.system;
+    }
+  }
+
+  Future<void> saveTheme(ThemeMode mode) async {
+    try {
+      await _storage.write(key: _themeKey, value: mode.name);
+    } catch (_) {
+      // Tercih saklanamazsa bu oturumda geçerli kalır.
+    }
+  }
 
   Future<void> register(String email, String password) => _auth('register', email, password);
 

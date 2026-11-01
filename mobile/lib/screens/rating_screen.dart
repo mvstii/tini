@@ -2,9 +2,13 @@ import 'package:flutter/material.dart';
 
 import '../api.dart';
 import '../widgets/cover_art.dart';
+import 'list_screen.dart';
 
 /// Başlangıç turu: ilk bu kadar oydan sonra profil kurulabilir.
 const tourVotes = 30;
+
+/// Kalan kart sayısı bunun altına düşünce kuyruk arka planda yenilenir.
+const prefetchBelow = 6;
 
 /// Sağa kaydırma "Great" oyudur; sola kaydırma "Unheard" olayı yazar (oy değildir).
 const swipeRightVote = 5;
@@ -38,11 +42,13 @@ class _Step {
 class _RatingScreenState extends State<RatingScreen> {
   final List<QueueItem> _cards = [];
   final Set<int> _skipped = {};
+  final Set<int> _voted = {};
   final List<_Step> _history = [];
   int _seed = 0;
   int _total = 0;
   int _stale = 0;
   bool _loading = true;
+  bool _filling = false;
   bool _busy = false;
   bool _profileBuilt = false;
   String? _error;
@@ -85,8 +91,28 @@ class _RatingScreenState extends State<RatingScreen> {
     final q = await widget.api.voteQueue(seed: _seed);
     _stale = q.stale;
     final seen = _cards.map((c) => c.track).toSet();
-    final fresh = q.items.where((i) => !_skipped.contains(i.track) && !seen.contains(i.track));
+    // Sunucu, oy kaydedilmeden önce başlayan bir istekte az önce oylanan parçayı da dönebilir.
+    final fresh = q.items.where(
+        (i) => !_skipped.contains(i.track) && !_voted.contains(i.track) && !seen.contains(i.track));
     if (mounted) setState(() => _cards.addAll(fresh));
+  }
+
+  /// Kartlar azalınca arka planda doldurur; kullanıcı beklemez. Hızlı oylamada kartlar yine
+  /// tükenirse boş durum yerine yükleme göstergesi çıkar (`_filling`).
+  Future<void> _topUp() async {
+    if (_filling) return;
+    setState(() => _filling = true);
+    _seed++;
+    await _guard(() async {
+      try {
+        await _fill();
+      } on ApiException {
+        rethrow;
+      } catch (_) {
+        await _fill(); // geçici ağ hatasında bir kez daha dene
+      }
+    });
+    if (mounted) setState(() => _filling = false);
   }
 
   Future<void> _refreshLibrary() async {
@@ -113,22 +139,20 @@ class _RatingScreenState extends State<RatingScreen> {
       if (vote != null) {
         await widget.api.castVote(item.track, vote);
         _total++;
+        _voted.add(item.track);
       } else {
         await widget.api.markUnheard(item.track);
         _skipped.add(item.track);
       }
       saved = true;
       _history.add(_Step(item, vote));
-      if (_cards.length < 3) {
-        _seed++;
-        await _fill();
-      }
     });
     if (mounted) {
       setState(() {
         if (!saved) _cards.insert(0, item); // kayıt başarısızsa kart geri gelir
         _busy = false;
       });
+      if (saved && _cards.length < prefetchBelow) _topUp();
     }
   }
 
@@ -137,6 +161,7 @@ class _RatingScreenState extends State<RatingScreen> {
     final step = _history.removeLast();
     setState(() {
       _skipped.remove(step.item.track);
+      _voted.remove(step.item.track);
       _cards.insert(0, step.item);
     });
   }
@@ -148,14 +173,21 @@ class _RatingScreenState extends State<RatingScreen> {
     });
     await _guard(() async {
       await widget.api.rebuildProfile();
-      if (mounted) setState(() => _profileBuilt = true);
+      if (!mounted) return;
+      setState(() => _profileBuilt = true);
+      // Profil hazır: keşif listesine geç (oylamaya geri dönülebilir).
+      await Navigator.of(context).push(MaterialPageRoute<void>(
+          builder: (_) => ListScreen(api: widget.api, onLogout: widget.onLogout)));
     });
     if (mounted) setState(() => _busy = false);
   }
 
   @override
   Widget build(BuildContext context) {
-    final progress = (_total / tourVotes).clamp(0.0, 1.0);
+    // Tur bitince çubuk her tourVotes oyda bir "seviye" atlayıp yeniden dolar.
+    final level = _total ~/ tourVotes + 1;
+    final inLevel = _total % tourVotes;
+    final progress = inLevel / tourVotes;
     return Scaffold(
       appBar: AppBar(
         title: const Text('Oylama'),
@@ -172,10 +204,15 @@ class _RatingScreenState extends State<RatingScreen> {
         child: Column(
           children: [
             Text(_total >= tourVotes
-                ? '$_total oy · tur tamam'
+                ? 'Seviye $level · $inLevel / $tourVotes oy · toplam $_total'
                 : 'Başlangıç turu: $_total / $tourVotes oy'),
             const SizedBox(height: 8),
-            LinearProgressIndicator(value: progress),
+            TweenAnimationBuilder<double>(
+              key: ValueKey(level),
+              tween: Tween(begin: 0, end: progress),
+              duration: const Duration(milliseconds: 300),
+              builder: (_, v, _) => LinearProgressIndicator(value: v),
+            ),
             if (_total >= tourVotes) ...[
               const SizedBox(height: 12),
               FilledButton(
@@ -198,6 +235,7 @@ class _RatingScreenState extends State<RatingScreen> {
   Widget _body() {
     if (_loading) return const Center(child: CircularProgressIndicator());
     final item = _current;
+    if (item == null && _filling) return const Center(child: CircularProgressIndicator());
     if (item == null) {
       return Center(
         child: Column(
