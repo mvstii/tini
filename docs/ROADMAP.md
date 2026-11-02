@@ -74,9 +74,11 @@ Kapı: Unheard döngüsü uçtan uca çalışıyor, ilk haftalık Taze listesi �
 
 Kapı: 5 test kullanıcısının her biri en az 100 oy verdi ve kritik hata yok.
 
-- [ ] 4 arkadaşı Spotify test kullanıcısı olarak ekle
-- [ ] Geri bildirim topla, ölçütleri hesapla, parametreleri ayarla
-- [ ] MVP sürümünü etiketle
+**Kapı gevşetildi (2 Kasım 2026, geliştirici kararı):** prod'da 2 hesap, 32 ve 36 oy; geri bildirim 0 kayıt; liste sonrası oylama 0, bu yüzden ölçütler hesaplanamadı. Aşağıdaki iki işaretsiz kalem Faz 7 boyunca, veri biriktikçe sürer; oylarla ilgili parametre ayarı tam sürümde yapılacak.
+
+- [ ] 4 arkadaşı Spotify test kullanıcısı olarak ekle (ertelendi; Faz 7 ile paralel)
+- [ ] Geri bildirim topla, ölçütleri hesapla, parametreleri ayarla (ertelendi; yeterli oy gelince `evaluate` yeniden çalıştırılır)
+- [x] MVP sürümünü etiketle (`v0.1.0-mvp`)
 
 ## Faz 7 — Yayın hazırlığı (Hafta 13–16: 25 Ocak–21 Şubat)
 

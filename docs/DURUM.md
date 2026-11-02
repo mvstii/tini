@@ -1,10 +1,10 @@
 # Tını — Güncel Durum
 
-Son güncelleme: 31 Ekim 2026 · Her aşama (PR) sonrasında güncellenir.
+Son güncelleme: 2 Kasım 2026 · Her aşama (PR) sonrasında güncellenir.
 
 ## Özet
 
-- **Faz:** Faz 0–5 tamamlandı (Faz 5 kapısı 1 Kasım 2026). Güncel faz: Faz 6 — Kapalı test (plan `docs/FAZ6_PLAN.md`, onaylandı 2 Kasım 2026; ücretli hiçbir şey yayın öncesine kadar yapılmaz: barındırma = makine + ücretsiz ngrok tüneli, testçiler Android/APK). Açık kalemler: sanatçı etiketleri, Last.fm izin e-postası (senin işin), Deezer/Apple MusicKit doğrulaması (Faz 7 öncesi).
+- **Faz:** Faz 0–5 tamamlandı (Faz 5 kapısı 1 Kasım 2026). Faz 6 kapısı gevşetilerek kapatıldı (2 Kasım 2026, `v0.1.0-mvp`; ayrıntı S5/S6). Sıradaki: Faz 7 (genel UI incelemesi, hesap silme, Apple/Google girişi, gizlilik/KVKK, mağaza; öncesinde Last.fm ticari izni). Faz 6 planı `docs/FAZ6_PLAN.md` (onaylandı 2 Kasım 2026; ücretli hiçbir şey yayın öncesine kadar yapılmaz: barındırma = makine + ücretsiz ngrok tüneli, testçiler Android/APK). Açık kalemler: sanatçı etiketleri, Last.fm izin e-postası (senin işin), Deezer/Apple MusicKit doğrulaması (Faz 7 öncesi).
 - **Faz 1 kapısı geçildi (30 Ekim 2026):** emülatörde hesap açıldı, Spotify bağlandı, kütüphane aktarıldı (531 bağlantı, 524 parça veritabanında).
 - **Faz 0:** tamamlandı. Kalan kullanıcı işleri: partners@last.fm'e izin e-postası, `.env.example` şablonunu geri koymak, Spotify'daki "tini-spike" ve "tini-spike-2" çalma listelerini silmek.
 
@@ -166,5 +166,5 @@ S5b notu: Ana listede "Yeni" yuvası bandit dışı sabit paydır (`round(list_s
 | S4+ | Albüm kapağı (oylama kartı): göç 0015 `user_track_meta.image_url` (Spotify albüm görseli ~300 px, kullanıcıya özel TTL önbelleğinde URL; görsel dosyası saklanmaz), `/votes/queue` yanıtında `image`, mobil `CoverArt` (yoksa/yüklenemezse simge, küçük ekranda boyut küçülür). Mevcut kullanıcılar kapağı "Kütüphaneyi aktar" ile yeniden alır | Backend 236 test, Flutter 22 test, ruff ve analyze temiz | Kapak PR'ı |
 | S4++ | Test geri bildirimi (1. tur): koyu tema (sistemi izler; ana ekranda Sistem/Açık/Koyu anahtarı, tercih güvenli depoda), oy çubuğu her 30 oyda "Seviye N" olarak yeniden dolar, profil kurulunca keşif listesi açılır, art arda oylamada kuyruk arka planda önceden (<6 kart) yenilenir ve boş durum yerine yükleme gösterilir (yeniden dene hatası). Tekrar hatası: sanatçısı eşlenmemiş parçalar (MusicBrainz ISRC'de bulunamayanlar, test kullanıcısında 45/92) kuyruğa hiç girmiyordu; `queue-3` ile eşlenmişlerden sonra sunulur (backend 237 test). Açık: günün şarkısı, genel tasarım (Faz 7) | Flutter 25 test, analyze temiz | Geri bildirim PR'ı |
 | S4+++ | Günün şarkısı: `GET /recommend/daily` (algo `daily-1`) son ana listeden gün+kullanıcı tohumlu sha256 ile bir öğe seçer (`recommend/daily.py`, saf; oylanmış parçalar elenir), gerekçe listeden gelir. Başlık/sanatçı/kapak adaptör `find_card` ile anlık çözülür (ISRC, yoksa sanatçı araması) ve saklanmaz; servis bağlı değilse/hata verirse yalnızca sanatçı adı + gerekçe döner. Mobil: ana ekranın altında kapaklı kart, dokununca servis uygulamasında açılır; profil yoksa gizli | Tamamlandı (6 backend + 2 mobil test; 243→ tümü geçti, Flutter 27) | PR |
-| S5 | Ölçüt ve ayar | Başlamadı | — |
-| S6 | MVP etiketi ve kapı | Başlamadı | — |
+| S5 | Ölçüt ve ayar | `feedback` işi: 0 kayıt. `evaluate` (2 Kasım 2026, prod, 36 oylu hesap): 40 sunulan öğe, liste sonrası oylanan 0, itiraz %0 (0/40), Unheard sonradan Good+ %50 (1/2); diğer ölçütler "yetersiz veri". Dayanak olmadığı için parametre değişmedi, `algo_version` aynı. **Ertelendi:** yeterli oy gelince `evaluate` yeniden çalıştırılıp ayar tam sürümde yapılacak | — |
+| S6 | MVP etiketi ve kapı | Kapı gevşetildi (geliştirici kararı, 2 Kasım 2026): prod'da 2 hesap (32 ve 36 oy), hedef 5 × ≥100 karşılanmadı; kritik hata bilinmiyor. `v0.1.0-mvp` etiketlendi | Docs PR'ı |
