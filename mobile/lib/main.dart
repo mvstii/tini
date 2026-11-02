@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 
 import 'api.dart';
-import 'screens/home_screen.dart';
 import 'screens/login_screen.dart';
+import 'screens/shell.dart';
+import 'theme/cosmic_colors.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -31,15 +32,24 @@ class _TiniAppState extends State<TiniApp> {
 
   @override
   Widget build(BuildContext context) {
-    ThemeData theme(Brightness b) => ThemeData(
-        colorSchemeSeed: Colors.deepPurple, brightness: b, useMaterial3: true);
+    ThemeData theme(Brightness b) {
+      final c = b == Brightness.dark ? TiniCosmicColors.dark : TiniCosmicColors.light;
+      return ThemeData(
+        colorSchemeSeed: Colors.deepPurple,
+        brightness: b,
+        useMaterial3: true,
+        scaffoldBackgroundColor: c.scaffold,
+        extensions: [c],
+      );
+    }
+
     return MaterialApp(
       title: 'Tını',
       theme: theme(Brightness.light),
       darkTheme: theme(Brightness.dark),
       themeMode: _themeMode,
       home: _loggedIn
-          ? HomeScreen(
+          ? AppShell(
               api: widget.api,
               onLogout: () => setState(() => _loggedIn = false),
               themeMode: _themeMode,

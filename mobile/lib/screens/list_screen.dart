@@ -3,6 +3,8 @@ import 'package:flutter/services.dart' show PlatformException;
 import 'package:url_launcher/url_launcher.dart';
 
 import '../api.dart';
+import '../theme/cosmic_colors.dart';
+import '../widgets/cover_art.dart';
 
 /// Gerekçe cümlesi: en büyük paylı çapalar, yüzdeyle (hesabın kendisinden gelir).
 String reasonText(ListEntry e, {int top = 3}) {
@@ -17,9 +19,18 @@ Future<bool> _launchExternal(String url) =>
     launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
 
 class ListScreen extends StatefulWidget {
-  const ListScreen({super.key, required this.api, this.onLogout, this.launch = _launchExternal});
+  const ListScreen({
+    super.key,
+    required this.api,
+    this.onLogout,
+    this.launch = _launchExternal,
+    this.embedded = false,
+  });
   final Api api;
   final VoidCallback? onLogout;
+
+  /// Kabuk içinde sekme olarak: üst çubuk yok, alt menü için boşluk var.
+  final bool embedded;
 
   /// Testte değiştirilebilir; varsayılan servis uygulamasını açar.
   final Future<bool> Function(String url) launch;
@@ -43,7 +54,7 @@ class _ListScreenState extends State<ListScreen> {
       if (mounted) setState(() => _list = l);
     } on ApiException catch (e) {
       if (e.status == 401) {
-        if (mounted) Navigator.of(context).pop();
+        if (mounted && Navigator.of(context).canPop()) Navigator.of(context).pop();
         return widget.onLogout?.call();
       }
       if (mounted) {
@@ -139,11 +150,19 @@ class _ListScreenState extends State<ListScreen> {
   @override
   Widget build(BuildContext context) {
     final list = _list;
+    final c = TiniCosmicColors.of(context);
+    final theme = Theme.of(context);
     return Scaffold(
-      appBar: AppBar(title: const Text('Keşif listesi')),
+      backgroundColor: c.scaffold,
+      appBar: widget.embedded ? null : AppBar(title: const Text('Keşif listesi')),
       body: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: EdgeInsets.fromLTRB(16, widget.embedded ? 24 : 16, 16, widget.embedded ? 96 : 16),
         children: [
+          if (widget.embedded)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Text('Sana Özel Tını Eşleşmeleri', style: theme.textTheme.headlineSmall),
+            ),
           FilledButton(
             onPressed: _busy ? null : _generate,
             child: Text(list == null ? 'Liste üret' : 'Yeniden üret'),
@@ -163,23 +182,59 @@ class _ListScreenState extends State<ListScreen> {
             const Padding(padding: EdgeInsets.all(12), child: Text('Öneri çıkmadı.')),
           if (list != null)
             for (final e in list.items)
-              Card(
+              Container(
+                margin: const EdgeInsets.only(bottom: 8),
+                decoration: BoxDecoration(
+                  color: c.card,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: theme.colorScheme.outlineVariant),
+                ),
                 child: Padding(
                   padding: const EdgeInsets.all(12),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      // Gerekçe rozeti: metin hesabın kendisinden (PPR çapa payları) gelir.
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: c.primary.withValues(alpha: 0.14),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Icon(Icons.insights_rounded, size: 18, color: c.primary),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(reasonText(e),
+                                  style: theme.textTheme.bodySmall
+                                      ?.copyWith(color: theme.colorScheme.onSurface)),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 10),
                       Row(children: [
+                        CoverArt(url: null, size: 56, radius: 12, gradientSeed: e.name),
+                        const SizedBox(width: 12),
                         Expanded(
-                            child: Text('${e.position}. ${e.name}',
-                                style: Theme.of(context).textTheme.titleMedium)),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('${e.position}. ${e.name}',
+                                  style: theme.textTheme.titleMedium,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis),
+                              if (e.title != null) Text(e.title!),
+                              if (e.release != null)
+                                Text(
+                                    '${e.release!.title} · ${e.release!.type} · ${e.release!.released}'),
+                            ],
+                          ),
+                        ),
                         Chip(label: Text(e.slot)),
                       ]),
-                      if (e.title != null) Text(e.title!),
-                      if (e.release != null)
-                        Text('${e.release!.title} · ${e.release!.type} · ${e.release!.released}'),
-                      const SizedBox(height: 4),
-                      Text(reasonText(e)),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.end,
                         children: [

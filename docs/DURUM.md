@@ -174,3 +174,6 @@ S5b notu: Ana listede "Yeni" yuvası bandit dışı sabit paydır (`round(list_s
 | # | Aşama | Durum | PR |
 |---|---|---|---|
 | S1 | Genel UI/UX incelemesi. 1. grup: ana ekran (günün şarkısı en üste, "Oylamaya başla" birincil düğme, eylemlere simge, başlık taşması). Sıradaki gruplar: oylama (7 düğme kalabalığı, oy renkleri, kaydırma ipucu), keşif listesi (kapak, otomatik üretim, slot etiketleri), geçmiş (kapak, yenileme), ortak hata/boş durum | 1. grup tamamlandı (Flutter 27 test, analyze temiz) | Faz 7 S1-1 PR'ı |
+| S1-2 | Uygulama kabuğu ve "Kozmik Spektrum" teması: alt gezinme (Oylama / Öneriler / Profil, kayan hap), ortak `AppState`, yeniden tasarlanan oylama ekranı (seviye rozeti, 2x3 oy ızgarası, kaydırma ipucu, Dinlemedim hapı, 30 oyda profil bandı), 30 oydan önce kilitli Öneriler, canlı oy dağılımı olan Profil. Ana ekran Profil → "Bağlantılar ve ayarlar" altına taşındı. | Kod hazır (Flutter 28 test, analyze temiz, 360x640 taşma testi var) | Faz 7 S1-2 PR'ı |
+
+S1-2 sınırlamaları (gerekçe: karar 7, uydurma veri yok): tür etiketi, eşleşme yüzdesi, filtre çipi ve öneri kartında hızlı oy yok; "Dinlemedim" sayacı oturuma özel; dağılım son 200 oydan; günün şarkısı kartı artık Profil → Bağlantılar ve ayarlar arkasında; geri al sunucu toplamını değiştirmez.

@@ -4,9 +4,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../api.dart';
 import 'feedback_screen.dart';
 import 'fresh_screen.dart';
-import 'history_screen.dart';
-import 'list_screen.dart';
-import 'rating_screen.dart';
+import 'list_screen.dart' show reasonText;
 import '../widgets/cover_art.dart';
 
 Future<bool> _launchExternal(String url) =>
@@ -186,32 +184,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           if (_busy) const Padding(padding: EdgeInsets.all(16), child: LinearProgressIndicator()),
           if (_message != null) Padding(padding: const EdgeInsets.all(12), child: Text(_message!)),
           const SizedBox(height: 8),
-          FilledButton.icon(
-            onPressed: () => Navigator.of(context)
-                .push(MaterialPageRoute<void>(builder: (_) => RatingScreen(api: widget.api, onLogout: widget.onLogout))),
-            icon: const Icon(Icons.how_to_vote),
-            label: const Text('Oylamaya başla'),
-          ),
-          const SizedBox(height: 8),
-          OutlinedButton.icon(
-            onPressed: () => Navigator.of(context).push(MaterialPageRoute<void>(
-                builder: (_) => ListScreen(api: widget.api, onLogout: widget.onLogout))),
-            icon: const Icon(Icons.queue_music),
-            label: const Text('Keşif listesi'),
-          ),
-          const SizedBox(height: 8),
           OutlinedButton.icon(
             onPressed: () => Navigator.of(context).push(MaterialPageRoute<void>(
                 builder: (_) => FreshScreen(api: widget.api, onLogout: widget.onLogout))),
             icon: const Icon(Icons.new_releases),
             label: const Text('Yeni çıkanlar'),
-          ),
-          const SizedBox(height: 8),
-          OutlinedButton.icon(
-            onPressed: () => Navigator.of(context).push(MaterialPageRoute<void>(
-                builder: (_) => HistoryScreen(api: widget.api, onLogout: widget.onLogout))),
-            icon: const Icon(Icons.history),
-            label: const Text('Oy geçmişi'),
           ),
           const SizedBox(height: 16),
           SegmentedButton<ThemeMode>(

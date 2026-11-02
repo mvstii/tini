@@ -13,6 +13,7 @@ import 'package:tini/screens/history_screen.dart';
 import 'package:tini/screens/home_screen.dart';
 import 'package:tini/screens/list_screen.dart';
 import 'package:tini/screens/rating_screen.dart';
+import 'package:tini/screens/shell.dart';
 
 class _MemoryStorage extends FlutterSecureStorage {
   final data = <String, String>{};
@@ -144,20 +145,20 @@ void main() {
       expect(find.byType(Image), findsOneWidget);
       expect(find.text('Alpha'), findsOneWidget);
 
-      await tester.tap(find.text('6 · Amazing'));
+      await tester.tap(find.byKey(const ValueKey('vote-6')));
       await tester.pumpAndSettle();
       expect(find.text('Beta'), findsOneWidget);
       expect(find.byType(Image), findsNothing);
-      expect(find.byIcon(Icons.album), findsOneWidget);
+      expect(find.byIcon(Icons.album_rounded), findsOneWidget); // gradyan yer tutucu
     });
 
     testWidgets('shows the first card and casts a button vote', (tester) async {
       final f = fake();
       await open(tester, f.api);
       expect(find.text('Alpha'), findsOneWidget);
-      expect(find.text('Başlangıç turu: 0 / $tourVotes oy'), findsOneWidget);
+      expect(find.text('Başlangıç Turu · 0 / $tourVotes'), findsOneWidget);
 
-      await tester.tap(find.text('6 · Amazing'));
+      await tester.tap(find.byKey(const ValueKey('vote-6')));
       await tester.pumpAndSettle();
 
       expect(f.votes, [
@@ -165,7 +166,7 @@ void main() {
       ]);
       expect(find.text('Beta'), findsOneWidget);
       expect(find.text('B, C'), findsOneWidget);
-      expect(find.text('Başlangıç turu: 1 / $tourVotes oy'), findsOneWidget);
+      expect(find.text('Başlangıç Turu · 1 / $tourVotes'), findsOneWidget);
     });
 
     testWidgets('swipe right votes Great, swipe left skips without a vote', (tester) async {
@@ -204,30 +205,32 @@ void main() {
       final f = fake();
       await open(tester, f.api);
 
-      await tester.tap(find.text('2 · Bad'));
+      await tester.tap(find.byKey(const ValueKey('vote-2')));
       await tester.pumpAndSettle();
       await tester.tap(find.byTooltip('Geri al'));
       await tester.pumpAndSettle();
       expect(find.text('Alpha'), findsOneWidget);
 
-      await tester.tap(find.text('5 · Great'));
+      await tester.tap(find.byKey(const ValueKey('vote-5')));
       await tester.pumpAndSettle();
       expect(f.votes, [
         {'track': 1, 'vote': 2},
         {'track': 1, 'vote': 5},
       ]);
+      // Aynı parçaya yeni oy sayacı artırmaz (sunucu da parça başına güncel oyu sayar).
+      expect(find.text('Başlangıç Turu · 1 / $tourVotes'), findsOneWidget);
     });
 
     testWidgets('offers profile build after the tour and rebuilds', (tester) async {
       final f = fake(total: tourVotes - 1);
       await open(tester, f.api);
-      expect(find.text('Profili kur'), findsNothing);
+      expect(find.text('Profili Kur'), findsNothing);
 
-      await tester.tap(find.text('4 · Good'));
+      await tester.tap(find.byKey(const ValueKey('vote-4')));
       await tester.pumpAndSettle();
-      expect(find.text('Profili kur'), findsOneWidget);
+      expect(find.text('Profili Kur'), findsOneWidget);
 
-      await tester.tap(find.text('Profili kur'));
+      await tester.tap(find.text('Profili Kur'));
       await tester.pumpAndSettle();
       expect(f.calls, contains('POST /profile/rebuild'));
       expect(find.byType(ListScreen), findsOneWidget); // profil kurulunca keşif listesine geçer
@@ -236,9 +239,9 @@ void main() {
     testWidgets('progress bar levels up and refills after each tour', (tester) async {
       final f = fake(total: tourVotes - 1);
       await open(tester, f.api);
-      await tester.tap(find.text('4 · Good'));
+      await tester.tap(find.byKey(const ValueKey('vote-4')));
       await tester.pumpAndSettle();
-      expect(find.text('Seviye 2 · 0 / $tourVotes oy · toplam $tourVotes'), findsOneWidget);
+      expect(find.text('Seviye 2 · 0 / $tourVotes · Toplam $tourVotes'), findsOneWidget);
       expect(tester.widget<LinearProgressIndicator>(find.byType(LinearProgressIndicator)).value,
           0.0);
     });
@@ -251,7 +254,7 @@ void main() {
       await open(tester, f.api);
       for (var i = 1; i <= 8; i++) {
         // Son parça oylanınca boş durum meşrudur; ondan önce hiç görünmemeli.
-        await tester.tap(find.text('4 · Good'));
+        await tester.tap(find.byKey(const ValueKey('vote-4')));
         await tester.pump(); // beklemeden art arda
         await tester.pump(const Duration(milliseconds: 10));
         expect(find.text('Yeniden dene'), findsNothing);
@@ -597,7 +600,46 @@ void main() {
       await tester.pumpWidget(MaterialApp(home: HomeScreen(api: api, onLogout: () {})));
       await tester.pumpAndSettle();
       expect(find.text('Günün şarkısı'), findsNothing);
-      expect(find.text('Oylamaya başla'), findsOneWidget);
+      expect(find.text('Yeni çıkanlar'), findsOneWidget);
+    });
+  });
+
+  group('app shell', () {
+    testWidgets('fits 360x640 and locked recommendations unlock at $tourVotes votes',
+        (tester) async {
+      tester.view.physicalSize = const Size(360, 640);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      final api = _api((req) async {
+        switch (req.url.path) {
+          case '/votes/history':
+            return http.Response(jsonEncode({'total': 0, 'items': []}), 200);
+          case '/votes/queue':
+            return http.Response.bytes(
+                utf8.encode(jsonEncode({
+                  'remaining': 1,
+                  'stale': 0,
+                  'items': [
+                    {'track': 1, 'title': 'Alpha', 'artists': ['A']},
+                  ],
+                })),
+                200);
+        }
+        return http.Response('{}', 200);
+      }, _MemoryStorage()..data['session'] = 'T');
+      await api.restore();
+      await tester.pumpWidget(MaterialApp(home: AppShell(api: api, onLogout: () {})));
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+
+      await tester.tap(find.byKey(const ValueKey('tab-1')));
+      await tester.pumpAndSettle();
+      expect(find.text('Oylamaya Devam Et'), findsOneWidget);
+
+      await tester.tap(find.byKey(const ValueKey('tab-2')));
+      await tester.pumpAndSettle();
+      expect(find.text('Oy dağılımı'), findsOneWidget);
+      expect(tester.takeException(), isNull);
     });
   });
 }

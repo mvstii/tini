@@ -221,12 +221,17 @@ class Api {
   Future<void> rebuildProfile() => _send('POST', '/profile/rebuild');
 
   /// Oy geçmişi: parça başına güncel oy, yeniden eskiye.
-  Future<List<HistoryItem>> voteHistory({int limit = 200}) async {
+  Future<List<HistoryItem>> voteHistory({int limit = 200}) async =>
+      (await voteSummary(limit: limit)).items;
+
+  /// Toplam güncel oy sayısı + geçmiş (en yeni [limit] parça).
+  Future<({int total, List<HistoryItem> items})> voteSummary({int limit = 200}) async {
     final body = await _send('GET', '/votes/history?limit=$limit');
-    return (body['items'] as List)
+    final items = (body['items'] as List)
         .map((e) => HistoryItem(e['track'] as int, e['vote'] as int, e['title'] as String?,
             ((e['artists'] as List?) ?? const []).cast<String>()))
         .toList();
+    return (total: body['total'] as int, items: items);
   }
 
   /// Listeyi servise özel çalma listesi olarak yazar; atlanan öğe sayısını döndürür.
