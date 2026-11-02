@@ -641,5 +641,65 @@ void main() {
       expect(find.text('Oy dağılımı'), findsOneWidget);
       expect(tester.takeException(), isNull);
     });
+
+    testWidgets('30 votes unlock recommendations, show the dot, and profile counts follow',
+        (tester) async {
+      tester.view.physicalSize = const Size(360, 640);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      final votes = <Map<String, int>>[];
+      final queue = [
+        for (var i = 1; i <= 40; i++)
+          {'track': i, 'title': 'Song $i', 'artists': ['Art $i']},
+      ];
+      final api = _api((req) async {
+        switch (req.url.path) {
+          case '/votes/history':
+            return http.Response.bytes(
+                utf8.encode(jsonEncode({
+                  'total': votes.length,
+                  'items': [
+                    for (final v in votes.reversed)
+                      {'track': v['track'], 'title': 'Song ${v['track']}', 'artists': ['Art'], 'vote': v['vote']},
+                  ],
+                })),
+                200);
+          case '/votes/queue':
+            final voted = votes.map((v) => v['track']).toSet();
+            final rest = queue.where((i) => !voted.contains(i['track'])).toList();
+            return http.Response.bytes(
+                utf8.encode(jsonEncode({'remaining': rest.length, 'stale': 0, 'items': rest})),
+                200);
+          case '/votes':
+            final b = jsonDecode(req.body) as Map;
+            votes.add({'track': b['track'] as int, 'vote': b['vote'] as int});
+            return http.Response('{}', 201);
+        }
+        return http.Response('{}', 200);
+      }, _MemoryStorage()..data['session'] = 'T');
+      await api.restore();
+      await tester.pumpWidget(MaterialApp(home: AppShell(api: api, onLogout: () {})));
+      await tester.pumpAndSettle();
+
+      for (var i = 0; i < tourVotes; i++) {
+        await tester.tap(find.byKey(ValueKey('vote-${i < 20 ? 6 : 3}')));
+        await tester.pumpAndSettle();
+      }
+      expect(tester.takeException(), isNull);
+      expect(find.text('Profili Kur'), findsOneWidget);
+      expect(find.byKey(const ValueKey('recs-badge')), findsOneWidget);
+
+      await tester.tap(find.byKey(const ValueKey('tab-1')));
+      await tester.pumpAndSettle();
+      expect(find.text('Oylamaya Devam Et'), findsNothing);
+      expect(find.byKey(const ValueKey('recs-badge')), findsNothing);
+
+      await tester.tap(find.byKey(const ValueKey('tab-2')));
+      await tester.pumpAndSettle();
+      expect(tester.widget<Text>(find.byKey(const ValueKey('count-6'))).data, '20');
+      expect(tester.widget<Text>(find.byKey(const ValueKey('count-3'))).data, '10');
+      expect(find.text('Seviye 2'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
   });
 }

@@ -161,14 +161,21 @@ class ProfileScreen extends StatelessWidget {
                 if (state.recent.isEmpty)
                   const Padding(padding: EdgeInsets.all(12), child: Text('Henüz oy yok.')),
                 for (final h in state.recent)
-                  Container(
-                    margin: const EdgeInsets.only(bottom: 6),
-                    decoration: _box(context, c.card),
-                    child: ListTile(
-                      title: Text(h.title ?? 'Parça ${h.track}', maxLines: 1, overflow: TextOverflow.ellipsis),
-                      subtitle: Text(h.artists.join(', '), maxLines: 1, overflow: TextOverflow.ellipsis),
-                      trailing: _VoteBadge(style: c.votes[h.vote]!, vote: h.vote),
-                      onTap: () => _change(context, h),
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 6),
+                    child: Material(
+                      color: c.card,
+                      clipBehavior: Clip.antiAlias,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(20),
+                        side: BorderSide(color: Theme.of(context).colorScheme.outlineVariant),
+                      ),
+                      child: ListTile(
+                        title: Text(h.title ?? 'Parça ${h.track}', maxLines: 1, overflow: TextOverflow.ellipsis),
+                        subtitle: Text(h.artists.join(', '), maxLines: 1, overflow: TextOverflow.ellipsis),
+                        trailing: _VoteBadge(style: c.votes[h.vote]!, vote: h.vote),
+                        onTap: () => _change(context, h),
+                      ),
                     ),
                   ),
                 const SizedBox(height: 8),
