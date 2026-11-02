@@ -168,3 +168,9 @@ S5b notu: Ana listede "Yeni" yuvası bandit dışı sabit paydır (`round(list_s
 | S4+++ | Günün şarkısı: `GET /recommend/daily` (algo `daily-1`) son ana listeden gün+kullanıcı tohumlu sha256 ile bir öğe seçer (`recommend/daily.py`, saf; oylanmış parçalar elenir), gerekçe listeden gelir. Başlık/sanatçı/kapak adaptör `find_card` ile anlık çözülür (ISRC, yoksa sanatçı araması) ve saklanmaz; servis bağlı değilse/hata verirse yalnızca sanatçı adı + gerekçe döner. Mobil: ana ekranın altında kapaklı kart, dokununca servis uygulamasında açılır; profil yoksa gizli | Tamamlandı (6 backend + 2 mobil test; 243→ tümü geçti, Flutter 27) | PR |
 | S5 | Ölçüt ve ayar | `feedback` işi: 0 kayıt. `evaluate` (2 Kasım 2026, prod, 36 oylu hesap): 40 sunulan öğe, liste sonrası oylanan 0, itiraz %0 (0/40), Unheard sonradan Good+ %50 (1/2); diğer ölçütler "yetersiz veri". Dayanak olmadığı için parametre değişmedi, `algo_version` aynı. **Ertelendi:** yeterli oy gelince `evaluate` yeniden çalıştırılıp ayar tam sürümde yapılacak | — |
 | S6 | MVP etiketi ve kapı | Kapı gevşetildi (geliştirici kararı, 2 Kasım 2026): prod'da 2 hesap (32 ve 36 oy), hedef 5 × ≥100 karşılanmadı; kritik hata bilinmiyor. `v0.1.0-mvp` etiketlendi | Docs PR'ı |
+
+## Faz 7 aşamaları (plan: `docs/FAZ7_PLAN.md`)
+
+| # | Aşama | Durum | PR |
+|---|---|---|---|
+| S1 | Genel UI/UX incelemesi. 1. grup: ana ekran (günün şarkısı en üste, "Oylamaya başla" birincil düğme, eylemlere simge, başlık taşması). Sıradaki gruplar: oylama (7 düğme kalabalığı, oy renkleri, kaydırma ipucu), keşif listesi (kapak, otomatik üretim, slot etiketleri), geçmiş (kapak, yenileme), ortak hata/boş durum | 1. grup tamamlandı (Flutter 27 test, analyze temiz) | Faz 7 S1-1 PR'ı |
