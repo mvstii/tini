@@ -130,7 +130,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   children: [
                     Text('Günün şarkısı', style: Theme.of(context).textTheme.labelMedium),
                     const SizedBox(height: 4),
-                    Text(title, style: Theme.of(context).textTheme.titleMedium, maxLines: 2),
+                    Text(title,
+                        style: Theme.of(context).textTheme.titleMedium,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis),
                     if (artist != null) Text(artist, maxLines: 1, overflow: TextOverflow.ellipsis),
                     const SizedBox(height: 4),
                     Text(reasonText(d.entry, top: 2),
@@ -160,6 +163,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
+          if (_daily != null) ...[
+            _dailyCard(_daily!),
+            const SizedBox(height: 8),
+          ],
           Card(
             child: ListTile(
               leading: const Icon(Icons.music_note),
@@ -179,28 +186,32 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           if (_busy) const Padding(padding: EdgeInsets.all(16), child: LinearProgressIndicator()),
           if (_message != null) Padding(padding: const EdgeInsets.all(12), child: Text(_message!)),
           const SizedBox(height: 8),
-          OutlinedButton(
+          FilledButton.icon(
             onPressed: () => Navigator.of(context)
                 .push(MaterialPageRoute<void>(builder: (_) => RatingScreen(api: widget.api, onLogout: widget.onLogout))),
-            child: const Text('Oylamaya başla'),
+            icon: const Icon(Icons.how_to_vote),
+            label: const Text('Oylamaya başla'),
           ),
           const SizedBox(height: 8),
-          OutlinedButton(
+          OutlinedButton.icon(
             onPressed: () => Navigator.of(context).push(MaterialPageRoute<void>(
                 builder: (_) => ListScreen(api: widget.api, onLogout: widget.onLogout))),
-            child: const Text('Keşif listesi'),
+            icon: const Icon(Icons.queue_music),
+            label: const Text('Keşif listesi'),
           ),
           const SizedBox(height: 8),
-          OutlinedButton(
+          OutlinedButton.icon(
             onPressed: () => Navigator.of(context).push(MaterialPageRoute<void>(
                 builder: (_) => FreshScreen(api: widget.api, onLogout: widget.onLogout))),
-            child: const Text('Yeni çıkanlar'),
+            icon: const Icon(Icons.new_releases),
+            label: const Text('Yeni çıkanlar'),
           ),
           const SizedBox(height: 8),
-          OutlinedButton(
+          OutlinedButton.icon(
             onPressed: () => Navigator.of(context).push(MaterialPageRoute<void>(
                 builder: (_) => HistoryScreen(api: widget.api, onLogout: widget.onLogout))),
-            child: const Text('Oy geçmişi'),
+            icon: const Icon(Icons.history),
+            label: const Text('Oy geçmişi'),
           ),
           const SizedBox(height: 16),
           SegmentedButton<ThemeMode>(
@@ -218,10 +229,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 builder: (_) => FeedbackScreen(api: widget.api, onLogout: widget.onLogout))),
             child: const Text('Geri bildirim gönder'),
           ),
-          if (_daily != null) ...[
-            const SizedBox(height: 16),
-            _dailyCard(_daily!),
-          ],
         ],
       ),
     );
