@@ -4,7 +4,7 @@
 
 Tını, kullanıcının müzik zevkini nötr seçeneği olmayan 6 kademeli oylamayla çıkaran ve buna göre **her önerisinin nedenini gösteren** keşif listeleri üreten bir mobil uygulamadır. Zevk zekâsı tamamen uygulamanın kendi çekirdeğinde çalışır; Apple Music ve Spotify gibi müzik servisleri değiştirilebilir bağlantılardır.
 
-> **Durum:** Planlama tamamlandı, geliştirme Faz 0 (fizibilite) ile 2 Kasım 2026'da başlıyor. Henüz çalışan kod yok.
+> **Durum:** Faz 0–6 tamamlandı, `v0.1.0-mvp` etiketli (2 Kasım 2026). Faz 7 (kullanılabilir son hâl) sürüyor: yeni uygulama kabuğu ve ekranlar, uygulama içi hesap silme, hız sınırı. Backend 266 test geçiyor. Güncel ayrıntı: [docs/DURUM.md](docs/DURUM.md).
 
 ---
 
