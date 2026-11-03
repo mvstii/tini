@@ -62,7 +62,7 @@ def _novelty(gm: GraphMatrix) -> np.ndarray:
 
 
 @dataclass(frozen=True)
-class _Propagated:
+class Propagated:
     seed_ids: np.ndarray
     w: np.ndarray
     acc: np.ndarray  # (düğüm, tohum): tohum başına PPR vektörleri
@@ -73,7 +73,7 @@ class _Propagated:
     novelty: np.ndarray
 
 
-def _propagate(gm: GraphMatrix, profile: dict, cfg: RecommendSettings) -> _Propagated | None:
+def propagate(gm: GraphMatrix, profile: dict, cfg: RecommendSettings) -> Propagated | None:
     pos_w, neg_w = _seeds(profile, cfg)
     pos = [(a, w) for a, w in _top(pos_w, cfg.max_seeds, +1) if gm.position(a) is not None]
     neg = [(a, w) for a, w in _top(neg_w, cfg.max_negative_seeds, -1) if gm.position(a) is not None]
@@ -104,7 +104,7 @@ def _propagate(gm: GraphMatrix, profile: dict, cfg: RecommendSettings) -> _Propa
     raw = acc @ w
     novelty = _novelty(gm)
     final = raw * (1.0 + cfg.novelty_gamma * novelty)
-    return _Propagated(seed_ids, w, acc, mask, seed_pos, raw, final, novelty)
+    return Propagated(seed_ids, w, acc, mask, seed_pos, raw, final, novelty)
 
 
 def artist_scores(gm: GraphMatrix, profile: dict, cfg: RecommendSettings) -> dict[int, float]:
@@ -112,7 +112,7 @@ def artist_scores(gm: GraphMatrix, profile: dict, cfg: RecommendSettings) -> dic
 
     score_candidates ile aynı hesap; kaçınma/bilinen maskesi uygulanmaz (aktif öğrenme için
     oylanmış sanatçılar da dâhil edilir)."""
-    prop = _propagate(gm, profile, cfg)
+    prop = propagate(gm, profile, cfg)
     if prop is None:
         return {}
     nz = np.flatnonzero(prop.final != 0)
@@ -120,7 +120,7 @@ def artist_scores(gm: GraphMatrix, profile: dict, cfg: RecommendSettings) -> dic
 
 
 def _reasons(
-    prop: _Propagated, c: int, anchors: set[int], cfg: RecommendSettings
+    prop: Propagated, c: int, anchors: set[int], cfg: RecommendSettings
 ) -> list[Reason]:
     """Düğüm c için tohum katkılarının pozitif paylarından gerekçeler (doğrusal ayrışım)."""
     contrib = prop.acc[c] * prop.w
@@ -136,14 +136,16 @@ def _reasons(
 
 
 def explain(
-    gm: GraphMatrix, profile: dict, artist_ids: set[int], cfg: RecommendSettings
+    gm: GraphMatrix, profile: dict, artist_ids: set[int], cfg: RecommendSettings,
+    prop: Propagated | None = None,
 ) -> dict[int, tuple[float, list[Reason]]]:
     """Verilen sanatçılar için (nihai skor, gerekçeler); graftaki olmayanlar dönmez.
 
-    Bilinen/kaçınılan maskesi yok: takip edilen sanatçılar zaten profilin tohumlarıdır."""
+    Bilinen/kaçınılan maskesi yok: takip edilen sanatçılar zaten profilin tohumlarıdır.
+    `prop` verilirse (aynı gm/profil/cfg için `propagate` sonucu) yayılım yeniden hesaplanmaz."""
     if not artist_ids:  # yayını olan takip yoksa PPR yayılımı boşa çalışmasın
         return {}
-    prop = _propagate(gm, profile, cfg)
+    prop = prop if prop is not None else propagate(gm, profile, cfg)
     if prop is None:
         return {}
     anchors = {a["artist_id"] for a in profile.get("anchors", [])}
@@ -155,9 +157,10 @@ def explain(
 
 
 def score_candidates(
-    gm: GraphMatrix, profile: dict, known: set[int], cfg: RecommendSettings
+    gm: GraphMatrix, profile: dict, known: set[int], cfg: RecommendSettings,
+    prop: Propagated | None = None,
 ) -> list[Candidate]:
-    prop = _propagate(gm, profile, cfg)
+    prop = prop if prop is not None else propagate(gm, profile, cfg)
     if prop is None:
         return []
     w, acc, mask, seed_pos = prop.w, prop.acc, prop.mask, prop.seed_pos
