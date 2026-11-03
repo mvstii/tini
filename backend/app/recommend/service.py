@@ -25,7 +25,7 @@ from app.profile.service import load_profile_votes, unheard_statuses
 from app.recommend.bandit import SLOTS, allocate, slot_shares
 from app.recommend.fresh import FreshRelease, rank_fresh
 from app.recommend.outcomes import ArtistVote, ItemRef, derive_outcomes
-from app.recommend.ppr import Candidate, explain, score_candidates
+from app.recommend.ppr import Candidate, Propagated, explain, propagate, score_candidates
 from app.recommend.select import select_mmr
 from app.releases.service import user_follows
 
@@ -48,6 +48,7 @@ class Scored:
     graph_version: int
     gm: GraphMatrix
     cands: list[Candidate]
+    prop: Propagated | None = None  # aynı yayılım Taze yuvasının gerekçelerinde yeniden kullanılır
 
 
 def latest_profile_graph(db: Session, user_id, gcfg: GraphSettings):
@@ -75,7 +76,8 @@ def compute_candidates(
     }
     # işbirliği düğümleri ("A & B") kendi başına önerilmez; üyeleri zaten ayrı skorlanır
     known |= set(db.scalars(select(ArtistMember.collab_id)))
-    return Scored(row, graph_version, gm, score_candidates(gm, row.body, known, cfg))
+    prop = propagate(gm, row.body, cfg)
+    return Scored(row, graph_version, gm, score_candidates(gm, row.body, known, cfg, prop), prop)
 
 
 def _pick_tracks(db: Session, user_id, artist_ids: list[int]) -> dict[int, int]:
@@ -173,7 +175,7 @@ def generate_list(
     gcfg: GraphSettings,
 ) -> GeneratedList:
     sc = compute_candidates(db, user_id, now, cfg, pcfg, gcfg)
-    fresh, _ = fresh_ranked(db, user_id, sc.profile, sc.gm, now.date(), cfg)
+    fresh, _ = fresh_ranked(db, user_id, sc.profile, sc.gm, now.date(), cfg, sc.prop)
     fresh = fresh[: round(cfg.list_size * cfg.fresh_share)]
     fresh_artists = {i.artist_id for i in fresh}
     pool = _pool_tracks(db, user_id, pcfg)
@@ -248,7 +250,8 @@ def window_releases(
 
 
 def fresh_ranked(
-    db: Session, user_id, prof: TasteProfile, gm: GraphMatrix, today: date, cfg: RecommendSettings
+    db: Session, user_id, prof: TasteProfile, gm: GraphMatrix, today: date, cfg: RecommendSettings,
+    prop: Propagated | None = None,
 ):
     """Takip edilen sanatçıların, önceki listelerde çıkmamış yayınları; sıralı ve gerekçeli."""
     follows = user_follows(db, user_id)
@@ -260,7 +263,7 @@ def fresh_ranked(
         )
     )
     releases = window_releases(db, follows, today, cfg.fresh_window_days, seen)
-    scores = explain(gm, prof.body, {r.artist_id for r in releases}, cfg)
+    scores = explain(gm, prof.body, {r.artist_id for r in releases}, cfg, prop)
     return rank_fresh(releases, scores, today, cfg), len(follows)
 
 

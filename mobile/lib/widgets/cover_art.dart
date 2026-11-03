@@ -49,18 +49,25 @@ class CoverArt extends StatelessWidget {
       child: DecoratedBox(
         decoration: _gradient(context) ??
             BoxDecoration(color: Theme.of(context).colorScheme.surfaceContainerHighest),
-        child: url == null
-            ? Center(child: placeholder)
-            : Image.network(
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            // Yer tutucu her zaman altta; görsel yüklenince üstünü örter, hata verirse görünür kalır.
+            Center(child: placeholder),
+            if (url != null)
+              Image.network(
                 url!,
                 width: size,
                 height: size,
                 fit: BoxFit.cover,
                 gaplessPlayback: true,
-                errorBuilder: (_, _, _) => Center(child: placeholder),
-                loadingBuilder: (_, child, progress) =>
-                    progress == null ? child : Center(child: placeholder),
+                errorBuilder: (_, e, _) {
+                  debugPrint('CoverArt yüklenemedi: $url ($e)');
+                  return const SizedBox.shrink();
+                },
               ),
+          ],
+        ),
       ),
     );
     final clipped = ClipRRect(borderRadius: BorderRadius.circular(radius), child: box);
