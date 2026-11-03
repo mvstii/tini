@@ -180,6 +180,14 @@ class Api {
     await _storage.delete(key: _key);
   }
 
+  /// Hesabı ve tüm kişisel veriyi siler (parola onayıyla). Yanlış parola 403 döner;
+  /// yerel oturum yalnızca silme başarılıysa temizlenir.
+  Future<void> deleteAccount(String password) async {
+    await _send('DELETE', '/me', {'password': password});
+    _session = null;
+    await _storage.delete(key: _key);
+  }
+
   Future<List<Connection>> connections() async {
     final body = await _send('GET', '/connections');
     return (body['_list'] as List)

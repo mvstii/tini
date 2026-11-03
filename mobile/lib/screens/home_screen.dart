@@ -151,6 +151,51 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     widget.onLogout();
   }
 
+  Future<void> _deleteAccount() async {
+    final password = TextEditingController();
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Hesabı sil'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Hesabın, oyların, profilin ve listelerin kalıcı olarak silinir. '
+                'Bu işlem geri alınamaz.'),
+            const SizedBox(height: 12),
+            TextField(
+              controller: password,
+              obscureText: true,
+              autofocus: true,
+              decoration: const InputDecoration(labelText: 'Parolan'),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Vazgeç')),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: Theme.of(ctx).colorScheme.error),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Kalıcı olarak sil'),
+          ),
+        ],
+      ),
+    );
+    final value = password.text;
+    password.dispose();
+    if (confirmed != true || !mounted) return;
+    try {
+      await widget.api.deleteAccount(value);
+      if (mounted && Navigator.of(context).canPop()) Navigator.of(context).pop();
+      widget.onLogout();
+    } on ApiException catch (e) {
+      if (mounted) setState(() => _message = e.status == 403 ? 'Parola hatalı.' : e.message);
+    } catch (_) {
+      if (mounted) setState(() => _message = 'Sunucuya ulaşılamadı');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -205,6 +250,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             onPressed: () => Navigator.of(context).push(MaterialPageRoute<void>(
                 builder: (_) => FeedbackScreen(api: widget.api, onLogout: widget.onLogout))),
             child: const Text('Geri bildirim gönder'),
+          ),
+          TextButton(
+            onPressed: _deleteAccount,
+            style: TextButton.styleFrom(foregroundColor: Theme.of(context).colorScheme.error),
+            child: const Text('Hesabı sil'),
           ),
         ],
       ),

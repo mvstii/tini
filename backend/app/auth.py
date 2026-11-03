@@ -98,6 +98,30 @@ def logout(
     db.commit()
 
 
+class PasswordConfirm(BaseModel):
+    password: str = Field(min_length=1, max_length=256)
+
+
+@router.delete("/me", status_code=204)
+def delete_me(
+    body: PasswordConfirm,
+    request: Request,
+    user: User = Depends(current_user),
+    db: Session = Depends(get_db),
+    limits: AuthLimits = Depends(get_auth_limits),
+) -> None:
+    """Hesabı ve tüm kişisel veriyi siler (parola onayıyla); paylaşılan katalog kalır."""
+    wait = limits.login_email.retry_after(user.email)
+    if wait is not None:
+        raise too_many(wait)
+    if not verify_password(user.password_hash, body.password):
+        limits.login_email.hit(user.email)
+        raise HTTPException(403, "Parola hatalı")
+    db.delete(user)
+    db.commit()
+    limits.login_email.reset(user.email)
+
+
 @router.get("/me")
 def me(user: User = Depends(current_user)) -> dict[str, str]:
     return {"id": str(user.id), "email": user.email}
