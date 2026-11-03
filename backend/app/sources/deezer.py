@@ -40,7 +40,7 @@ class DeezerClient:
                 return found
         if artist:
             data = self._http.get_json(
-                f"{self._base}/search", {"q": f'artist:"{artist}"', "limit": "10"}
+                f"{self._base}/search", {"q": artist, "limit": "10"}
             )
             return pick_preview(data, artist)
         return None
