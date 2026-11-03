@@ -63,6 +63,11 @@ def unfollow(
     return Response(status_code=204)
 
 
+def cover_url(base: str, rel: Release) -> str:
+    """Cover Art Archive kapağı (release-group düzeyi); yoksa istemci yer tutucu gösterir."""
+    return f"{base.rstrip('/')}/release-group/{rel.mb_rgid}/front-250"
+
+
 @router.get("/new")
 def new_releases(
     days: int | None = None,
@@ -70,6 +75,7 @@ def new_releases(
     user: User = Depends(current_user),
     db: Session = Depends(get_db),
     cfg: RecommendSettings = Depends(get_recommend_settings),
+    rcfg: ReleasesSettings = Depends(get_releases_settings),
 ) -> dict:
     """"Yeni" akışı: takip edilen sanatçıların pencere içindeki yayınları, yeniden eskiye."""
     follows = user_follows(db, user.id)
@@ -89,7 +95,7 @@ def new_releases(
         items.append({
             "release_id": r.id, "title": r.title, "type": r.primary_type,
             "released": r.first_release_date.isoformat(), "artist_id": aid, "artist": name,
-            "follow": follows[aid],
+            "follow": follows[aid], "cover": cover_url(rcfg.cover_base_url, r),
         })
     return {"items": items[: max(min(limit, 200), 1)], "total": len(items)}
 
@@ -143,5 +149,6 @@ def new_tracks(
                 "deezer_id": t["id"], "title": t["title"], "artist": artist,
                 "release": r.title, "type": r.primary_type,
                 "released": r.first_release_date.isoformat(),
+                "cover": cover_url(cfg.cover_base_url, r),
             })
     return {"items": items[: max(min(limit, 200), 1)], "releases": len(releases)}

@@ -81,6 +81,9 @@ def test_new_tracks_lists_recent_tracks_caches_and_skips_old(client, db):
         (11, "A", "Sade", "Hello"), (12, "B", "Sade", "Hello")]
     client.get("/releases/new-tracks", headers=h)
     assert fake.calls == 1  # ikinci istek önbellekten
+    covers = {i["cover"] for i in r["items"]}
+    assert all(c.startswith("https://coverartarchive.org/release-group/") for c in covers)
+    assert all(c.endswith("/front-250") for c in covers)
     one = client.get("/releases/new-tracks?limit=1", headers=h).json()["items"]
     assert [i["deezer_id"] for i in one] == [11]
 
