@@ -165,6 +165,7 @@ def test_queue_pool_bonus_awaiting_and_expired(client, db):
     ids = [i["track"] for i in body["items"]]
     assert body["algo_version"] == "queue-5"
     assert gone.id not in ids and ids[0] == pooled.id and set(ids) == {pooled.id, other.id}
+    assert body["stale"] == 0  # havuzda süresi dolan parça kütüphane yenilemesiyle düzelmez
     states = [
         e.state for e in db.scalars(
             select(UnheardEvent).where(

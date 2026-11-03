@@ -158,8 +158,10 @@ def queue(
     statuses = unheard_statuses(db, user.id, cfg)
     expired = {s.track_id for s in statuses if s.state == "expired"}
     pool = {s.track_id for s in statuses} - expired
+    # Yalnızca önbelleği dolmuş parçalar "eski" sayılır (yenileme bunları düzeltir); havuzda
+    # süresi dolmuş parçalar kütüphane yenilemesiyle geri gelmez, sayılmaz.
+    stale = sum(1 for r in rows if r[0] not in fresh and r[0] not in expired)
     fresh = {t: r for t, r in fresh.items() if t not in expired}
-    stale = len(rows) - len(fresh)
     voted_meta = db.execute(
         select(UserTrackMeta.title, UserTrackMeta.artist_names).where(
             UserTrackMeta.user_id == user.id, UserTrackMeta.track_id.in_(voted)
