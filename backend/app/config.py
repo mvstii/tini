@@ -116,7 +116,12 @@ class ProfileSettings(BaseSettings):
     unheard_expire_after: int = 3
     unheard_expired_score: float = -0.05
     # Aktif öğrenme kuyruğu (Faz 5 S2)
-    queue_algo_version: str = "queue-5"
+    queue_algo_version: str = "queue-6"
+    # Kuyruğa öneri motoru karışımı: kütüphane kalanı eşiğin altına inince öneriler eklenir;
+    # her istekte en çok `batch` servis çağrısı; bu kadar yeni oydan sonra profil yenilenir.
+    queue_suggest_threshold: int = 20
+    queue_suggest_batch: int = 10
+    queue_rebuild_after_votes: int = 5
     # Aynı şarkının sürümleri (remaster vb.) kuyrukta tek sayılır; bu sözcükleri içeren
     # parantez/tire eki başlıktan atılır. Canlı/remix/akustik ayrı şarkıdır.
     queue_version_markers: tuple[str, ...] = (
