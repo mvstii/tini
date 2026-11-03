@@ -1,4 +1,5 @@
 """Takip listesi: GET /releases/following, PUT/DELETE /releases/following/{artist_id}."""
+import time
 from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Response
@@ -6,10 +7,18 @@ from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
-from app.config import RecommendSettings, get_recommend_settings
+from app.config import (
+    RecommendSettings,
+    ReleasesSettings,
+    get_recommend_settings,
+    get_releases_settings,
+)
 from app.deps import current_user, get_db
 from app.models import Artist, FollowedArtist, Release, ReleaseArtist, User
+from app.preview import get_deezer
 from app.releases.service import user_follows
+from app.sources.deezer import DeezerClient
+from app.sources.http import SourceError
 
 router = APIRouter(prefix="/releases")
 
@@ -83,3 +92,56 @@ def new_releases(
             "follow": follows[aid],
         })
     return {"items": items[: max(min(limit, 200), 1)], "total": len(items)}
+
+
+# Yayın başına parça listesi (Deezer): yalnızca bellekte, süreli; kalıcı saklanmaz.
+_TRACKS: dict[int, tuple[float, list[dict]]] = {}
+
+
+def _tracks_of(deezer: DeezerClient, rel: Release, artist: str, ttl: float) -> list[dict]:
+    hit = _TRACKS.get(rel.id)
+    if hit and hit[0] > time.monotonic():
+        return hit[1]
+    try:
+        tracks = deezer.album_tracks(artist, rel.title)
+    except SourceError:
+        return []  # geçici hata önbelleğe yazılmaz
+    _TRACKS[rel.id] = (time.monotonic() + ttl, tracks)
+    return tracks
+
+
+@router.get("/new-tracks")
+def new_tracks(
+    days: int | None = None,
+    limit: int = 40,
+    user: User = Depends(current_user),
+    db: Session = Depends(get_db),
+    cfg: ReleasesSettings = Depends(get_releases_settings),
+    deezer: DeezerClient = Depends(get_deezer),
+) -> dict:
+    """"Bu hafta çıkanlar": takip edilen sanatçıların son günlerdeki yayınları, parça parça.
+    Her parçanın `deezer_id`'si /preview?deezer_id= ile çalınır."""
+    follows = user_follows(db, user.id)
+    since = datetime.now(UTC).date() - timedelta(days=min(days or cfg.new_tracks_days, 60))
+    rows = db.execute(
+        select(Release, Artist.name)
+        .join(ReleaseArtist, ReleaseArtist.release_id == Release.id)
+        .join(Artist, Artist.id == ReleaseArtist.artist_id)
+        .where(ReleaseArtist.artist_id.in_(list(follows)), Release.first_release_date >= since)
+        .order_by(Release.first_release_date.desc(), Release.id, Artist.id)
+    ).all()
+    releases, seen = [], set()
+    for r, name in rows:
+        if r.id not in seen and name:
+            seen.add(r.id)
+            releases.append((r, name))
+    ttl = cfg.tracks_cache_hours * 3600
+    items: list[dict] = []
+    for r, artist in releases[: cfg.new_tracks_max_releases]:
+        for t in _tracks_of(deezer, r, artist, ttl):
+            items.append({
+                "deezer_id": t["id"], "title": t["title"], "artist": artist,
+                "release": r.title, "type": r.primary_type,
+                "released": r.first_release_date.isoformat(),
+            })
+    return {"items": items[: max(min(limit, 200), 1)], "releases": len(releases)}

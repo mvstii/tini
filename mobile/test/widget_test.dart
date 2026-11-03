@@ -697,8 +697,20 @@ void main() {
       ],
     };
 
-    Future<(Api, AppState)> setup({bool hasDaily = true, bool hasFeed = true}) async {
+    Future<(Api, AppState)> setup(
+        {bool hasDaily = true, bool hasFeed = true, bool hasTracks = false}) async {
       final api = _api((req) async {
+        if (req.url.path == '/releases/new-tracks' && hasTracks) {
+          return http.Response.bytes(
+              utf8.encode(jsonEncode({
+                'releases': 1,
+                'items': [
+                  {'deezer_id': 77, 'title': 'Yeni Parça', 'artist': 'Sanatçı X',
+                   'release': 'Albüm X', 'type': 'Album', 'released': '2026-10-30'},
+                ],
+              })),
+              200);
+        }
         if (req.url.path == '/recommend/daily') {
           return hasDaily
               ? http.Response.bytes(utf8.encode(jsonEncode(dailyJson)), 200)
@@ -737,6 +749,24 @@ void main() {
             ),
           ),
         );
+
+    testWidgets('lists this week\'s new tracks with a play button, hidden when empty', (tester) async {
+      tester.view.physicalSize = const Size(360, 1200);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      var (api, s) = await setup(hasTracks: true);
+      await tester.pumpWidget(host(api, s));
+      await tester.pumpAndSettle();
+      expect(find.text('BU HAFTA ÇIKANLAR'), findsOneWidget);
+      expect(find.text('Yeni Parça'), findsOneWidget);
+      expect(find.byKey(const ValueKey('new-track-77')), findsOneWidget);
+
+      await tester.pumpWidget(const SizedBox()); // eski State atılsın
+      (api, s) = await setup();
+      await tester.pumpWidget(host(api, s));
+      await tester.pumpAndSettle();
+      expect(find.text('BU HAFTA ÇIKANLAR'), findsNothing);
+    });
 
     testWidgets('shows the hero with the real reason and opens the song', (tester) async {
       tester.view.physicalSize = const Size(360, 640);

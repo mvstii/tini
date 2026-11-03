@@ -115,6 +115,15 @@ class ReleaseInfo {
   final String released;
 }
 
+class NewTrack {
+  NewTrack(this.deezerId, this.title, this.artist, this.release, this.released);
+  final int deezerId;
+  final String title;
+  final String artist;
+  final String release;
+  final String released;
+}
+
 class NewRelease {
   NewRelease(this.title, this.type, this.released, this.artist, this.follow);
   final String title;
@@ -279,10 +288,11 @@ class Api {
   }
 
   /// 30 sn'lik önizleme URL'si (sunucu istek anında çözer, saklamaz); bulunamazsa null.
-  Future<String?> previewUrl({int? artistId, int? trackId}) async {
+  Future<String?> previewUrl({int? artistId, int? trackId, int? deezerId}) async {
     final q = [
       if (artistId != null) 'artist_id=$artistId',
       if (trackId != null) 'track_id=$trackId',
+      if (deezerId != null) 'deezer_id=$deezerId',
     ].join('&');
     final body = await _send('GET', '/preview?$q');
     return body['url'] as String?;
@@ -299,6 +309,15 @@ class Api {
     return (body['items'] as List)
         .map((e) => NewRelease(e['title'] as String, e['type'] as String,
             e['released'] as String, (e['artist'] as String?) ?? '?', e['follow'] as String))
+        .toList();
+  }
+
+  /// "Bu hafta çıkanlar": takip edilen sanatçıların son günlerdeki yayınları, parça parça.
+  Future<List<NewTrack>> newTracks() async {
+    final body = await _send('GET', '/releases/new-tracks');
+    return (body['items'] as List)
+        .map((e) => NewTrack(e['deezer_id'] as int, e['title'] as String,
+            (e['artist'] as String?) ?? '?', e['release'] as String, e['released'] as String))
         .toList();
   }
 

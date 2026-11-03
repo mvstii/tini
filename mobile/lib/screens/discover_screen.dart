@@ -58,6 +58,7 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
   bool _dailyLoaded = false;
   List<NewRelease>? _releases;
   String? _releaseError;
+  List<NewTrack> _tracks = const [];
   int _shuffle = 0;
   String? _message;
 
@@ -66,6 +67,17 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
     super.initState();
     _loadDaily();
     _loadReleases();
+    _loadTracks();
+  }
+
+  /// Yardımcı bölüm: hata ya da boş yanıt bölümü sessizce gizler.
+  Future<void> _loadTracks() async {
+    try {
+      final t = await widget.api.newTracks();
+      if (mounted) setState(() => _tracks = t);
+    } on ApiException catch (e) {
+      if (e.status == 401) widget.onLogout();
+    } catch (_) {}
   }
 
   Future<void> _loadDaily() async {
@@ -188,6 +200,12 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
             _hero(context),
             if (_message != null)
               Padding(padding: const EdgeInsets.only(top: 8), child: Text(_message!)),
+            if (_tracks.isNotEmpty) ...[
+              const SizedBox(height: 28),
+              const SectionLabel('BU HAFTA ÇIKANLAR'),
+              const SizedBox(height: 10),
+              for (final t in _tracks.take(10)) _TrackRow(api: widget.api, track: t),
+            ],
             const SizedBox(height: 28),
             Row(
               children: [
@@ -474,6 +492,49 @@ class _ReleaseCard extends StatelessWidget {
                 style: studioTitle(context, base: theme.textTheme.labelLarge)),
             Text('${release.artist} · ${relativeDate(release.released)}',
                 maxLines: 1, overflow: TextOverflow.ellipsis, style: theme.textTheme.labelSmall),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Bu haftanın tek bir parçası: kapak yer tutucusu, ad, sanatçı · yayın · tarih ve play tuşu.
+class _TrackRow extends StatelessWidget {
+  const _TrackRow({required this.api, required this.track});
+  final Api api;
+  final NewTrack track;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: StudioSurface(
+        radius: 16,
+        padding: const EdgeInsets.fromLTRB(8, 8, 4, 8),
+        child: Row(
+          children: [
+            CoverArt(url: null, size: 48, radius: 10, gradientSeed: track.release, glow: true),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(track.title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: studioTitle(context, base: theme.textTheme.titleSmall)),
+                  Text('${track.artist} · ${track.release} · ${relativeDate(track.released)}',
+                      maxLines: 1, overflow: TextOverflow.ellipsis, style: theme.textTheme.bodySmall),
+                ],
+              ),
+            ),
+            PreviewButton(
+                key: ValueKey('new-track-${track.deezerId}'),
+                api: api,
+                previewKey: 'new-track-${track.deezerId}',
+                deezerId: track.deezerId),
           ],
         ),
       ),
