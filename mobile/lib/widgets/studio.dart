@@ -168,7 +168,17 @@ class _StudioButtonState extends State<StudioButton> {
     final scheme = Theme.of(context).colorScheme;
     final enabled = widget.onPressed != null && !widget.busy;
     final radius = BorderRadius.circular(widget.dense ? 12 : 16);
-    final fg = widget.primary ? Colors.white : scheme.onSurface;
+    final gradient = [
+      scheme.primary,
+      Color.lerp(scheme.primary, const Color(0xFFE0479E), 0.55)!,
+    ];
+    // Karanlık temada birincil renk açık lavantadır; beyaz yazı okunmaz. Gradyanın en açık
+    // ucuna göre kontrastı yüksek olan yazı rengi seçilir.
+    final lightest = gradient.reduce((a, b) => a.computeLuminance() >= b.computeLuminance() ? a : b);
+    const dark = Color(0xFF1B1030);
+    final fg = !widget.primary
+        ? scheme.onSurface
+        : (lightest.computeLuminance() > 0.18 ? dark : Colors.white);
     final h = widget.dense ? 40.0 : 52.0;
     final decoration = widget.primary
         ? BoxDecoration(
@@ -176,7 +186,7 @@ class _StudioButtonState extends State<StudioButton> {
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
-              colors: [scheme.primary, Color.lerp(scheme.primary, const Color(0xFFE0479E), 0.55)!],
+              colors: gradient,
             ),
             boxShadow: enabled
                 ? [

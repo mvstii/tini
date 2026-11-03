@@ -102,6 +102,30 @@ class ProfileScreen extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 16),
+                const SectionLabel('GÖRÜNÜM'),
+                const SizedBox(height: 8),
+                SizedBox(
+                  width: double.infinity,
+                  child: SegmentedButton<ThemeMode>(
+                    segments: const [
+                      ButtonSegment(
+                          value: ThemeMode.system,
+                          icon: Icon(Icons.brightness_auto),
+                          label: Text('Sistem')),
+                      ButtonSegment(
+                          value: ThemeMode.light,
+                          icon: Icon(Icons.light_mode),
+                          label: Text('Açık')),
+                      ButtonSegment(
+                          value: ThemeMode.dark,
+                          icon: Icon(Icons.dark_mode),
+                          label: Text('Koyu')),
+                    ],
+                    selected: {themeMode},
+                    onSelectionChanged: (s) => onThemeChanged?.call(s.first),
+                  ),
+                ),
+                const SizedBox(height: 16),
                 const SectionLabel('OY DAĞILIMI'),
                 const SizedBox(height: 8),
                 StudioSurface(

@@ -71,7 +71,8 @@ class _RatingScreenState extends State<RatingScreen> {
   final Set<int> _skipped = {};
   final Set<int> _voted = {};
   final List<_Step> _history = [];
-  int _seed = 0;
+  // Her açılışta farklı tohum: sabit 0 olunca aynı şarkı hep ilk sırada çıkıyordu.
+  int _seed = DateTime.now().millisecondsSinceEpoch % 100000;
   int _stale = 0;
   bool _loading = true;
   bool _filling = false;
