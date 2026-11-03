@@ -6,12 +6,21 @@ import '../theme/cosmic_colors.dart';
 
 /// 30 sn'lik önizleme düğmesi: çal / durdur, yüklenirken döner, bulunamazsa soluk görünür.
 class PreviewButton extends StatelessWidget {
-  const PreviewButton(
-      {super.key, required this.api, required this.previewKey, this.artistId, this.trackId});
+  const PreviewButton({
+    super.key,
+    required this.api,
+    required this.previewKey,
+    this.artistId,
+    this.trackId,
+    this.deezerId,
+  });
   final Api api;
   final String previewKey;
   final int? artistId;
   final int? trackId;
+
+  /// Yeni çıkan parçalar: Deezer kimliğiyle doğrudan çözülür.
+  final int? deezerId;
 
   @override
   Widget build(BuildContext context) {
@@ -32,7 +41,9 @@ class PreviewButton extends StatelessWidget {
               onTap: unavailable
                   ? null
                   : () => ctl.toggle(
-                      previewKey, () => api.previewUrl(artistId: artistId, trackId: trackId)),
+                      previewKey,
+                      () => api.previewUrl(
+                          artistId: artistId, trackId: trackId, deezerId: deezerId)),
               child: SizedBox(
                 width: 44,
                 height: 44,

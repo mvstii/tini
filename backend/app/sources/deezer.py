@@ -32,6 +32,25 @@ class DeezerClient:
         data = self._http.get_json(f"{self._base}/search/artist", {"q": name, "limit": "5"})
         return pick_picture(data, name)
 
+    def album_tracks(self, artist: str, title: str) -> list[dict]:
+        """Yayının parça listesi: [{id, title}] (önizleme URL'si süreli olduğundan alınmaz)."""
+        found = self._http.get_json(
+            f"{self._base}/search/album",
+            {"q": f'artist:"{artist}" album:"{title}"', "limit": "5"},
+        )
+        album = pick_album(found, artist, title)
+        if album is None:
+            return []
+        data = self._http.get_json(f"{self._base}/album/{album}/tracks", {"limit": "50"})
+        return [
+            {"id": t["id"], "title": t["title"]}
+            for t in (data or {}).get("data") or []
+            if t.get("id") and t.get("title")
+        ]
+
+    def track_preview_by_id(self, deezer_id: int) -> tuple[str, str] | None:
+        return pick_preview(self._http.get_json(f"{self._base}/track/{deezer_id}"))
+
     def track_preview(self, isrc: str | None, artist: str | None) -> tuple[str, str] | None:
         """30 sn önizleme: önce ISRC, olmazsa sanatçı adıyla arama. (url, başlık) ya da None."""
         if isrc:
@@ -44,6 +63,18 @@ class DeezerClient:
             )
             return pick_preview(data, artist)
         return None
+
+
+def pick_album(data: dict | None, artist: str, title: str) -> int | None:
+    """Albüm aramasından sanatçı ve başlığı birebir (normalize) eşleşen ilk albümün kimliği."""
+    want_a, want_t = normalize_name(artist), normalize_name(title)
+    for a in (data or {}).get("data") or []:
+        if (
+            normalize_name((a.get("artist") or {}).get("name") or "") == want_a
+            and normalize_name(a.get("title") or "") == want_t
+        ):
+            return a.get("id")
+    return None
 
 
 def pick_preview(data: dict | None, artist: str | None = None) -> tuple[str, str] | None:

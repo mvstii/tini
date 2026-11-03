@@ -176,6 +176,9 @@ class ReleasesSettings(BaseSettings):
     refetch_days: int = 7  # aynı sanatçı için yeniden sorgu aralığı
     search_limit: int = 25  # sanatçı başına en çok yayın
     types: tuple[str, ...] = ("album", "ep", "single")
+    new_tracks_days: int = 7  # "Bu hafta çıkanlar" penceresi
+    new_tracks_max_releases: int = 12  # tek istekte parça listesi çözülecek en çok yayın
+    tracks_cache_hours: int = 6  # yayın parça listesi bellek önbelleği (kalıcı saklanmaz)
 
 
 class ArtworkSettings(BaseSettings):
