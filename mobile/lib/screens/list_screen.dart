@@ -253,20 +253,13 @@ class _ListScreenState extends State<ListScreen> {
           if (_error != null)
             Padding(
               padding: const EdgeInsets.only(bottom: 12),
-              child: StudioSurface(
-                padding: const EdgeInsets.all(12),
-                child: Row(children: [
-                  Icon(Icons.error_outline_rounded, color: theme.colorScheme.error),
-                  const SizedBox(width: 10),
-                  Expanded(child: Text(_error!, style: TextStyle(color: theme.colorScheme.error))),
-                ]),
-              ),
+              child: StateNote.error(_error!, onRetry: _busy ? null : _generate),
             ),
           if (_busy && !_exporting && list == null)
             for (var i = 0; i < 4; i++)
               const Padding(padding: EdgeInsets.only(bottom: 8), child: SkeletonCard(height: 120)),
           if (list != null && list.items.isEmpty)
-            const Padding(padding: EdgeInsets.all(12), child: Text('Öneri çıkmadı.')),
+            const StateNote.empty('Öneri çıkmadı.', icon: Icons.queue_music_rounded),
           if (list != null)
             for (final (i, e) in list.items.indexed)
               StaggerIn(

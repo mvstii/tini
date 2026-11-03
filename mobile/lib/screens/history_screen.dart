@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../api.dart';
+import '../widgets/studio.dart';
 import 'rating_screen.dart' show voteLabels;
 
 /// Oy geçmişi: parça başına güncel oy. Oy değiştirmek yeni bir olay yazar (eski olay silinmez).
@@ -24,6 +25,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
   }
 
   Future<void> _load() async {
+    if (_error != null) setState(() => _error = null);
     try {
       final items = await widget.api.voteHistory();
       if (mounted) setState(() => _items = items);
@@ -77,16 +79,15 @@ class _HistoryScreenState extends State<HistoryScreen> {
       appBar: AppBar(title: const Text('Oy geçmişi')),
       body: items == null && _error == null
           ? const Center(child: CircularProgressIndicator())
-          : ListView(
+          : RefreshIndicator(
+              onRefresh: _load,
+              child: ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.all(12),
               children: [
-                if (_error != null)
-                  Padding(
-                    padding: const EdgeInsets.all(12),
-                    child: Text(_error!,
-                        style: TextStyle(color: Theme.of(context).colorScheme.error)),
-                  ),
+                if (_error != null) StateNote.error(_error!, onRetry: _load),
                 if (items != null && items.isEmpty)
-                  const Padding(padding: EdgeInsets.all(16), child: Text('Henüz oy yok.')),
+                  const StateNote.empty('Henüz oy yok.', icon: Icons.how_to_vote_outlined),
                 for (final i in items ?? <HistoryItem>[])
                   ListTile(
                     title: Text(i.title ?? 'Parça ${i.track}'),
@@ -95,6 +96,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                     onTap: () => _change(i),
                   ),
               ],
+            ),
             ),
     );
   }

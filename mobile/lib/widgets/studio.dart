@@ -132,6 +132,73 @@ class SectionLabel extends StatelessWidget {
       );
 }
 
+/// Üzerine gelince (fare/kalem/odak) hafifçe büyüyen sarmalayıcı. Dokunmatikte etkisizdir;
+/// basma geri bildirimi her düğmenin kendi animasyonundadır.
+class Hoverable extends StatefulWidget {
+  const Hoverable({super.key, required this.child, this.scale = 1.04, this.enabled = true});
+  final Widget child;
+  final double scale;
+  final bool enabled;
+
+  @override
+  State<Hoverable> createState() => _HoverableState();
+}
+
+class _HoverableState extends State<Hoverable> {
+  bool _hover = false;
+
+  void _set(bool v) {
+    if (_hover != v) setState(() => _hover = v);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      onEnter: (_) => _set(true),
+      onExit: (_) => _set(false),
+      child: AnimatedScale(
+        scale: _hover && widget.enabled ? widget.scale : 1,
+        duration: const Duration(milliseconds: 140),
+        curve: Curves.easeOutCubic,
+        child: widget.child,
+      ),
+    );
+  }
+}
+
+/// Ortak hata / boş durum kartı: simge + metin, isteğe bağlı "Yeniden dene".
+class StateNote extends StatelessWidget {
+  const StateNote.error(this.text, {super.key, this.onRetry})
+      : icon = Icons.error_outline_rounded,
+        isError = true;
+  const StateNote.empty(this.text, {super.key, this.icon = Icons.inbox_outlined})
+      : onRetry = null,
+        isError = false;
+  final String text;
+  final IconData icon;
+  final bool isError;
+  final VoidCallback? onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final color = isError ? scheme.error : scheme.onSurfaceVariant;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: StudioSurface(
+        padding: const EdgeInsets.all(14),
+        child: Row(children: [
+          Icon(icon, color: color),
+          const SizedBox(width: 12),
+          Expanded(child: Text(text, style: TextStyle(color: color))),
+          if (onRetry != null)
+            TextButton(onPressed: onRetry, child: const Text('Yeniden dene')),
+        ]),
+      ),
+    );
+  }
+}
+
 /// Şarkı adı ve sayfa başlıkları için sıkı, kalın stil.
 TextStyle? studioTitle(BuildContext context, {TextStyle? base}) =>
     (base ?? Theme.of(context).textTheme.titleMedium)
@@ -206,7 +273,10 @@ class _StudioButtonState extends State<StudioButton> {
       button: true,
       enabled: enabled,
       label: widget.label,
-      child: AnimatedScale(
+      child: Hoverable(
+        enabled: enabled,
+        scale: 1.02,
+        child: AnimatedScale(
         scale: _down && enabled ? 0.97 : 1,
         duration: const Duration(milliseconds: 90),
         child: Opacity(
@@ -249,6 +319,7 @@ class _StudioButtonState extends State<StudioButton> {
             ),
           ),
         ),
+      ),
       ),
     );
   }
