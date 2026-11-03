@@ -1,4 +1,5 @@
 import itertools
+import uuid
 
 import pytest
 from fastapi.testclient import TestClient
@@ -53,7 +54,7 @@ def client():
 
 
 def _email() -> str:
-    return f"rl{next(_emails)}@example.com"
+    return f"rl{next(_emails)}-{uuid.uuid4().hex[:8]}@example.com"
 
 
 def test_login_locks_after_failures_then_sets_retry_after(client):
