@@ -29,6 +29,7 @@ from app.models import (
 )
 from app.profile.active import order_active, order_unresolved
 from app.profile.active_service import artist_uncertainties, mark_awaiting
+from app.profile.queue import pick_versions
 from app.profile.scoring import VoteEvt, score_votes
 from app.profile.service import rebuild_profile, unheard_statuses
 from app.profile.unheard import next_state
@@ -158,6 +159,16 @@ def queue(
     expired = {s.track_id for s in statuses if s.state == "expired"}
     pool = {s.track_id for s in statuses} - expired
     fresh = {t: r for t, r in fresh.items() if t not in expired}
+    stale = len(rows) - len(fresh)
+    voted_meta = db.execute(
+        select(UserTrackMeta.title, UserTrackMeta.artist_names).where(
+            UserTrackMeta.user_id == user.id, UserTrackMeta.track_id.in_(voted)
+        )
+    ).all()
+    keep = pick_versions(
+        [(t, r[2], r[3]) for t, r in fresh.items()], voted_meta, pool, cfg.queue_version_markers
+    )
+    fresh = {t: r for t, r in fresh.items() if t in keep}
     cands = [(r[0], r[1]) for r in fresh.values() if r[1] is not None]
     unresolved = [t for t, r in fresh.items() if r[1] is None]
     unc = artist_uncertainties(db, user.id, {a for _, a in cands}, cfg, rcfg, gcfg)
@@ -167,7 +178,7 @@ def queue(
     return {
         "algo_version": cfg.queue_algo_version,
         "remaining": len(fresh),
-        "stale": len(rows) - len(fresh),
+        "stale": stale,
         "items": [
             {"track": t, "title": fresh[t][2], "artists": fresh[t][3], "image": fresh[t][5]}
             for t in order

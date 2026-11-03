@@ -116,7 +116,13 @@ class ProfileSettings(BaseSettings):
     unheard_expire_after: int = 3
     unheard_expired_score: float = -0.05
     # Aktif öğrenme kuyruğu (Faz 5 S2)
-    queue_algo_version: str = "queue-3"
+    queue_algo_version: str = "queue-4"
+    # Aynı şarkının sürümleri (remaster vb.) kuyrukta tek sayılır; bu sözcükleri içeren
+    # parantez/tire eki başlıktan atılır. Canlı/remix/akustik ayrı şarkıdır.
+    queue_version_markers: tuple[str, ...] = (
+        "remaster", "mono", "stereo", "deluxe", "explicit", "radio edit",
+        "single version", "album version", "bonus track",
+    )
     active_unknown_uncertainty: float = 0.75  # sinyali olmayan sanatçı için belirsizlik
     active_pool_bonus: float = 0.5  # Unheard havuzundaki parçanın sıralama bonusu
     # Oylama kuyruğu (Faz 4 S1)
