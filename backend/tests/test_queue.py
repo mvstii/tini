@@ -94,7 +94,7 @@ def test_queue_skips_voted_and_stale_and_lists_unresolved_last(client, db):
     assert [i["track"] for i in body["items"]] == [t2.id, t3.id]
     assert body["items"][0]["title"] == "Iki" and body["remaining"] == 2 and body["stale"] == 1
     assert body["items"][0]["image"] is None
-    assert body["algo_version"] == "queue-5"
+    assert body["algo_version"] == "queue-6"
 
 
 def test_unresolved_order_is_seeded_pool_first():
@@ -163,7 +163,7 @@ def test_queue_pool_bonus_awaiting_and_expired(client, db):
 
     body = client.get("/votes/queue", headers=h).json()
     ids = [i["track"] for i in body["items"]]
-    assert body["algo_version"] == "queue-5"
+    assert body["algo_version"] == "queue-6"
     assert gone.id not in ids and ids[0] == pooled.id and set(ids) == {pooled.id, other.id}
     assert body["stale"] == 0  # havuzda süresi dolan parça kütüphane yenilemesiyle düzelmez
     states = [
@@ -226,3 +226,107 @@ def test_queue_hides_other_versions_of_same_song(client, db):
     body = client.get("/votes/queue", headers=h).json()
     assert [i["title"] for i in body["items"]] == ["Hit"]
     assert body["remaining"] == 1 and body["stale"] == 0
+
+
+class FakeAdapter:
+    def __init__(self, fail=False):
+        self.calls = 0
+        self.fail = fail
+
+    def find_card(self, isrc, artist_name):
+        import httpx
+
+        from app.adapters.base import TrackCard
+
+        self.calls += 1
+        if self.fail:
+            raise httpx.ConnectError("down")
+        return TrackCard(f"Parca {isrc}", (artist_name,), "http://img/x.jpg")
+
+
+def suggested(db, email, n=2):
+    from app.models import GeneratedList, ListItem
+
+    u = db.scalar(select(User).where(User.email == email))
+    lst = GeneratedList(user_id=u.id, algo_version="l", candidate_algo_version="c",
+                        profile_version=1, graph_version=1, params={})
+    db.add(lst)
+    db.flush()
+    items = []
+    for k in range(n):
+        art = mk_artist(db, f"Sug{email}{k}")
+        seed = mk_artist(db, f"Seed{email}{k}")
+        t = Track(isrc=f"ZZS{email[1]}{k:08d}", artist_id=art.id)
+        db.add(t)
+        db.flush()
+        li = ListItem(list_id=lst.id, position=k + 1, artist_id=art.id, track_id=t.id,
+                      score=1.0, reasons=[{"seed_id": seed.id, "share": 1.0, "is_anchor": True}])
+        db.add(li)
+        items.append(li)
+    db.flush()
+    return items
+
+
+def test_queue_mixes_suggestions_when_library_runs_low(client, db, monkeypatch):
+    h = register(client, "s1@example.com")
+    items = suggested(db, "s1@example.com")
+    fake = FakeAdapter()
+    monkeypatch.setattr("app.profile.suggest.ensure_fresh_list", lambda *a, **k: items)
+    monkeypatch.setattr("app.profile.api.connected_adapter", lambda *a: fake)
+
+    body = client.get("/votes/queue", headers=h).json()
+    assert [i["track"] for i in body["items"]] == [i.track_id for i in items]
+    first = body["items"][0]
+    assert first["source"] == "suggested" and first["title"].startswith("Parca")
+    assert first["image"] == "http://img/x.jpg" and len(first["reasons"]) == 1
+    assert body["remaining"] == 0 and body["stale"] == 0
+    assert fake.calls == 2
+
+    client.get("/votes/queue", headers=h)  # ikinci istek önbellekten gelir
+    assert fake.calls == 2
+    assert client.post("/votes", json={"track": first["track"], "vote": 5}, headers=h
+                       ).status_code == 201
+    assert client.post("/votes/unheard", json={"track": items[1].track_id}, headers=h
+                       ).status_code == 201
+
+
+def test_queue_survives_service_failure(client, db, monkeypatch):
+    h = register(client, "s2@example.com")
+    items = suggested(db, "s2@example.com")
+    monkeypatch.setattr("app.profile.suggest.ensure_fresh_list", lambda *a, **k: items)
+    monkeypatch.setattr("app.profile.api.connected_adapter", lambda *a: FakeAdapter(fail=True))
+    assert client.get("/votes/queue", headers=h).json()["items"] == []
+    monkeypatch.setattr("app.profile.api.connected_adapter", lambda *a: None)
+    assert client.get("/votes/queue", headers=h).status_code == 200
+
+
+def test_ensure_fresh_list_rebuilds_profile_after_new_votes(db, monkeypatch):
+    from app.config import GraphSettings, ProfileSettings, RecommendSettings
+    from app.models import TasteProfile
+    from app.profile import suggest
+
+    u = User(email="s3@example.com", password_hash="x")
+    db.add(u)
+    db.flush()
+    db.add(TasteProfile(user_id=u.id, version=1, algo_version="p", graph_version=1, body={},
+                        created_at=datetime.now(UTC) - timedelta(hours=1)))
+    db.flush()
+    t = Track(isrc="ZZS300000001")
+    db.add(t)
+    db.flush()
+    from app.models import VoteEvent
+
+    cfg = ProfileSettings(queue_rebuild_after_votes=1)
+    seen = {}
+    monkeypatch.setattr(suggest, "rebuild_profile",
+                        lambda *a, **k: seen.setdefault("p", TasteProfile(version=2)))
+    monkeypatch.setattr(suggest, "generate_list", lambda *a, **k: seen.setdefault("l", None))
+    monkeypatch.setattr(suggest, "_candidates", lambda *a, **k: [])
+    suggest.ensure_fresh_list(db, u, datetime.now(UTC), set(), cfg, RecommendSettings(),
+                              GraphSettings())
+    assert "p" not in seen  # oy yok -> profil yenilenmez
+    db.add(VoteEvent(user_id=u.id, track_id=t.id, vote=5))
+    db.flush()
+    suggest.ensure_fresh_list(db, u, datetime.now(UTC), set(), cfg, RecommendSettings(),
+                              GraphSettings())
+    assert "p" in seen and "l" in seen

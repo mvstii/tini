@@ -1,6 +1,7 @@
 """POST /votes, GET /votes/current. Oy silinmez; değişiklik yeni olaydır."""
 from datetime import UTC, datetime
 
+import httpx
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy import func, select
@@ -15,6 +16,7 @@ from app.config import (
     get_profile_settings,
     get_recommend_settings,
 )
+from app.connect import get_http
 from app.deps import current_user, get_db
 from app.models import (
     GeneratedList,
@@ -32,6 +34,7 @@ from app.profile.active_service import artist_uncertainties, mark_awaiting
 from app.profile.queue import pick_versions
 from app.profile.scoring import VoteEvt, score_votes
 from app.profile.service import rebuild_profile, unheard_statuses
+from app.profile.suggest import connected_adapter, suggest_items
 from app.profile.unheard import next_state
 
 router = APIRouter(prefix="/votes")
@@ -95,7 +98,14 @@ def mark_unheard(
         .limit(1)
     )
     if owned is None:
-        raise HTTPException(404, "Parça kütüphanede yok")
+        owned = db.scalar(  # kuyruğa karışan öneri parçası
+            select(ListItem.list_id)
+            .join(GeneratedList, GeneratedList.id == ListItem.list_id)
+            .where(GeneratedList.user_id == user.id, ListItem.track_id == body.track)
+            .limit(1)
+        )
+    if owned is None:
+        raise HTTPException(404, "Parça kütüphanede ya da listelerinde yok")
     prior = db.scalar(
         select(func.count())
         .select_from(UnheardEvent)
@@ -121,6 +131,7 @@ def queue(
     limit: int | None = None,
     user: User = Depends(current_user),
     db: Session = Depends(get_db),
+    http: httpx.Client = Depends(get_http),
     cfg: ProfileSettings = Depends(get_profile_settings),
     rcfg: RecommendSettings = Depends(get_recommend_settings),
     gcfg: GraphSettings = Depends(get_graph_settings),
@@ -176,15 +187,22 @@ def queue(
     unc = artist_uncertainties(db, user.id, {a for _, a in cands}, cfg, rcfg, gcfg)
     order = order_active(cands, unc, pool & set(fresh), voted_artists, seed, cfg)
     order = (order + order_unresolved(unresolved, pool, seed))[:size]
-    mark_awaiting(db, user.id, pool & set(order), statuses)
+    items = [
+        {"track": t, "title": fresh[t][2], "artists": fresh[t][3], "image": fresh[t][5]}
+        for t in order
+    ]
+    if len(fresh) < cfg.queue_suggest_threshold:
+        # Kütüphane tükeniyor: öneri motorundan sürekli yeni parça karışır.
+        items += suggest_items(
+            db, user, lambda: connected_adapter(db, user, http), now, size - len(items),
+            set(fresh) | expired, cfg, rcfg, gcfg,
+        )
+    mark_awaiting(db, user.id, pool & {i["track"] for i in items}, statuses)
     return {
         "algo_version": cfg.queue_algo_version,
         "remaining": len(fresh),
         "stale": stale,
-        "items": [
-            {"track": t, "title": fresh[t][2], "artists": fresh[t][3], "image": fresh[t][5]}
-            for t in order
-        ],
+        "items": items,
     }
 
 
