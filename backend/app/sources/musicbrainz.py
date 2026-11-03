@@ -40,6 +40,16 @@ class MusicBrainzClient:
                 return MbRecording(uuid.UUID(rec["id"]), artists)
         return None
 
+    def artist_isrcs(self, artist_mbid: uuid.UUID, limit: int) -> list[tuple[str, uuid.UUID]]:
+        """Sanatçının kayıtlarından (ISRC, kayıt MBID) çiftleri; ISRC'siz kayıt atlanır."""
+        # Tarama ucu (`recording?artist=`) kayıtların ~%2'sinde ISRC döndürür; arama ucu yalnızca
+        # ISRC'li kayıtları getirir (gerçek yanıtla doğrulandı, 4 Kasım 2026).
+        data = self._http.get_json(
+            f"{self._base}/recording",
+            {"query": f"arid:{artist_mbid} AND isrc:*", "fmt": "json", "limit": str(limit)},
+        )
+        return parse_artist_isrcs(data)
+
     def release_groups(
         self, artist_mbid: uuid.UUID, since: date, until: date, types: tuple[str, ...], limit: int
     ) -> list["MbReleaseGroup"]:
@@ -84,3 +94,15 @@ def parse_release_groups(data: dict | None, types: tuple[str, ...]) -> list[MbRe
         out.append(MbReleaseGroup(uuid.UUID(g["id"]), g["title"], ptype, when, credits))
     return out
 
+
+
+def parse_artist_isrcs(data: dict | None) -> list[tuple[str, uuid.UUID]]:
+    out: list[tuple[str, uuid.UUID]] = []
+    seen: set[str] = set()
+    for rec in (data or {}).get("recordings") or []:
+        for isrc in rec.get("isrcs") or []:
+            if len(isrc) == 12 and isrc not in seen and rec.get("id"):
+                seen.add(isrc)
+                out.append((isrc, uuid.UUID(rec["id"])))
+                break  # kayıt başına tek ISRC
+    return out

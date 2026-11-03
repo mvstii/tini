@@ -1,4 +1,5 @@
 import logging
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
@@ -8,6 +9,7 @@ from app.config import get_settings
 from app.connect import router as connect_router
 from app.feedback import router as feedback_router
 from app.graph.api import router as graph_router
+from app.graph.scheduler import lifespan as graph_lifespan
 from app.library import router as library_router
 from app.preview import router as preview_router
 from app.profile.api import profile_router
@@ -15,7 +17,7 @@ from app.profile.api import router as votes_router
 from app.recommend.api import lists_router
 from app.recommend.api import router as recommend_router
 from app.releases.api import router as releases_router
-from app.releases.scheduler import lifespan
+from app.releases.scheduler import lifespan as releases_lifespan
 from app.requestlog import install as install_request_log
 
 logging.getLogger("tini.request").setLevel(logging.INFO)
@@ -29,6 +31,12 @@ def docs_urls(app_env: str) -> dict[str, str | None]:
     if app_env == "prod":
         return {"docs_url": None, "redoc_url": None, "openapi_url": None}
     return {"docs_url": "/docs", "redoc_url": "/redoc", "openapi_url": "/openapi.json"}
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    async with releases_lifespan(app), graph_lifespan(app):
+        yield
 
 
 app = FastAPI(title="Tını", lifespan=lifespan, **docs_urls(get_settings().app_env))

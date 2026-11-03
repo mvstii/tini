@@ -78,6 +78,15 @@ class GraphSettings(BaseSettings):
     edge_source: str = "lastfm"
     edge_warn_bytes: int = 80 * 1024 * 1024
     edge_max_bytes: int = 100 * 1024 * 1024
+    # Otomatik genişleme (sunucu içi, Render'da ayrı cron yok) ve parça kapsaması (MusicBrainz).
+    auto_expand: bool = True
+    auto_expand_hours: int = 6  # turlar arası süre
+    auto_expand_delay_seconds: int = 120  # açılıştan ilk tura kadar bekleme
+    auto_expand_limit: int = 60  # tur başına Last.fm sanatçı çekimi
+    auto_tracks_limit: int = 15  # tur başına parça aranacak sanatçı (MusicBrainz, ~1 istek/sn)
+    tracks_per_artist: int = 5  # sanatçı başına katalogla eklenen ISRC'li parça üst sınırı
+    tracks_browse_limit: int = 25  # MusicBrainz ISRC'li kayıt aramasında istenen kayıt sayısı
+    vote_neighbor_tracks: int = 5  # oy sonrası parçası aranacak komşu sanatçı sayısı
     # Matris ve komşuluk (S4). Simetrikleştirme: max | mean; normalizasyon: sym | row | none.
     graph_algo_version: str = "graph-1"
     edge_min_weight: float = 0.0
