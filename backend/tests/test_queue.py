@@ -94,7 +94,7 @@ def test_queue_skips_voted_and_stale_and_lists_unresolved_last(client, db):
     assert [i["track"] for i in body["items"]] == [t2.id, t3.id]
     assert body["items"][0]["title"] == "Iki" and body["remaining"] == 2 and body["stale"] == 1
     assert body["items"][0]["image"] is None
-    assert body["algo_version"] == "queue-3"
+    assert body["algo_version"] == "queue-4"
 
 
 def test_unresolved_order_is_seeded_pool_first():
@@ -163,7 +163,7 @@ def test_queue_pool_bonus_awaiting_and_expired(client, db):
 
     body = client.get("/votes/queue", headers=h).json()
     ids = [i["track"] for i in body["items"]]
-    assert body["algo_version"] == "queue-3"
+    assert body["algo_version"] == "queue-4"
     assert gone.id not in ids and ids[0] == pooled.id and set(ids) == {pooled.id, other.id}
     states = [
         e.state for e in db.scalars(
@@ -179,3 +179,45 @@ def test_queue_pool_bonus_awaiting_and_expired(client, db):
             UnheardEvent.user_id == u.id, UnheardEvent.track_id == pooled.id
         )
     ) == 2
+
+
+MARKERS = ("remaster", "mono", "deluxe", "explicit")
+
+
+def test_song_key_strips_version_suffix_but_keeps_distinct_recordings():
+    from app.profile.queue import song_key
+
+    base = song_key("Yesterday", ["The Beatles"], MARKERS)
+    assert song_key("Yesterday - Remastered 2009", ["The Beatles"], MARKERS) == base
+    assert song_key("Yesterday (2011 Remaster)", ["The Beatles"], MARKERS) == base
+    assert song_key("Yesterday [Deluxe Edition]", ["the beatles", "x"], MARKERS) == base
+    assert song_key("Yesterday (Live)", ["The Beatles"], MARKERS) != base
+    assert song_key("Yesterday (Remix)", ["The Beatles"], MARKERS) != base
+    assert song_key("Yesterday", ["Baska"], MARKERS) != base
+    assert song_key("(Remaster)", ["A"], MARKERS)[0] == "remaster"  # boş kalırsa özgün başlık
+
+
+def test_pick_versions_one_per_song_and_drops_voted_versions():
+    from app.profile.queue import pick_versions
+
+    entries = [
+        (5, "Song", ["A"]), (3, "Song (Remastered)", ["A"]), (9, "Other", ["A"]),
+        (7, "Voted", ["B"]),
+    ]
+    voted = [("Voted - 2011 Remaster", ["B"])]
+    assert pick_versions(entries, voted, set(), MARKERS) == {3, 9}  # en düşük kimlik
+    assert pick_versions(entries, voted, {5}, MARKERS) == {5, 9}  # havuz önceliklidir
+
+
+def test_queue_hides_other_versions_of_same_song(client, db):
+    h = register(client, "q6@example.com")
+    a = mk_artist(db, "QV")
+    lib_track(db, "q6@example.com", "ZZQ000000041", a, "Hit")
+    lib_track(db, "q6@example.com", "ZZQ000000042", a, "Hit - Remastered 2011")
+    done = lib_track(db, "q6@example.com", "ZZQ000000043", a, "Baska")
+    lib_track(db, "q6@example.com", "ZZQ000000044", a, "Baska (Deluxe)")
+    client.post("/votes", json={"track": done.id, "vote": 5}, headers=h)
+
+    body = client.get("/votes/queue", headers=h).json()
+    assert [i["title"] for i in body["items"]] == ["Hit"]
+    assert body["remaining"] == 1 and body["stale"] == 0
