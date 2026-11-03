@@ -23,7 +23,7 @@ class AmbientBackground extends StatelessWidget {
                   gradient: RadialGradient(
                     center: const Alignment(1.0, -1.0),
                     radius: 1.2,
-                    colors: [top.withValues(alpha: dark ? 0.18 : 0.22), top.withValues(alpha: 0)],
+                    colors: [top.withValues(alpha: dark ? 0.12 : 0.22), top.withValues(alpha: 0)],
                   ),
                 ),
               ),
@@ -37,7 +37,7 @@ class AmbientBackground extends StatelessWidget {
                     center: const Alignment(-1.0, 1.0),
                     radius: 1.0,
                     colors: [
-                      bottom.withValues(alpha: dark ? 0.12 : 0.18),
+                      bottom.withValues(alpha: dark ? 0.07 : 0.18),
                       bottom.withValues(alpha: 0),
                     ],
                   ),
@@ -78,7 +78,7 @@ class StudioSurface extends StatelessWidget {
     final dark = Theme.of(context).brightness == Brightness.dark;
     final fillColors = fill ??
         (dark
-            ? const [Color(0xFF1F1A33), Color(0xFF141122)]
+            ? const [Color(0xFF1B1730), Color(0xFF171329)]
             : const [Color(0xFFFFFFFF), Color(0xFFFAF8FF)]);
     final (hi, lo) = edge ??
         (dark

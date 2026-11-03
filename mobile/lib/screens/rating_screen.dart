@@ -438,7 +438,7 @@ BoxDecoration _cardDecoration(BuildContext context, Color color) {
       begin: Alignment.topCenter,
       end: Alignment.bottomCenter,
       colors: dark
-          ? const [Color(0xFF1F1A33), Color(0xFF141122)]
+          ? const [Color(0xFF1B1730), Color(0xFF171329)]
           : [Colors.white, color],
     ),
     border: Border.all(color: (dark ? Colors.white : Colors.black).withValues(alpha: dark ? 0.08 : 0.06)),
