@@ -366,6 +366,7 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
               const SizedBox(width: 8),
             ],
             Expanded(
+              flex: 2,
               child: StudioButton(
                 key: const ValueKey('daily-open'),
                 dense: true,
@@ -376,13 +377,14 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
             ),
             const SizedBox(width: 8),
             Expanded(
+              flex: 3,
               child: StudioButton(
                 key: const ValueKey('daily-rate'),
                 dense: true,
                 primary: false,
                 onPressed: widget.onOpenRating,
                 icon: Icons.tune_rounded,
-                label: 'Oylama Turuna Geç',
+                label: 'Oylamaya Geç',
               ),
             ),
           ],
