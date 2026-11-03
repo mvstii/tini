@@ -17,6 +17,52 @@ String reasonText(ListEntry e, {int top = 3}) {
   return 'Sevdiğin sanatçılara benzediği için: ${parts.join(', ')}';
 }
 
+/// "Neden önerdik": en büyük paylı çapalar küçük çipler olarak (gerekçe hesabın kendisinden).
+class _ReasonChips extends StatelessWidget {
+  const _ReasonChips({required this.entry});
+  final ListEntry entry;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = TiniCosmicColors.of(context);
+    final theme = Theme.of(context);
+    final top = ([...entry.reasons]..sort((a, b) => b.share.compareTo(a.share))).take(3);
+    if (top.isEmpty) return const SizedBox.shrink();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(children: [
+          Icon(Icons.insights_rounded, size: 14, color: c.primary),
+          const SizedBox(width: 6),
+          const SectionLabel('NEDEN SANA?'),
+        ]),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 6,
+          runSpacing: 6,
+          children: [
+            for (final r in top)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: c.primary.withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Text.rich(TextSpan(children: [
+                  if (r.isAnchor) TextSpan(text: '★ ', style: TextStyle(color: c.primary)),
+                  TextSpan(text: r.seedName),
+                  TextSpan(
+                      text: '  %${(r.share * 100).round()}',
+                      style: TextStyle(fontWeight: FontWeight.w700, color: c.primary)),
+                ]), style: theme.textTheme.labelMedium),
+              ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
 Future<bool> _launchExternal(String url) =>
     launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
 
@@ -184,7 +230,8 @@ class _ListScreenState extends State<ListScreen> {
           if (widget.embedded)
             Padding(
               padding: const EdgeInsets.only(bottom: 12),
-              child: Text('Sana Özel Tını Eşleşmeleri', style: theme.textTheme.headlineSmall),
+              child: Text('Sana özel öneriler',
+                  style: studioTitle(context, base: theme.textTheme.headlineSmall)),
             ),
           StudioButton(
             icon: list == null ? Icons.auto_awesome_rounded : Icons.refresh_rounded,
@@ -234,25 +281,7 @@ class _ListScreenState extends State<ListScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       // Gerekçe rozeti: metin hesabın kendisinden (PPR çapa payları) gelir.
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                        decoration: BoxDecoration(
-                          color: c.primary.withValues(alpha: 0.14),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Icon(Icons.insights_rounded, size: 18, color: c.primary),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(reasonText(e),
-                                  style: theme.textTheme.bodySmall
-                                      ?.copyWith(color: theme.colorScheme.onSurface)),
-                            ),
-                          ],
-                        ),
-                      ),
+                      _ReasonChips(entry: e),
                       const SizedBox(height: 10),
                       Row(children: [
                         ArtistAvatar(
@@ -279,13 +308,21 @@ class _ListScreenState extends State<ListScreen> {
                               previewKey: 'list-${list.id}-${e.position}',
                               artistId: e.artistId),
                         const SizedBox(width: 6),
-                        Chip(label: Text(e.slot)),
+                        Chip(
+                          label: Text(e.slot),
+                          visualDensity: VisualDensity.compact,
+                          labelStyle: theme.textTheme.labelSmall,
+                          padding: EdgeInsets.zero,
+                        ),
                       ]),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.end,
                         children: [
                           TextButton(
                             onPressed: () => _object(e),
+                            style: TextButton.styleFrom(
+                                foregroundColor: theme.colorScheme.onSurfaceVariant,
+                                textStyle: theme.textTheme.labelMedium),
                             child: const Text('Bu gerekçe yanlış'),
                           ),
                           const SizedBox(width: 6),

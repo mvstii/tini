@@ -470,11 +470,13 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('1. Beta'), findsOneWidget);
       expect(find.text('keşif'), findsOneWidget);
-      expect(find.textContaining('★ Seed A %60, Seed B %40'), findsOneWidget);
+      expect(find.text('NEDEN SANA?'), findsOneWidget);
+      expect(find.textContaining('Seed A', findRichText: true), findsOneWidget);
+      expect(find.textContaining('%60', findRichText: true), findsOneWidget);
 
       await tester.tap(find.text('Bu gerekçe yanlış'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Seed B'));
+      await tester.tap(find.text('Seed B').last);
       await tester.pumpAndSettle();
       expect(feedback, {'kind': 'wrong_reason', 'seed_id': 11});
       expect(find.text('Geri bildirimin kaydedildi'), findsOneWidget);
