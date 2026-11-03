@@ -158,6 +158,25 @@ class ReleasesSettings(BaseSettings):
     types: tuple[str, ...] = ("album", "ep", "single")
 
 
+class ArtworkSettings(BaseSettings):
+    """Sanatçı fotoğrafı parametreleri. Ortamdan ARTWORK_ önekiyle ezilir."""
+
+    model_config = SettingsConfigDict(env_file=".env", env_prefix="ARTWORK_", extra="ignore")
+
+    enabled: bool = True  # kapalıysa fotoğraf çözülmez; istemci yer tutucu gösterir
+    deezer_base_url: str = "https://api.deezer.com"
+    deezer_min_interval_seconds: float = 0.25
+    ttl_days: int = 14  # bulunan fotoğraf URL'sinin tazelik süresi
+    miss_ttl_days: int = 3  # bulunamayanı yeniden deneme aralığı
+    fill_limit: int = 8  # tek istekte en çok kaç sanatçı sorgulanır
+    preview_enabled: bool = True  # kapalıysa /preview boş döner; istemci dinle düğmesini gizler
+
+
+@lru_cache
+def get_artwork_settings() -> ArtworkSettings:
+    return ArtworkSettings()
+
+
 @lru_cache
 def get_releases_settings() -> ReleasesSettings:
     return ReleasesSettings()

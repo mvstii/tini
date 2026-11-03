@@ -11,6 +11,7 @@ from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.catalog.artist_images import cached_images
 from app.config import (
     GraphSettings,
     ProfileSettings,
@@ -131,6 +132,7 @@ def _list_out(db: Session, lst: GeneratedList) -> dict:
             select(Release).where(Release.id.in_([i.release_id for i in items if i.release_id]))
         )
     }
+    photos = cached_images(db, {i.artist_id for i in items}, datetime.now(UTC))
     return {
         "id": lst.id,
         "kind": lst.kind,
@@ -145,6 +147,7 @@ def _list_out(db: Session, lst: GeneratedList) -> dict:
                 "position": i.position,
                 "artist_id": i.artist_id,
                 "name": names.get(i.artist_id),
+                "artist_image": photos.get(i.artist_id),
                 "slot": i.slot,
                 "track_id": i.track_id,
                 "title": metas[i.track_id].title if i.track_id in metas else None,
@@ -199,6 +202,9 @@ def daily(
         "date": day.isoformat(),
         "list_id": lst.id,
         "position": item.position,
+        "track": item.track_id,
+        "artist_id": item.artist_id,
+        "artist_image": cached_images(db, [item.artist_id], datetime.now(UTC)).get(item.artist_id),
         "name": names.get(item.artist_id),
         "title": None,
         "artists": None,

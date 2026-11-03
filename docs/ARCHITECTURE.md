@@ -84,6 +84,13 @@ Betik ölçümleri (Spotify uç noktaları, %80 kapısı) henüz çalıştırıl
 - MusicBrainz kullanıcı etiketleri ve oyları CC BY-NC-SA'dır (bilgi birikimine dayanır, doğrulanmadı); ticari kullanımda etiket yerine ilişkiler ve resmî türler kullanılır.
 - Niş kapsam yetersiz çıkarsa Faz 2'de ListenBrainz dökümlerinden kendi eşzamanlı dinleme matrisimiz hesaplanır.
 
+**Kısa önizleme (3 Kasım 2026, geliştirici kararı):** şarkılar 30 sn'lik kesit olarak çalınır (telif için tam parça yok). Kaynak Deezer `track/isrc:` ve `search` yanıtlarındaki imzalı, süreli `preview` URL'si; `GET /preview` bunu istek anında çözer, hiçbir yere yazmaz, ses dosyası indirilmez (istemci yayın olarak çalar, `just_audio`). Deezer ToS'u ticari kullanıma kapalı olduğundan **yalnızca kapalı test**; mağaza öncesi Apple Music önizlemesine geçilir (borç).
+
+**Sanatçı fotoğrafları (3 Kasım 2026, geliştirici kararı):**
+- Kaynak Deezer sanatçı arama API'sidir (`/search/artist`, anahtarsız). Yalnızca URL saklanır (`artist_image` tablosu, TTL 14 gün, bulunamayan 3 gün); görsel dosyası saklanmaz, fotoğrafı olmayan sanatçıda baş harfli yer tutucu çıkar.
+- Deezer koşulları görsel saklamayı yasaklar ve ticari kullanım için anlaşma ister (canlı koşullar tam doğrulanmadı). Bu yüzden kaynak **yalnızca kapalı testte** kullanılır; mağaza yayını öncesi Apple Music veya Wikimedia ile değiştirilir (borç, Last.fm ticari izni gibi).
+- Çağrılar yalnızca `app/sources/deezer.py` istemcisinde; istek başına en çok `fill_limit` (8) sorgu, hata/429'da durur ve hata kaydedilmez.
+
 **Betik ölçümleri (29 Ekim 2026, geliştirici hesabı, Development Mode):**
 
 Spotify uç noktaları (`spikes/spotify_probe.py`):

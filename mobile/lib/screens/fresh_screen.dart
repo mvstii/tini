@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../api.dart';
+import '../widgets/artist_avatar.dart';
+import '../widgets/studio.dart';
 import 'list_screen.dart' show reasonText;
 
 /// "Yeni çıkanlar": takip edilen sanatçıların son yayınları ve haftalık Taze liste.
@@ -18,6 +20,17 @@ class _FreshScreenState extends State<FreshScreen> {
   DiscoveryList? _fresh;
   bool _busy = false;
   String? _error;
+  final Map<int, String?> _photos = {};
+
+  void _loadPhotos(DiscoveryList l) {
+    final missing = [
+      for (final e in l.items)
+        if (e.artistId != null && e.artistImage == null) e.artistId!,
+    ];
+    loadArtistPhotos(widget.api, missing, (found) {
+      if (mounted) setState(() => _photos.addAll(found));
+    }, alive: () => mounted);
+  }
 
   @override
   void initState() {
@@ -60,27 +73,67 @@ class _FreshScreenState extends State<FreshScreen> {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          FilledButton(
+          StudioButton(
+            icon: fresh == null ? Icons.auto_awesome_rounded : Icons.refresh_rounded,
+            label: fresh == null ? 'Taze liste üret' : 'Yeniden üret',
+            busy: _busy,
             onPressed: _busy
                 ? null
-                : () => _run(() async => _fresh = await widget.api.generateFresh()),
-            child: Text(fresh == null ? 'Taze liste üret' : 'Yeniden üret'),
+                : () => _run(() async {
+                      _fresh = await widget.api.generateFresh();
+                      _loadPhotos(_fresh!);
+                    }),
           ),
-          if (_busy) const Padding(padding: EdgeInsets.all(16), child: LinearProgressIndicator()),
+          const SizedBox(height: 14),
           if (_error != null)
             Padding(
-              padding: const EdgeInsets.all(12),
-              child: Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
+              padding: const EdgeInsets.only(bottom: 12),
+              child: StudioSurface(
+                padding: const EdgeInsets.all(12),
+                child: Row(children: [
+                  Icon(Icons.error_outline_rounded, color: Theme.of(context).colorScheme.error),
+                  const SizedBox(width: 10),
+                  Expanded(
+                      child: Text(_error!,
+                          style: TextStyle(color: Theme.of(context).colorScheme.error))),
+                ]),
+              ),
             ),
+          if (_busy && fresh == null && feed != null)
+            for (var i = 0; i < 3; i++)
+              const Padding(padding: EdgeInsets.only(bottom: 8), child: SkeletonCard()),
           if (fresh != null)
-            for (final e in fresh.items)
-              Card(
-                child: ListTile(
-                  title: Text('${e.position}. ${e.release?.title ?? e.name}'),
-                  subtitle: Text(
-                      '${e.name} · ${e.release?.type ?? ''} · ${e.release?.released ?? ''}\n'
-                      '${reasonText(e)}'),
-                  isThreeLine: true,
+            for (final (i, e) in fresh.items.indexed)
+              StaggerIn(
+                key: ValueKey('${fresh.id}-${e.position}'),
+                index: i,
+                child: Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: StudioSurface(
+                    padding: const EdgeInsets.all(14),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        ArtistAvatar(
+                            name: e.name, url: _photos[e.artistId] ?? e.artistImage, size: 56),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('${e.position}. ${e.release?.title ?? e.name}',
+                                  style: studioTitle(context)),
+                              const SizedBox(height: 2),
+                              Text(
+                                  '${e.name} · ${e.release?.type ?? ''} · ${e.release?.released ?? ''}'),
+                              const SizedBox(height: 6),
+                              Text(reasonText(e), style: Theme.of(context).textTheme.bodySmall),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
               ),
           const SizedBox(height: 8),

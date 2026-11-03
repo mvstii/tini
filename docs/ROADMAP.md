@@ -85,6 +85,8 @@ Kapı: 5 test kullanıcısının her biri en az 100 oy verdi ve kritik hata yok.
 Kapı: TestFlight ve Play kapalı test kanalında, Spotify'sız kullanıcı uygulamayı uçtan uca kullanabiliyor.
 
 - [ ] Faz 6 sonunda (en geç 18 Ocak): Apple Developer Program üyeliği (99 USD/yıl; onay süresi doğrulanmadı), Apple lisans sözleşmesini oku, MusicKit Android SDK sürümü ve Flutter bağlayıcısı var mı kontrol et; sonuç kötüyse Apple Music adaptörü için platform kanalı veya kapsam kararı ver
+- [ ] Önizleme kaynağını değiştir: 30 sn kesitler Deezer'dan (yalnızca kapalı test); mağaza öncesi Apple Music önizlemesi
+- [ ] Sanatçı fotoğraf kaynağını değiştir: Deezer yalnızca kapalı test içindir (ARCHITECTURE.md, "Sanatçı fotoğrafları"); mağaza öncesi Apple Music veya Wikimedia
 - [ ] Apple Music adaptörü (adaptör arayüzü Faz 1'de servis bağımsız yazılmış olmalı)
 - [ ] Bağlantısız mod: platformlar arası şarkı bağlantıları
 - [ ] Apple ile giriş, Google ile giriş, hesap ve veri silme

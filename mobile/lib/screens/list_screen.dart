@@ -3,6 +3,10 @@ import 'package:flutter/services.dart' show PlatformException;
 import 'package:url_launcher/url_launcher.dart';
 
 import '../api.dart';
+import '../theme/cosmic_colors.dart';
+import '../widgets/artist_avatar.dart';
+import '../widgets/preview_button.dart';
+import '../widgets/studio.dart';
 
 /// Gerekçe cümlesi: en büyük paylı çapalar, yüzdeyle (hesabın kendisinden gelir).
 String reasonText(ListEntry e, {int top = 3}) {
@@ -17,9 +21,18 @@ Future<bool> _launchExternal(String url) =>
     launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
 
 class ListScreen extends StatefulWidget {
-  const ListScreen({super.key, required this.api, this.onLogout, this.launch = _launchExternal});
+  const ListScreen({
+    super.key,
+    required this.api,
+    this.onLogout,
+    this.launch = _launchExternal,
+    this.embedded = false,
+  });
   final Api api;
   final VoidCallback? onLogout;
+
+  /// Kabuk içinde sekme olarak: üst çubuk yok, alt menü için boşluk var.
+  final bool embedded;
 
   /// Testte değiştirilebilir; varsayılan servis uygulamasını açar.
   final Future<bool> Function(String url) launch;
@@ -31,7 +44,20 @@ class ListScreen extends StatefulWidget {
 class _ListScreenState extends State<ListScreen> {
   DiscoveryList? _list;
   bool _busy = false;
+  bool _exporting = false;
   String? _error;
+  final Map<int, String?> _photos = {};
+
+  /// Önbellekte olmayan sanatçı portrelerini arka planda ister; kartlar geldikçe güncellenir.
+  void _loadPhotos(DiscoveryList l) {
+    final missing = [
+      for (final e in l.items)
+        if (e.artistId != null && e.artistImage == null) e.artistId!,
+    ];
+    loadArtistPhotos(widget.api, missing, (found) {
+      if (mounted) setState(() => _photos.addAll(found));
+    }, alive: () => mounted);
+  }
 
   Future<void> _generate() async {
     setState(() {
@@ -41,9 +67,10 @@ class _ListScreenState extends State<ListScreen> {
     try {
       final l = await widget.api.generateList();
       if (mounted) setState(() => _list = l);
+      _loadPhotos(l);
     } on ApiException catch (e) {
       if (e.status == 401) {
-        if (mounted) Navigator.of(context).pop();
+        if (mounted && Navigator.of(context).canPop()) Navigator.of(context).pop();
         return widget.onLogout?.call();
       }
       if (mounted) {
@@ -58,6 +85,7 @@ class _ListScreenState extends State<ListScreen> {
 
   Future<void> _export() async {
     setState(() {
+      _exporting = true;
       _busy = true;
       _error = null;
     });
@@ -80,7 +108,12 @@ class _ListScreenState extends State<ListScreen> {
     } catch (_) {
       if (mounted) setState(() => _error = 'Sunucuya ulaşılamadı');
     } finally {
-      if (mounted) setState(() => _busy = false);
+      if (mounted) {
+        setState(() {
+          _busy = false;
+          _exporting = false;
+        });
+      }
     }
   }
 
@@ -139,47 +172,114 @@ class _ListScreenState extends State<ListScreen> {
   @override
   Widget build(BuildContext context) {
     final list = _list;
+    final c = TiniCosmicColors.of(context);
+    final theme = Theme.of(context);
     return Scaffold(
-      appBar: AppBar(title: const Text('Keşif listesi')),
+      backgroundColor: widget.embedded ? Colors.transparent : c.scaffold,
+      appBar: widget.embedded ? null : AppBar(title: const Text('Keşif listesi')),
       body: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: EdgeInsets.fromLTRB(16, widget.embedded ? 24 : 16, 16, widget.embedded ? 96 : 16),
         children: [
-          FilledButton(
-            onPressed: _busy ? null : _generate,
-            child: Text(list == null ? 'Liste üret' : 'Yeniden üret'),
-          ),
-          if (list != null && list.items.isNotEmpty)
-            OutlinedButton(
-              onPressed: _busy ? null : _export,
-              child: const Text("Spotify'a kaydet"),
+          if (widget.embedded)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Text('Sana Özel Tını Eşleşmeleri', style: theme.textTheme.headlineSmall),
             ),
-          if (_busy) const Padding(padding: EdgeInsets.all(16), child: LinearProgressIndicator()),
+          StudioButton(
+            icon: list == null ? Icons.auto_awesome_rounded : Icons.refresh_rounded,
+            label: list == null ? 'Liste üret' : 'Yeniden üret',
+            busy: _busy && !_exporting,
+            onPressed: _busy ? null : _generate,
+          ),
+          if (list != null && list.items.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            StudioButton(
+              primary: false,
+              icon: Icons.playlist_add_rounded,
+              label: "Spotify'a kaydet",
+              busy: _exporting,
+              onPressed: _busy ? null : _export,
+            ),
+          ],
+          const SizedBox(height: 14),
           if (_error != null)
             Padding(
-              padding: const EdgeInsets.all(12),
-              child: Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
+              padding: const EdgeInsets.only(bottom: 12),
+              child: StudioSurface(
+                padding: const EdgeInsets.all(12),
+                child: Row(children: [
+                  Icon(Icons.error_outline_rounded, color: theme.colorScheme.error),
+                  const SizedBox(width: 10),
+                  Expanded(child: Text(_error!, style: TextStyle(color: theme.colorScheme.error))),
+                ]),
+              ),
             ),
+          if (_busy && !_exporting && list == null)
+            for (var i = 0; i < 4; i++)
+              const Padding(padding: EdgeInsets.only(bottom: 8), child: SkeletonCard(height: 120)),
           if (list != null && list.items.isEmpty)
             const Padding(padding: EdgeInsets.all(12), child: Text('Öneri çıkmadı.')),
           if (list != null)
-            for (final e in list.items)
-              Card(
+            for (final (i, e) in list.items.indexed)
+              StaggerIn(
+                key: ValueKey('${list.id}-${e.position}'),
+                index: i,
+                child: Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: StudioSurface(
                 child: Padding(
                   padding: const EdgeInsets.all(12),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      // Gerekçe rozeti: metin hesabın kendisinden (PPR çapa payları) gelir.
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: c.primary.withValues(alpha: 0.14),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Icon(Icons.insights_rounded, size: 18, color: c.primary),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(reasonText(e),
+                                  style: theme.textTheme.bodySmall
+                                      ?.copyWith(color: theme.colorScheme.onSurface)),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 10),
                       Row(children: [
+                        ArtistAvatar(
+                            name: e.name, url: _photos[e.artistId] ?? e.artistImage, size: 64),
+                        const SizedBox(width: 12),
                         Expanded(
-                            child: Text('${e.position}. ${e.name}',
-                                style: Theme.of(context).textTheme.titleMedium)),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('${e.position}. ${e.name}',
+                                  style: studioTitle(context),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis),
+                              if (e.title != null) Text(e.title!),
+                              if (e.release != null)
+                                Text(
+                                    '${e.release!.title} · ${e.release!.type} · ${e.release!.released}'),
+                            ],
+                          ),
+                        ),
+                        if (e.artistId != null && e.release == null)
+                          PreviewButton(
+                              api: widget.api,
+                              previewKey: 'list-${list.id}-${e.position}',
+                              artistId: e.artistId),
+                        const SizedBox(width: 6),
                         Chip(label: Text(e.slot)),
                       ]),
-                      if (e.title != null) Text(e.title!),
-                      if (e.release != null)
-                        Text('${e.release!.title} · ${e.release!.type} · ${e.release!.released}'),
-                      const SizedBox(height: 4),
-                      Text(reasonText(e)),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.end,
                         children: [
@@ -187,15 +287,23 @@ class _ListScreenState extends State<ListScreen> {
                             onPressed: () => _object(e),
                             child: const Text('Bu gerekçe yanlış'),
                           ),
-                          FilledButton.tonal(
-                            onPressed: () => _open(e),
-                            child: const Text("Spotify'da aç"),
+                          const SizedBox(width: 6),
+                          SizedBox(
+                            width: 150,
+                            child: StudioButton(
+                              dense: true,
+                              icon: Icons.open_in_new_rounded,
+                              label: "Spotify'da aç",
+                              onPressed: () => _open(e),
+                            ),
                           ),
                         ],
                       ),
                     ],
                   ),
                 ),
+                ),
+              ),
               ),
         ],
       ),

@@ -6,6 +6,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:tini/api.dart';
+import 'package:tini/app_state.dart';
+import 'package:tini/screens/discover_screen.dart';
 import 'package:tini/main.dart';
 import 'package:tini/screens/feedback_screen.dart';
 import 'package:tini/screens/fresh_screen.dart';
@@ -13,6 +15,8 @@ import 'package:tini/screens/history_screen.dart';
 import 'package:tini/screens/home_screen.dart';
 import 'package:tini/screens/list_screen.dart';
 import 'package:tini/screens/rating_screen.dart';
+import 'package:tini/screens/shell.dart';
+import 'package:tini/widgets/artist_avatar.dart';
 
 class _MemoryStorage extends FlutterSecureStorage {
   final data = <String, String>{};
@@ -144,20 +148,20 @@ void main() {
       expect(find.byType(Image), findsOneWidget);
       expect(find.text('Alpha'), findsOneWidget);
 
-      await tester.tap(find.text('6 · Amazing'));
+      await tester.tap(find.byKey(const ValueKey('vote-6')));
       await tester.pumpAndSettle();
       expect(find.text('Beta'), findsOneWidget);
       expect(find.byType(Image), findsNothing);
-      expect(find.byIcon(Icons.album), findsOneWidget);
+      expect(find.byIcon(Icons.album_rounded), findsOneWidget); // gradyan yer tutucu
     });
 
     testWidgets('shows the first card and casts a button vote', (tester) async {
       final f = fake();
       await open(tester, f.api);
       expect(find.text('Alpha'), findsOneWidget);
-      expect(find.text('Başlangıç turu: 0 / $tourVotes oy'), findsOneWidget);
+      expect(find.text('Başlangıç Turu · 0 / $tourVotes'), findsOneWidget);
 
-      await tester.tap(find.text('6 · Amazing'));
+      await tester.tap(find.byKey(const ValueKey('vote-6')));
       await tester.pumpAndSettle();
 
       expect(f.votes, [
@@ -165,7 +169,7 @@ void main() {
       ]);
       expect(find.text('Beta'), findsOneWidget);
       expect(find.text('B, C'), findsOneWidget);
-      expect(find.text('Başlangıç turu: 1 / $tourVotes oy'), findsOneWidget);
+      expect(find.text('Başlangıç Turu · 1 / $tourVotes'), findsOneWidget);
     });
 
     testWidgets('swipe right votes Great, swipe left skips without a vote', (tester) async {
@@ -204,30 +208,32 @@ void main() {
       final f = fake();
       await open(tester, f.api);
 
-      await tester.tap(find.text('2 · Bad'));
+      await tester.tap(find.byKey(const ValueKey('vote-2')));
       await tester.pumpAndSettle();
       await tester.tap(find.byTooltip('Geri al'));
       await tester.pumpAndSettle();
       expect(find.text('Alpha'), findsOneWidget);
 
-      await tester.tap(find.text('5 · Great'));
+      await tester.tap(find.byKey(const ValueKey('vote-5')));
       await tester.pumpAndSettle();
       expect(f.votes, [
         {'track': 1, 'vote': 2},
         {'track': 1, 'vote': 5},
       ]);
+      // Aynı parçaya yeni oy sayacı artırmaz (sunucu da parça başına güncel oyu sayar).
+      expect(find.text('Başlangıç Turu · 1 / $tourVotes'), findsOneWidget);
     });
 
     testWidgets('offers profile build after the tour and rebuilds', (tester) async {
       final f = fake(total: tourVotes - 1);
       await open(tester, f.api);
-      expect(find.text('Profili kur'), findsNothing);
+      expect(find.text('Profili Kur'), findsNothing);
 
-      await tester.tap(find.text('4 · Good'));
+      await tester.tap(find.byKey(const ValueKey('vote-4')));
       await tester.pumpAndSettle();
-      expect(find.text('Profili kur'), findsOneWidget);
+      expect(find.text('Profili Kur'), findsOneWidget);
 
-      await tester.tap(find.text('Profili kur'));
+      await tester.tap(find.text('Profili Kur'));
       await tester.pumpAndSettle();
       expect(f.calls, contains('POST /profile/rebuild'));
       expect(find.byType(ListScreen), findsOneWidget); // profil kurulunca keşif listesine geçer
@@ -236,9 +242,9 @@ void main() {
     testWidgets('progress bar levels up and refills after each tour', (tester) async {
       final f = fake(total: tourVotes - 1);
       await open(tester, f.api);
-      await tester.tap(find.text('4 · Good'));
+      await tester.tap(find.byKey(const ValueKey('vote-4')));
       await tester.pumpAndSettle();
-      expect(find.text('Seviye 2 · 0 / $tourVotes oy · toplam $tourVotes'), findsOneWidget);
+      expect(find.text('Seviye 2 · 0 / $tourVotes · Toplam $tourVotes'), findsOneWidget);
       expect(tester.widget<LinearProgressIndicator>(find.byType(LinearProgressIndicator)).value,
           0.0);
     });
@@ -251,7 +257,7 @@ void main() {
       await open(tester, f.api);
       for (var i = 1; i <= 8; i++) {
         // Son parça oylanınca boş durum meşrudur; ondan önce hiç görünmemeli.
-        await tester.tap(find.text('4 · Good'));
+        await tester.tap(find.byKey(const ValueKey('vote-4')));
         await tester.pump(); // beklemeden art arda
         await tester.pump(const Duration(milliseconds: 10));
         expect(find.text('Yeniden dene'), findsNothing);
@@ -369,6 +375,51 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('yeni'), findsOneWidget);
       expect(find.text('Yeni Albüm · album · 2026-10-30'), findsOneWidget);
+    });
+
+    testWidgets('ArtistAvatar shows the initial when there is no photo', (tester) async {
+      await tester.pumpWidget(const MaterialApp(home: Scaffold(body: ArtistAvatar(name: 'gama'))));
+      expect(find.text('G'), findsOneWidget);
+      expect(find.byType(Image), findsNothing);
+    });
+
+    testWidgets('list asks for missing artist photos until none are pending', (tester) async {
+      final calls = <String>[];
+      final json = {
+        'id': 9,
+        'items': [
+          for (final (i, id) in [10, 11].indexed)
+            {
+              'position': i + 1,
+              'name': 'Sanatçı$id',
+              'artist_id': id,
+              'artist_image': null,
+              'title': null,
+              'reasons': [
+                {'seed_id': 1, 'seed_name': 'Seed', 'share': 1.0, 'is_anchor': true},
+              ],
+            }
+        ],
+      };
+      final api = _api((req) async {
+        if (req.url.path == '/lists/generate') {
+          return http.Response.bytes(utf8.encode(jsonEncode(json)), 201);
+        }
+        calls.add(req.url.queryParameters['ids']!);
+        final first = calls.length == 1;
+        return http.Response(
+            jsonEncode({
+              'images': first ? {'10': 'http://img/10.jpg'} : {'11': null},
+              'pending': first ? 1 : 0,
+            }),
+            200);
+      }, _MemoryStorage());
+      await tester.pumpWidget(MaterialApp(home: ListScreen(api: api)));
+      await tester.tap(find.text('Liste üret'));
+      await tester.pumpAndSettle();
+      expect(calls, ['10,11', '11']);
+      // 11'in fotoğrafı yok; 10'unki testte yüklenemez: ikisi de baş harf yer tutucuya düşer.
+      expect(find.text('S'), findsNWidgets(2));
     });
 
     test('reasonText orders by share and marks anchors', () {
@@ -597,7 +648,244 @@ void main() {
       await tester.pumpWidget(MaterialApp(home: HomeScreen(api: api, onLogout: () {})));
       await tester.pumpAndSettle();
       expect(find.text('Günün şarkısı'), findsNothing);
-      expect(find.text('Oylamaya başla'), findsOneWidget);
+      expect(find.text('Yeni çıkanlar'), findsOneWidget);
+    });
+  });
+
+  group('discover screen', () {
+    final dailyJson = {
+      'list_id': 7,
+      'position': 3,
+      'track': 11,
+      'name': 'Sanatçı',
+      'title': 'Şarkı Adı',
+      'artists': ['Sanatçı'],
+      'image': null,
+      'reasons': [
+        {'seed_id': 1, 'seed_name': 'Seed', 'share': 0.6, 'is_anchor': true},
+      ],
+    };
+    final castVotes = <Map>[];
+    final feedJson = {
+      'total': 3,
+      'items': [
+        for (var i = 1; i <= 3; i++)
+          {'release_id': i, 'title': 'Albüm $i', 'type': 'album', 'released': '2026-10-30',
+           'artist_id': i, 'artist': 'Sanatçı $i', 'follow': 'auto'},
+      ],
+    };
+
+    Future<(Api, AppState)> setup({bool hasDaily = true, bool hasFeed = true}) async {
+      final api = _api((req) async {
+        if (req.url.path == '/recommend/daily') {
+          return hasDaily
+              ? http.Response.bytes(utf8.encode(jsonEncode(dailyJson)), 200)
+              : http.Response('{"detail":"x"}', 404);
+        }
+        if (req.url.path == '/releases/new') {
+          return http.Response.bytes(
+              utf8.encode(jsonEncode(hasFeed ? feedJson : {'total': 0, 'items': []})), 200);
+        }
+        if (req.url.path == '/lists/7/items/3/open') {
+          return http.Response(jsonEncode({'kind': 'track', 'url': 'spotify:track:T1'}), 200);
+        }
+        if (req.method == 'POST' && req.url.path == '/votes') {
+          castVotes.add(jsonDecode(req.body) as Map);
+          return http.Response('{}', 201);
+        }
+        return http.Response('{"total":0,"items":[]}', 200);
+      }, _MemoryStorage()..data['session'] = 'T');
+      await api.restore();
+      return (api, AppState(api));
+    }
+
+    Widget host(Api api, AppState s, {VoidCallback? rate, VoidCallback? profile, List<String>? opened}) =>
+        MaterialApp(
+          home: Scaffold(
+            body: DiscoverScreen(
+              api: api,
+              state: s,
+              onLogout: () {},
+              onOpenRating: rate ?? () {},
+              onOpenProfile: profile ?? () {},
+              launch: (u) async {
+                opened?.add(u);
+                return true;
+              },
+            ),
+          ),
+        );
+
+    testWidgets('shows the hero with the real reason and opens the song', (tester) async {
+      tester.view.physicalSize = const Size(360, 640);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      final (api, s) = await setup();
+      final opened = <String>[];
+      var rated = 0;
+      await tester.pumpWidget(host(api, s, opened: opened, rate: () => rated++));
+      await tester.pumpAndSettle();
+      expect(find.text('Bugünkü Frekansın'), findsOneWidget);
+      expect(find.text('Şarkı Adı'), findsOneWidget);
+      expect(find.textContaining('★ Seed %60'), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('daily-vote-5')));
+      await tester.pumpAndSettle();
+      expect(castVotes, [
+        {'track': 11, 'vote': 5}
+      ]);
+      expect(s.votes[11], 5);
+      expect(find.text('Oyun kaydedildi: 5 · Harika'), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('daily-open')));
+      await tester.pumpAndSettle();
+      expect(opened, ['spotify:track:T1']);
+      await tester.tap(find.byKey(const ValueKey('daily-rate')));
+      expect(rated, 1);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('no profile hides the hero; no releases shows a hint', (tester) async {
+      tester.view.physicalSize = const Size(360, 640);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      final (api, s) = await setup(hasDaily: false, hasFeed: false);
+      await tester.pumpWidget(host(api, s));
+      await tester.pumpAndSettle();
+      expect(find.text('GÜNÜN ŞARKISI'), findsNothing);
+      expect(find.text('Günün şarkısı için önce oylayıp profilini kur.'), findsOneWidget);
+      expect(find.text('Henüz yeni yayın yok.'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('shuffle keeps all releases and the level badge opens the profile', (tester) async {
+      tester.view.physicalSize = const Size(360, 640);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      final (api, s) = await setup();
+      var profile = 0;
+      await tester.pumpWidget(host(api, s, profile: () => profile++));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('level-badge')));
+      expect(profile, 1);
+      await tester.scrollUntilVisible(find.byKey(const ValueKey('shuffle')), 200);
+      await tester.tap(find.byKey(const ValueKey('shuffle')));
+      await tester.pumpAndSettle();
+      for (final n in [1, 2, 3]) {
+        expect(find.textContaining('Albüm $n', skipOffstage: false), findsWidgets);
+      }
+      expect(tester.takeException(), isNull);
+    });
+
+    test('relativeDate', () {
+      final now = DateTime(2026, 11, 3);
+      expect(relativeDate('2026-11-03', now), 'Bugün');
+      expect(relativeDate('2026-11-02', now), 'Dün');
+      expect(relativeDate('2026-10-30', now), '4 gün önce');
+      expect(relativeDate('2026-10-24', now), 'Geçen hafta');
+      expect(relativeDate('2026-01-01', now), '2026-01-01');
+    });
+  });
+
+  group('app shell', () {
+    testWidgets('fits 360x640 and locked recommendations unlock at $tourVotes votes',
+        (tester) async {
+      tester.view.physicalSize = const Size(360, 640);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      final api = _api((req) async {
+        switch (req.url.path) {
+          case '/votes/history':
+            return http.Response(jsonEncode({'total': 0, 'items': []}), 200);
+          case '/votes/queue':
+            return http.Response.bytes(
+                utf8.encode(jsonEncode({
+                  'remaining': 1,
+                  'stale': 0,
+                  'items': [
+                    {'track': 1, 'title': 'Alpha', 'artists': ['A']},
+                  ],
+                })),
+                200);
+        }
+        return http.Response('{}', 200);
+      }, _MemoryStorage()..data['session'] = 'T');
+      await api.restore();
+      await tester.pumpWidget(MaterialApp(home: AppShell(api: api, onLogout: () {})));
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+
+      await tester.tap(find.byKey(const ValueKey('tab-0')));
+      await tester.pumpAndSettle();
+      expect(find.text('Bugünkü Frekansın'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+
+      await tester.tap(find.byKey(const ValueKey('tab-2')));
+      await tester.pumpAndSettle();
+      expect(find.text('Oylamaya Devam Et'), findsOneWidget);
+
+      await tester.tap(find.byKey(const ValueKey('tab-3')));
+      await tester.pumpAndSettle();
+      expect(find.text('OY DAĞILIMI'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('30 votes unlock recommendations, show the dot, and profile counts follow',
+        (tester) async {
+      tester.view.physicalSize = const Size(360, 640);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      final votes = <Map<String, int>>[];
+      final queue = [
+        for (var i = 1; i <= 40; i++)
+          {'track': i, 'title': 'Song $i', 'artists': ['Art $i']},
+      ];
+      final api = _api((req) async {
+        switch (req.url.path) {
+          case '/votes/history':
+            return http.Response.bytes(
+                utf8.encode(jsonEncode({
+                  'total': votes.length,
+                  'items': [
+                    for (final v in votes.reversed)
+                      {'track': v['track'], 'title': 'Song ${v['track']}', 'artists': ['Art'], 'vote': v['vote']},
+                  ],
+                })),
+                200);
+          case '/votes/queue':
+            final voted = votes.map((v) => v['track']).toSet();
+            final rest = queue.where((i) => !voted.contains(i['track'])).toList();
+            return http.Response.bytes(
+                utf8.encode(jsonEncode({'remaining': rest.length, 'stale': 0, 'items': rest})),
+                200);
+          case '/votes':
+            final b = jsonDecode(req.body) as Map;
+            votes.add({'track': b['track'] as int, 'vote': b['vote'] as int});
+            return http.Response('{}', 201);
+        }
+        return http.Response('{}', 200);
+      }, _MemoryStorage()..data['session'] = 'T');
+      await api.restore();
+      await tester.pumpWidget(MaterialApp(home: AppShell(api: api, onLogout: () {})));
+      await tester.pumpAndSettle();
+
+      for (var i = 0; i < tourVotes; i++) {
+        await tester.tap(find.byKey(ValueKey('vote-${i < 20 ? 6 : 3}')));
+        await tester.pumpAndSettle();
+      }
+      expect(tester.takeException(), isNull);
+      expect(find.text('Profili Kur'), findsOneWidget);
+      expect(find.byKey(const ValueKey('recs-badge')), findsOneWidget);
+
+      await tester.tap(find.byKey(const ValueKey('tab-2')));
+      await tester.pumpAndSettle();
+      expect(find.text('Oylamaya Devam Et'), findsNothing);
+      expect(find.byKey(const ValueKey('recs-badge')), findsNothing);
+
+      await tester.tap(find.byKey(const ValueKey('tab-3')));
+      await tester.pumpAndSettle();
+      expect(tester.widget<Text>(find.byKey(const ValueKey('count-6'))).data, '20');
+      expect(tester.widget<Text>(find.byKey(const ValueKey('count-3'))).data, '10');
+      expect(find.text('Seviye 2'), findsOneWidget);
+      expect(tester.takeException(), isNull);
     });
   });
 }

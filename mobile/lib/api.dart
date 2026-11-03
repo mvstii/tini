@@ -74,16 +74,25 @@ class ExportResult {
 }
 
 class DailySong {
-  DailySong({required this.listId, required this.entry, required this.artists, this.image});
+  DailySong(
+      {required this.listId, required this.entry, required this.artists, this.image, this.track});
   final int listId;
+
+  /// Parça kimliği; yalnızca parçası çözülmüş öğelerde var (yoksa oy verilemez).
+  final int? track;
   final ListEntry entry;
   final List<String> artists;
   final String? image;
 }
 
 class ListEntry {
-  ListEntry(this.position, this.name, this.title, this.reasons, {this.release});
+  ListEntry(this.position, this.name, this.title, this.reasons,
+      {this.release, this.artistId, this.artistImage});
   final int position;
+
+  /// Sanatçı kimliği ve (varsa) önbellekteki portre URL'si; fotoğraf sonradan doldurulabilir.
+  final int? artistId;
+  final String? artistImage;
   final String name;
   final String? title;
   final List<Reason> reasons;
@@ -221,12 +230,17 @@ class Api {
   Future<void> rebuildProfile() => _send('POST', '/profile/rebuild');
 
   /// Oy geçmişi: parça başına güncel oy, yeniden eskiye.
-  Future<List<HistoryItem>> voteHistory({int limit = 200}) async {
+  Future<List<HistoryItem>> voteHistory({int limit = 200}) async =>
+      (await voteSummary(limit: limit)).items;
+
+  /// Toplam güncel oy sayısı + geçmiş (en yeni [limit] parça).
+  Future<({int total, List<HistoryItem> items})> voteSummary({int limit = 200}) async {
     final body = await _send('GET', '/votes/history?limit=$limit');
-    return (body['items'] as List)
+    final items = (body['items'] as List)
         .map((e) => HistoryItem(e['track'] as int, e['vote'] as int, e['title'] as String?,
             ((e['artists'] as List?) ?? const []).cast<String>()))
         .toList();
+    return (total: body['total'] as int, items: items);
   }
 
   /// Listeyi servise özel çalma listesi olarak yazar; atlanan öğe sayısını döndürür.
@@ -239,6 +253,27 @@ class Api {
       body['added'] as int,
       names.length == skipped.length ? names : List<String>.filled(skipped.length, ''),
     );
+  }
+
+  /// Sanatçı portreleri (sunucu eksikleri doldurur). `pending` > 0 ise tekrar sorulmalı.
+  Future<({Map<int, String?> images, int pending})> artistImages(List<int> ids) async {
+    if (ids.isEmpty) return (images: <int, String?>{}, pending: 0);
+    final body = await _send('GET', '/artists/images?ids=${ids.join(',')}');
+    final raw = (body['images'] as Map).cast<String, dynamic>();
+    return (
+      images: {for (final e in raw.entries) int.parse(e.key): e.value as String?},
+      pending: body['pending'] as int,
+    );
+  }
+
+  /// 30 sn'lik önizleme URL'si (sunucu istek anında çözer, saklamaz); bulunamazsa null.
+  Future<String?> previewUrl({int? artistId, int? trackId}) async {
+    final q = [
+      if (artistId != null) 'artist_id=$artistId',
+      if (trackId != null) 'track_id=$trackId',
+    ].join('&');
+    final body = await _send('GET', '/preview?$q');
+    return body['url'] as String?;
   }
 
   Future<DiscoveryList> generateList() => _generate('/lists/generate');
@@ -268,6 +303,8 @@ class Api {
                     .map((r) => Reason(r['seed_id'] as int, (r['seed_name'] as String?) ?? '?',
                         (r['share'] as num).toDouble(), r['is_anchor'] as bool))
                     .toList(),
+                artistId: e['artist_id'] as int?,
+                artistImage: e['artist_image'] as String?,
                 release: e['release'] == null
                     ? null
                     : ReleaseInfo(e['release']['title'] as String, e['release']['type'] as String,
@@ -298,6 +335,7 @@ class Api {
     }
     return DailySong(
       listId: body['list_id'] as int,
+      track: body['track'] as int?,
       entry: ListEntry(
         body['position'] as int,
         (body['name'] as String?) ?? '?',
@@ -306,6 +344,8 @@ class Api {
             .map((r) => Reason(r['seed_id'] as int, (r['seed_name'] as String?) ?? '?',
                 (r['share'] as num).toDouble(), r['is_anchor'] as bool))
             .toList(),
+        artistId: body['artist_id'] as int?,
+        artistImage: body['artist_image'] as String?,
       ),
       artists: (body['artists'] as List?)?.cast<String>() ?? const <String>[],
       image: body['image'] as String?,
