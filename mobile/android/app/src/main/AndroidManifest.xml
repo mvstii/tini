@@ -9,6 +9,7 @@
     <!-- Düz http yalnızca debug yapıda açık (src/debug/AndroidManifest.xml); release HTTPS ister. -->
     <application
         android:label="Tını"
+        android:allowBackup="false"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity
