@@ -1,0 +1,4 @@
+# Otomatik HTTPS (Let's Encrypt). SITE_ADDRESS .env'den gelir (docs/DAGITIM.md, "Oracle VM").
+{$SITE_ADDRESS} {
+	reverse_proxy backend:8000
+}

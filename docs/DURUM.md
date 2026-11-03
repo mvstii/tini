@@ -187,3 +187,7 @@ S1-2 sınırlamaları (gerekçe: karar 7, uydurma veri yok): tür etiketi, eşle
 S1-3 sınırlamaları: Keşfet'te sahte "%96 Uyum", tür etiketi ve uydurma gerekçe yok. `/releases/new` albüm düzeyinde (kapak/tür/parça yok), bu yüzden yeni çıkanlara oy yok. "Oylama Kuyruğuna Ekle" yapılmadı (yeni tablo gerekir; `docs/ONERI_KESFET_BACKEND.md`, ayrı karar).
 
 S1-4 (onaylı, 3 Kasım 2026): `/recommend/daily` yanıtına `track` eklendi; `POST /votes` kütüphane dışı olsa da kullanıcının kendi oluşturulmuş listesindeki parçayı kabul eder (başkasının listesi 404). Keşfet kahraman kartında 1–6 hızlı oy. Backend 246 test, Flutter 33 test geçiyor. Üretim yığınına (`tini-prod`) yansıması için backend imajı yeniden kurulmalı.
+
+S1-5 (3 Kasım 2026): Oracle Cloud VM dağıtımı hazırlandı (`docker-compose.prod.yml` `caddy` profili, `Caddyfile`, `docs/DAGITIM.md` "Oracle Cloud VM"). Compose yapılandırması doğrulandı; VM henüz açılmadı, veri taşınmadı (geliştirici adımı).
+
+S1-6 (3 Kasım 2026): Barındırma Render (ücretsiz, Docker) + Neon (PG16, pgvector) üzerine taşındı: `https://tini-74he.onrender.com/health` 200. Veri Neon'a taşındı (3 hesap, 132 oy, alembic 0016). 127 çıkış hatası Docker Command alanındaki `sh -c` yüzünden çıktı; alan boşaltıldı. APK yeni `API_BASE` ile derlendi (54 MB). Oracle VM yolu kart reddi nedeniyle kullanılmadı. Telefonda kurulum ve Spotify dönüşü denemesi geliştiriciden bekleniyor; ardından yerel Docker/ngrok yığını kapatılır. Ayrıntı: `docs/DAGITIM.md`.

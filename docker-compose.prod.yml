@@ -22,6 +22,24 @@ services:
       interval: 15s
       retries: 5
 
+  # Oracle VM gibi herkese açık makinede ngrok yerine: --profile caddy (80/443, otomatik HTTPS)
+  caddy:
+    profiles: ["caddy"]
+    image: caddy:2
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      # Profil kapalıyken de yorumlandığı için zorunlu (:?) yapılmaz; caddy profili için .env'de tanımla.
+      SITE_ADDRESS: ${SITE_ADDRESS:-localhost}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddydata:/data
+    depends_on:
+      backend:
+        condition: service_healthy
+
   tunnel:
     profiles: ["tunnel"]
     image: ngrok/ngrok:3
@@ -32,3 +50,6 @@ services:
     depends_on:
       backend:
         condition: service_healthy
+
+volumes:
+  caddydata:
