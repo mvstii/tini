@@ -91,6 +91,7 @@ class _TiniAppState extends State<TiniApp> {
         colorSchemeSeed: Colors.deepPurple,
         brightness: b,
         useMaterial3: true,
+        fontFamily: 'PlusJakartaSans',
         scaffoldBackgroundColor: c.scaffold,
         pageTransitionsTheme: tiniPageTransitions,
         extensions: [c],

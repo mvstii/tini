@@ -178,7 +178,8 @@ class _ListScreenState extends State<ListScreen> {
       backgroundColor: widget.embedded ? Colors.transparent : c.scaffold,
       appBar: widget.embedded ? null : AppBar(title: const Text('Keşif listesi')),
       body: ListView(
-        padding: EdgeInsets.fromLTRB(16, widget.embedded ? 24 : 16, 16, widget.embedded ? 96 : 16),
+        padding: EdgeInsets.fromLTRB(
+            16, widget.embedded ? MediaQuery.paddingOf(context).top + 16 : 16, 16, widget.embedded ? 96 : 16),
         children: [
           if (widget.embedded)
             Padding(
