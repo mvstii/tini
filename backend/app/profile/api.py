@@ -2,7 +2,7 @@
 from datetime import UTC, datetime
 
 import httpx
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy import func, select
 from sqlalchemy.dialects.postgresql import distinct_on
@@ -18,6 +18,7 @@ from app.config import (
 )
 from app.connect import get_http
 from app.deps import current_user, get_db
+from app.graph.auto import after_vote
 from app.models import (
     GeneratedList,
     ListItem,
@@ -61,7 +62,11 @@ def _events(db: Session, user_id) -> list[VoteEvt]:
 
 @router.post("", status_code=201)
 def cast_vote(
-    body: VoteIn, user: User = Depends(current_user), db: Session = Depends(get_db)
+    body: VoteIn,
+    background: BackgroundTasks,
+    user: User = Depends(current_user),
+    db: Session = Depends(get_db),
+    gcfg: GraphSettings = Depends(get_graph_settings),
 ) -> dict:
     owned = db.scalar(
         select(UserTrackLink.id)
@@ -81,6 +86,8 @@ def cast_vote(
     ev = VoteEvent(user_id=user.id, track_id=body.track, vote=body.vote)
     db.add(ev)
     db.commit()
+    if gcfg.auto_expand:
+        background.add_task(after_vote, body.track)
     return {"id": ev.id, "track": ev.track_id, "vote": ev.vote}
 
 

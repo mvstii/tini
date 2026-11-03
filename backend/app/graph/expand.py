@@ -12,7 +12,15 @@ from sqlalchemy.orm import Session
 from app.config import GraphSettings
 from app.graph.expansion import plan_expansion
 from app.graph.store import create_snapshot, enforce_size_cap, store_edges
-from app.models import Artist, ArtistEdge, FetchLog, Track, UserTrackArtist
+from app.models import (
+    Artist,
+    ArtistEdge,
+    FetchLog,
+    ListItem,
+    Track,
+    UserTrackArtist,
+    VoteEvent,
+)
 from app.sources.http import SourceError
 from app.sources.lastfm import LastfmClient
 
@@ -39,10 +47,19 @@ def _log(db: Session, artist_id: int, status: str, ttl: int, now: datetime) -> N
 
 
 def load_anchors(db: Session) -> list[int]:
-    """Kütüphanelerde çözülmüş sanatçılar (kademe A + B), tekrarsız."""
+    """Kütüphane (kademe A + B), oylanan ve öneri listesindeki sanatçılar, tekrarsız."""
     a = select(Track.artist_id).where(Track.artist_id.is_not(None))
     b = select(UserTrackArtist.artist_id)
-    return sorted(set(db.scalars(a).all()) | set(db.scalars(b).all()))
+    c = (
+        select(Track.artist_id)
+        .join(VoteEvent, VoteEvent.track_id == Track.id)
+        .where(Track.artist_id.is_not(None))
+    )
+    d = select(ListItem.artist_id)
+    found: set[int] = set()
+    for q in (a, b, c, d):
+        found |= set(db.scalars(q).all())
+    return sorted(found)
 
 
 def load_cache_state(
