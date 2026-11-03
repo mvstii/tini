@@ -266,6 +266,16 @@ class Api {
     );
   }
 
+  /// 30 sn'lik önizleme URL'si (sunucu istek anında çözer, saklamaz); bulunamazsa null.
+  Future<String?> previewUrl({int? artistId, int? trackId}) async {
+    final q = [
+      if (artistId != null) 'artist_id=$artistId',
+      if (trackId != null) 'track_id=$trackId',
+    ].join('&');
+    final body = await _send('GET', '/preview?$q');
+    return body['url'] as String?;
+  }
+
   Future<DiscoveryList> generateList() => _generate('/lists/generate');
 
   /// Haftalık Taze liste: takip edilen sanatçıların yeni yayınları (albüm düzeyi).

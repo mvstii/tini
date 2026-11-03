@@ -5,6 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../api.dart';
 import '../theme/cosmic_colors.dart';
 import '../widgets/artist_avatar.dart';
+import '../widgets/preview_button.dart';
 import '../widgets/studio.dart';
 
 /// Gerekçe cümlesi: en büyük paylı çapalar, yüzdeyle (hesabın kendisinden gelir).
@@ -271,6 +272,12 @@ class _ListScreenState extends State<ListScreen> {
                             ],
                           ),
                         ),
+                        if (e.artistId != null && e.release == null)
+                          PreviewButton(
+                              api: widget.api,
+                              previewKey: 'list-${list.id}-${e.position}',
+                              artistId: e.artistId),
+                        const SizedBox(width: 6),
                         Chip(label: Text(e.slot)),
                       ]),
                       Row(

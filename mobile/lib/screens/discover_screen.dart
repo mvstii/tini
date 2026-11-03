@@ -7,6 +7,7 @@ import '../api.dart';
 import '../app_state.dart';
 import '../theme/cosmic_colors.dart';
 import '../widgets/cover_art.dart';
+import '../widgets/preview_button.dart';
 import '../widgets/studio.dart';
 import 'list_screen.dart' show reasonText;
 
@@ -355,6 +356,15 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
         const SizedBox(height: 14),
         Row(
           children: [
+            if (d.entry.artistId != null) ...[
+              PreviewButton(
+                  key: const ValueKey('daily-preview'),
+                  api: widget.api,
+                  previewKey: 'daily-${d.listId}',
+                  artistId: d.entry.artistId,
+                  trackId: d.track),
+              const SizedBox(width: 8),
+            ],
             Expanded(
               child: StudioButton(
                 key: const ValueKey('daily-open'),

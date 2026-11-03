@@ -8,6 +8,7 @@ from app.connect import router as connect_router
 from app.feedback import router as feedback_router
 from app.graph.api import router as graph_router
 from app.library import router as library_router
+from app.preview import router as preview_router
 from app.profile.api import profile_router
 from app.profile.api import router as votes_router
 from app.recommend.api import lists_router
@@ -34,6 +35,7 @@ app.include_router(connect_router)
 app.include_router(library_router)
 app.include_router(feedback_router)
 app.include_router(artwork_router)
+app.include_router(preview_router)
 
 
 @app.get("/health")

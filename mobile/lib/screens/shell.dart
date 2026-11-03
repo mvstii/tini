@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 import '../api.dart';
 import '../app_state.dart';
+import '../preview_player.dart';
 import '../theme/cosmic_colors.dart';
 import '../theme/transitions.dart';
 import '../widgets/studio.dart';
@@ -42,11 +43,13 @@ class _AppShellState extends State<AppShell> {
 
   @override
   void dispose() {
+    PreviewController.instance.stop();
     _state.dispose();
     super.dispose();
   }
 
   void _go(int i) => setState(() {
+        if (i != _tab) PreviewController.instance.stop();
         _tab = i;
         if (i == 2) _seenRecs = true;
       });
