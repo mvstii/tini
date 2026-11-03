@@ -117,7 +117,7 @@ def test_explain_without_artists_skips_propagation(monkeypatch):
     def boom(*a, **k):
         raise AssertionError("boş kümede PPR çalışmamalı")
 
-    monkeypatch.setattr(ppr, "_propagate", boom)
+    monkeypatch.setattr(ppr, "propagate", boom)
     assert explain(graph(EDGES), profile([(1, 0.7)]), set(), CFG) == {}
 
 
@@ -127,3 +127,17 @@ def test_explain_matches_score_candidates_for_same_artist():
     score, reasons = explain(gm, prof, {10}, CFG)[10]
     assert score == pytest.approx(cand.score)
     assert [r.seed_id for r in reasons] == [r.seed_id for r in cand.reasons]
+
+
+def test_shared_propagation_is_reused_and_gives_same_result(monkeypatch):
+    gm, prof = graph(EDGES), profile([(1, 0.7)], anchors=[1])
+    prop = ppr.propagate(gm, prof, CFG)
+    want_explain = explain(gm, prof, {10}, CFG)
+    want_cands = score_candidates(gm, prof, set(), CFG)
+
+    def boom(*a, **k):
+        raise AssertionError("paylaşılan yayılım varken PPR yeniden çalışmamalı")
+
+    monkeypatch.setattr(ppr, "propagate", boom)
+    assert explain(gm, prof, {10}, CFG, prop) == want_explain
+    assert score_candidates(gm, prof, set(), CFG, prop) == want_cands
