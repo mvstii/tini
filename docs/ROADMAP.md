@@ -84,6 +84,8 @@ Kapı: 5 test kullanıcısının her biri en az 100 oy verdi ve kritik hata yok.
 
 Kapı: TestFlight ve Play kapalı test kanalında, Spotify'sız kullanıcı uygulamayı uçtan uca kullanabiliyor.
 
+- [x] Barındırmayı bilgisayardan Render + Neon'a taşı (3 Kasım 2026; `docs/DAGITIM.md`). Kalan: telefonda uçtan uca deneme, ardından yerel Docker/ngrok yığınını kapat
+
 - [ ] Faz 6 sonunda (en geç 18 Ocak): Apple Developer Program üyeliği (99 USD/yıl; onay süresi doğrulanmadı), Apple lisans sözleşmesini oku, MusicKit Android SDK sürümü ve Flutter bağlayıcısı var mı kontrol et; sonuç kötüyse Apple Music adaptörü için platform kanalı veya kapsam kararı ver
 - [ ] Önizleme kaynağını değiştir: 30 sn kesitler Deezer'dan (yalnızca kapalı test); mağaza öncesi Apple Music önizlemesi
 - [ ] Sanatçı fotoğraf kaynağını değiştir: Deezer yalnızca kapalı test içindir (ARCHITECTURE.md, "Sanatçı fotoğrafları"); mağaza öncesi Apple Music veya Wikimedia
