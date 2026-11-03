@@ -15,6 +15,7 @@ from app.profile.api import router as votes_router
 from app.recommend.api import lists_router
 from app.recommend.api import router as recommend_router
 from app.releases.api import router as releases_router
+from app.releases.scheduler import lifespan
 from app.requestlog import install as install_request_log
 
 logging.getLogger("tini.request").setLevel(logging.INFO)
@@ -30,7 +31,7 @@ def docs_urls(app_env: str) -> dict[str, str | None]:
     return {"docs_url": "/docs", "redoc_url": "/redoc", "openapi_url": "/openapi.json"}
 
 
-app = FastAPI(title="Tını", **docs_urls(get_settings().app_env))
+app = FastAPI(title="Tını", lifespan=lifespan, **docs_urls(get_settings().app_env))
 install_request_log(app)
 app.include_router(votes_router)
 app.include_router(profile_router)

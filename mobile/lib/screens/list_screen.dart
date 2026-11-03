@@ -327,7 +327,7 @@ class _ListScreenState extends State<ListScreen> {
                           ),
                           const SizedBox(width: 6),
                           SizedBox(
-                            width: 150,
+                            width: 176,
                             child: StudioButton(
                               dense: true,
                               icon: Icons.open_in_new_rounded,
