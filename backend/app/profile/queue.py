@@ -19,7 +19,9 @@ def song_key(title: str, artists: list[str] | None, markers: Iterable[str]) -> t
         stripped = re.sub(
             rf"\s*[(\[][^)\]]*\b(?:{alt})[^)\]]*[)\]]", "", stripped, flags=re.I
         )
-        stripped = re.sub(rf"\s+-\s+[^-]*\b(?:{alt})[^-]*$", "", stripped, flags=re.I)
+        stripped = re.sub(
+            rf"\s+[-–—]\s+[^-–—]*\b(?:{alt})[^-–—]*$", "", stripped, flags=re.I
+        )
     name = normalize_name(stripped) or normalize_name(title)
     return name, normalize_name(artists[0]) if artists else ""
 

@@ -94,7 +94,7 @@ def test_queue_skips_voted_and_stale_and_lists_unresolved_last(client, db):
     assert [i["track"] for i in body["items"]] == [t2.id, t3.id]
     assert body["items"][0]["title"] == "Iki" and body["remaining"] == 2 and body["stale"] == 1
     assert body["items"][0]["image"] is None
-    assert body["algo_version"] == "queue-4"
+    assert body["algo_version"] == "queue-5"
 
 
 def test_unresolved_order_is_seeded_pool_first():
@@ -163,7 +163,7 @@ def test_queue_pool_bonus_awaiting_and_expired(client, db):
 
     body = client.get("/votes/queue", headers=h).json()
     ids = [i["track"] for i in body["items"]]
-    assert body["algo_version"] == "queue-4"
+    assert body["algo_version"] == "queue-5"
     assert gone.id not in ids and ids[0] == pooled.id and set(ids) == {pooled.id, other.id}
     states = [
         e.state for e in db.scalars(
@@ -181,7 +181,7 @@ def test_queue_pool_bonus_awaiting_and_expired(client, db):
     ) == 2
 
 
-MARKERS = ("remaster", "mono", "deluxe", "explicit")
+MARKERS = ("remaster", "mono", "deluxe", "explicit", "feat", "ft", "featuring")
 
 
 def test_song_key_strips_version_suffix_but_keeps_distinct_recordings():
@@ -194,6 +194,10 @@ def test_song_key_strips_version_suffix_but_keeps_distinct_recordings():
     assert song_key("Yesterday (Live)", ["The Beatles"], MARKERS) != base
     assert song_key("Yesterday (Remix)", ["The Beatles"], MARKERS) != base
     assert song_key("Yesterday", ["Baska"], MARKERS) != base
+    assert song_key("Yesterday (feat. Paul)", ["The Beatles"], MARKERS) == base
+    assert song_key("Yesterday - feat. Paul", ["The Beatles"], MARKERS) == base
+    assert song_key("Yesterday – Remastered 2009", ["The Beatles"], MARKERS) == base  # uzun tire
+    assert song_key("Soft Yesterday", ["The Beatles"], MARKERS) != base
     assert song_key("(Remaster)", ["A"], MARKERS)[0] == "remaster"  # boş kalırsa özgün başlık
 
 
