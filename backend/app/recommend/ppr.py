@@ -141,6 +141,8 @@ def explain(
     """Verilen sanatçılar için (nihai skor, gerekçeler); graftaki olmayanlar dönmez.
 
     Bilinen/kaçınılan maskesi yok: takip edilen sanatçılar zaten profilin tohumlarıdır."""
+    if not artist_ids:  # yayını olan takip yoksa PPR yayılımı boşa çalışmasın
+        return {}
     prop = _propagate(gm, profile, cfg)
     if prop is None:
         return {}
