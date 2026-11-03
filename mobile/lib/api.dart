@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart' show ThemeMode;
@@ -10,6 +11,9 @@ const apiBase = String.fromEnvironment('API_BASE', defaultValue: 'http://10.0.2.
 
 /// Geri bildirimle sunucuya gönderilir; derlemede `--dart-define=APP_VERSION=...` ile verilir.
 const appVersion = String.fromEnvironment('APP_VERSION', defaultValue: '1.0.0');
+
+/// Render ücretsiz katmanı soğuk başlangıçta ~20 sn sürebilir; bundan uzun süren istek hataya çevrilir.
+const requestTimeout = Duration(seconds: 45);
 
 class ApiException implements Exception {
   ApiException(this.status, this.message);
@@ -367,7 +371,13 @@ class Api {
       req.headers['Content-Type'] = 'application/json';
       req.body = jsonEncode(json);
     }
-    final res = await http.Response.fromStream(await _http.send(req));
+    final http.Response res;
+    try {
+      res = await (() async => http.Response.fromStream(await _http.send(req)))()
+          .timeout(requestTimeout);
+    } on TimeoutException {
+      throw ApiException(0, 'Sunucu yanıt vermedi (uyanıyor olabilir), biraz sonra tekrar dene');
+    }
     final text = utf8.decode(res.bodyBytes);
     if (res.statusCode >= 400) {
       var message = 'Hata ${res.statusCode}';
