@@ -42,7 +42,7 @@ class _Locked extends StatelessWidget {
     final theme = Theme.of(context);
     final left = tourVotes - state.total;
     return Scaffold(
-      backgroundColor: c.scaffold,
+      backgroundColor: Colors.transparent,
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(

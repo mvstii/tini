@@ -6,6 +6,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:tini/api.dart';
+import 'package:tini/app_state.dart';
+import 'package:tini/screens/discover_screen.dart';
 import 'package:tini/main.dart';
 import 'package:tini/screens/feedback_screen.dart';
 import 'package:tini/screens/fresh_screen.dart';
@@ -604,6 +606,126 @@ void main() {
     });
   });
 
+  group('discover screen', () {
+    final dailyJson = {
+      'list_id': 7,
+      'position': 3,
+      'name': 'Sanatçı',
+      'title': 'Şarkı Adı',
+      'artists': ['Sanatçı'],
+      'image': null,
+      'reasons': [
+        {'seed_id': 1, 'seed_name': 'Seed', 'share': 0.6, 'is_anchor': true},
+      ],
+    };
+    final feedJson = {
+      'total': 3,
+      'items': [
+        for (var i = 1; i <= 3; i++)
+          {'release_id': i, 'title': 'Albüm $i', 'type': 'album', 'released': '2026-10-30',
+           'artist_id': i, 'artist': 'Sanatçı $i', 'follow': 'auto'},
+      ],
+    };
+
+    Future<(Api, AppState)> setup({bool hasDaily = true, bool hasFeed = true}) async {
+      final api = _api((req) async {
+        if (req.url.path == '/recommend/daily') {
+          return hasDaily
+              ? http.Response.bytes(utf8.encode(jsonEncode(dailyJson)), 200)
+              : http.Response('{"detail":"x"}', 404);
+        }
+        if (req.url.path == '/releases/new') {
+          return http.Response.bytes(
+              utf8.encode(jsonEncode(hasFeed ? feedJson : {'total': 0, 'items': []})), 200);
+        }
+        if (req.url.path == '/lists/7/items/3/open') {
+          return http.Response(jsonEncode({'kind': 'track', 'url': 'spotify:track:T1'}), 200);
+        }
+        return http.Response('{"total":0,"items":[]}', 200);
+      }, _MemoryStorage()..data['session'] = 'T');
+      await api.restore();
+      return (api, AppState(api));
+    }
+
+    Widget host(Api api, AppState s, {VoidCallback? rate, VoidCallback? profile, List<String>? opened}) =>
+        MaterialApp(
+          home: Scaffold(
+            body: DiscoverScreen(
+              api: api,
+              state: s,
+              onLogout: () {},
+              onOpenRating: rate ?? () {},
+              onOpenProfile: profile ?? () {},
+              launch: (u) async {
+                opened?.add(u);
+                return true;
+              },
+            ),
+          ),
+        );
+
+    testWidgets('shows the hero with the real reason and opens the song', (tester) async {
+      tester.view.physicalSize = const Size(360, 640);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      final (api, s) = await setup();
+      final opened = <String>[];
+      var rated = 0;
+      await tester.pumpWidget(host(api, s, opened: opened, rate: () => rated++));
+      await tester.pumpAndSettle();
+      expect(find.text('Bugünkü Frekansın'), findsOneWidget);
+      expect(find.text('Şarkı Adı'), findsOneWidget);
+      expect(find.textContaining('★ Seed %60'), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('daily-open')));
+      await tester.pumpAndSettle();
+      expect(opened, ['spotify:track:T1']);
+      await tester.tap(find.byKey(const ValueKey('daily-rate')));
+      expect(rated, 1);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('no profile hides the hero; no releases shows a hint', (tester) async {
+      tester.view.physicalSize = const Size(360, 640);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      final (api, s) = await setup(hasDaily: false, hasFeed: false);
+      await tester.pumpWidget(host(api, s));
+      await tester.pumpAndSettle();
+      expect(find.text('GÜNÜN ŞARKISI'), findsNothing);
+      expect(find.text('Günün şarkısı için önce oylayıp profilini kur.'), findsOneWidget);
+      expect(find.text('Henüz yeni yayın yok.'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('shuffle keeps all releases and the level badge opens the profile', (tester) async {
+      tester.view.physicalSize = const Size(360, 640);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      final (api, s) = await setup();
+      var profile = 0;
+      await tester.pumpWidget(host(api, s, profile: () => profile++));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('level-badge')));
+      expect(profile, 1);
+      await tester.ensureVisible(find.byKey(const ValueKey('shuffle')));
+      await tester.tap(find.byKey(const ValueKey('shuffle')));
+      await tester.pumpAndSettle();
+      for (final n in [1, 2, 3]) {
+        expect(find.textContaining('Albüm $n', skipOffstage: false), findsWidgets);
+      }
+      expect(tester.takeException(), isNull);
+    });
+
+    test('relativeDate', () {
+      final now = DateTime(2026, 11, 3);
+      expect(relativeDate('2026-11-03', now), 'Bugün');
+      expect(relativeDate('2026-11-02', now), 'Dün');
+      expect(relativeDate('2026-10-30', now), '4 gün önce');
+      expect(relativeDate('2026-10-24', now), 'Geçen hafta');
+      expect(relativeDate('2026-01-01', now), '2026-01-01');
+    });
+  });
+
   group('app shell', () {
     testWidgets('fits 360x640 and locked recommendations unlock at $tourVotes votes',
         (tester) async {
@@ -632,13 +754,18 @@ void main() {
       await tester.pumpAndSettle();
       expect(tester.takeException(), isNull);
 
-      await tester.tap(find.byKey(const ValueKey('tab-1')));
+      await tester.tap(find.byKey(const ValueKey('tab-0')));
       await tester.pumpAndSettle();
-      expect(find.text('Oylamaya Devam Et'), findsOneWidget);
+      expect(find.text('Bugünkü Frekansın'), findsOneWidget);
+      expect(tester.takeException(), isNull);
 
       await tester.tap(find.byKey(const ValueKey('tab-2')));
       await tester.pumpAndSettle();
-      expect(find.text('Oy dağılımı'), findsOneWidget);
+      expect(find.text('Oylamaya Devam Et'), findsOneWidget);
+
+      await tester.tap(find.byKey(const ValueKey('tab-3')));
+      await tester.pumpAndSettle();
+      expect(find.text('OY DAĞILIMI'), findsOneWidget);
       expect(tester.takeException(), isNull);
     });
 
@@ -689,12 +816,12 @@ void main() {
       expect(find.text('Profili Kur'), findsOneWidget);
       expect(find.byKey(const ValueKey('recs-badge')), findsOneWidget);
 
-      await tester.tap(find.byKey(const ValueKey('tab-1')));
+      await tester.tap(find.byKey(const ValueKey('tab-2')));
       await tester.pumpAndSettle();
       expect(find.text('Oylamaya Devam Et'), findsNothing);
       expect(find.byKey(const ValueKey('recs-badge')), findsNothing);
 
-      await tester.tap(find.byKey(const ValueKey('tab-2')));
+      await tester.tap(find.byKey(const ValueKey('tab-3')));
       await tester.pumpAndSettle();
       expect(tester.widget<Text>(find.byKey(const ValueKey('count-6'))).data, '20');
       expect(tester.widget<Text>(find.byKey(const ValueKey('count-3'))).data, '10');

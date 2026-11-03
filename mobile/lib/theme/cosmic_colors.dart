@@ -32,7 +32,7 @@ class TiniCosmicColors extends ThemeExtension<TiniCosmicColors> {
   final VoteStyle skip;
 
   static const dark = TiniCosmicColors(
-    scaffold: Color(0xFF0B0914),
+    scaffold: Color(0xFF08060E),
     card: Color(0xFF171326),
     primary: Color(0xFFD0BCFF),
     votes: {
@@ -55,7 +55,7 @@ class TiniCosmicColors extends ThemeExtension<TiniCosmicColors> {
   );
 
   static const light = TiniCosmicColors(
-    scaffold: Color(0xFFFAF8FF),
+    scaffold: Color(0xFFF7F4FC),
     card: Color(0xFFF0ECF9),
     primary: Color(0xFF6750A4),
     votes: {

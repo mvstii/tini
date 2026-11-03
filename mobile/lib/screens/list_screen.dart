@@ -5,6 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../api.dart';
 import '../theme/cosmic_colors.dart';
 import '../widgets/cover_art.dart';
+import '../widgets/studio.dart';
 
 /// Gerekçe cümlesi: en büyük paylı çapalar, yüzdeyle (hesabın kendisinden gelir).
 String reasonText(ListEntry e, {int top = 3}) {
@@ -153,7 +154,7 @@ class _ListScreenState extends State<ListScreen> {
     final c = TiniCosmicColors.of(context);
     final theme = Theme.of(context);
     return Scaffold(
-      backgroundColor: c.scaffold,
+      backgroundColor: widget.embedded ? Colors.transparent : c.scaffold,
       appBar: widget.embedded ? null : AppBar(title: const Text('Keşif listesi')),
       body: ListView(
         padding: EdgeInsets.fromLTRB(16, widget.embedded ? 24 : 16, 16, widget.embedded ? 96 : 16),
@@ -182,13 +183,9 @@ class _ListScreenState extends State<ListScreen> {
             const Padding(padding: EdgeInsets.all(12), child: Text('Öneri çıkmadı.')),
           if (list != null)
             for (final e in list.items)
-              Container(
-                margin: const EdgeInsets.only(bottom: 8),
-                decoration: BoxDecoration(
-                  color: c.card,
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: theme.colorScheme.outlineVariant),
-                ),
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: StudioSurface(
                 child: Padding(
                   padding: const EdgeInsets.all(12),
                   child: Column(
@@ -216,14 +213,14 @@ class _ListScreenState extends State<ListScreen> {
                       ),
                       const SizedBox(height: 10),
                       Row(children: [
-                        CoverArt(url: null, size: 56, radius: 12, gradientSeed: e.name),
+                        CoverArt(url: null, size: 56, radius: 12, gradientSeed: e.name, glow: true),
                         const SizedBox(width: 12),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text('${e.position}. ${e.name}',
-                                  style: theme.textTheme.titleMedium,
+                                  style: studioTitle(context),
                                   maxLines: 2,
                                   overflow: TextOverflow.ellipsis),
                               if (e.title != null) Text(e.title!),
@@ -250,6 +247,7 @@ class _ListScreenState extends State<ListScreen> {
                       ),
                     ],
                   ),
+                ),
                 ),
               ),
         ],

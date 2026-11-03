@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import '../api.dart';
 import '../app_state.dart';
 import '../theme/cosmic_colors.dart';
+import '../widgets/studio.dart';
+import 'discover_screen.dart';
 import 'profile_screen.dart';
 import 'rating_screen.dart';
 import 'recommendations_screen.dart';
@@ -34,7 +36,7 @@ const navInset = _navHeight + _navBottom + 12;
 
 class _AppShellState extends State<AppShell> {
   late final AppState _state = AppState(widget.api);
-  int _tab = 0;
+  int _tab = 1; // açılışta Oylama; Keşfet solda (0)
   bool _seenRecs = false;
 
   @override
@@ -45,7 +47,7 @@ class _AppShellState extends State<AppShell> {
 
   void _go(int i) => setState(() {
         _tab = i;
-        if (i == 1) _seenRecs = true;
+        if (i == 2) _seenRecs = true;
       });
 
   @override
@@ -56,18 +58,26 @@ class _AppShellState extends State<AppShell> {
         IndexedStack(
           index: _tab,
           children: [
+            DiscoverScreen(
+              api: widget.api,
+              state: _state,
+              onLogout: widget.onLogout,
+              onOpenRating: () => _go(1),
+              onOpenProfile: () => _go(3),
+              bottomInset: navInset,
+            ),
             RatingScreen(
               api: widget.api,
               state: _state,
               onLogout: widget.onLogout,
-              onOpenRecommendations: () => _go(1),
+              onOpenRecommendations: () => _go(2),
               bottomInset: navInset,
             ),
             RecommendationsScreen(
               api: widget.api,
               state: _state,
               onLogout: widget.onLogout,
-              onContinue: () => _go(0),
+              onContinue: () => _go(1),
             ),
             ProfileScreen(
               api: widget.api,
@@ -92,7 +102,8 @@ class _AppShellState extends State<AppShell> {
     );
     return Scaffold(
       backgroundColor: c.scaffold,
-      body: kDebugMode
+      body: AmbientBackground(
+        child: kDebugMode
           ? Column(
               children: [
                 SafeArea(
@@ -106,6 +117,7 @@ class _AppShellState extends State<AppShell> {
               ],
             )
           : content,
+      ),
     );
   }
 }
@@ -118,6 +130,7 @@ class PillNav extends StatelessWidget {
   final bool badge;
 
   static const _tabs = [
+    (Icons.explore_rounded, 'Keşfet'),
     (Icons.tune_rounded, 'Oylama'),
     (Icons.auto_awesome_motion_rounded, 'Öneriler'),
     (Icons.person_outline_rounded, 'Profil'),
@@ -130,7 +143,7 @@ class PillNav extends StatelessWidget {
     return Container(
       height: _navHeight,
       decoration: BoxDecoration(
-        color: c.card,
+        color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.92),
         borderRadius: BorderRadius.circular(28),
         border: Border.all(color: theme.colorScheme.outlineVariant),
         boxShadow: const [BoxShadow(color: Color(0x33000000), blurRadius: 12, offset: Offset(0, 4))],
@@ -140,9 +153,9 @@ class PillNav extends StatelessWidget {
           AnimatedAlign(
             duration: const Duration(milliseconds: 220),
             curve: Curves.easeOutCubic,
-            alignment: Alignment(index - 1.0, 0),
+            alignment: Alignment(-1 + 2 * index / (_tabs.length - 1), 0),
             child: FractionallySizedBox(
-              widthFactor: 1 / 3,
+              widthFactor: 1 / _tabs.length,
               heightFactor: 1,
               child: Padding(
                 padding: const EdgeInsets.all(4),
@@ -171,9 +184,9 @@ class PillNav extends StatelessWidget {
                             clipBehavior: Clip.none,
                             children: [
                               Icon(_tabs[i].$1,
-                                  size: 24,
+                                  size: 22,
                                   color: i == index ? c.primary : theme.colorScheme.onSurfaceVariant),
-                              if (i == 1 && badge)
+                              if (i == 2 && badge)
                                 Positioned(
                                   key: const ValueKey('recs-badge'),
                                   right: -3,
@@ -196,6 +209,7 @@ class PillNav extends StatelessWidget {
                           ),
                           Text(_tabs[i].$2,
                               style: theme.textTheme.labelSmall?.copyWith(
+                                  height: 1.2,
                                   color: i == index
                                       ? c.primary
                                       : theme.colorScheme.onSurfaceVariant)),
@@ -268,3 +282,4 @@ class _DebugBar extends StatelessWidget {
     );
   }
 }
+

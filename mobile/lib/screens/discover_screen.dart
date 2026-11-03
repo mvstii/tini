@@ -1,0 +1,425 @@
+import 'dart:math' as math;
+
+import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
+
+import '../api.dart';
+import '../app_state.dart';
+import '../theme/cosmic_colors.dart';
+import '../widgets/cover_art.dart';
+import '../widgets/studio.dart';
+import 'list_screen.dart' show reasonText;
+
+Future<bool> _launchExternal(String url) =>
+    launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+
+/// "Keşfet": günün şarkısı vitrini ve takip edilen sanatçıların taze yayınları. Her şey
+/// sunucudan gelir; gerekçe hesabın kendisindendir (uydurma yüzde/tür yok).
+class DiscoverScreen extends StatefulWidget {
+  const DiscoverScreen({
+    super.key,
+    required this.api,
+    required this.state,
+    required this.onLogout,
+    required this.onOpenRating,
+    required this.onOpenProfile,
+    this.bottomInset = 0,
+    this.launch = _launchExternal,
+  });
+  final Api api;
+  final AppState state;
+  final VoidCallback onLogout;
+  final VoidCallback onOpenRating;
+  final VoidCallback onOpenProfile;
+  final double bottomInset;
+  final Future<bool> Function(String url) launch;
+
+  @override
+  State<DiscoverScreen> createState() => _DiscoverScreenState();
+}
+
+/// Yayın tarihini "Bugün", "2 gün önce", "Geçen hafta" gibi okunur hâle getirir.
+String relativeDate(String iso, [DateTime? now]) {
+  final d = DateTime.tryParse(iso);
+  if (d == null) return iso;
+  final today = now ?? DateTime.now();
+  final days = DateTime(today.year, today.month, today.day).difference(DateTime(d.year, d.month, d.day)).inDays;
+  if (days <= 0) return 'Bugün';
+  if (days == 1) return 'Dün';
+  if (days < 7) return '$days gün önce';
+  if (days < 14) return 'Geçen hafta';
+  if (days < 60) return '${days ~/ 7} hafta önce';
+  return iso;
+}
+
+class _DiscoverScreenState extends State<DiscoverScreen> {
+  DailySong? _daily;
+  bool _dailyLoaded = false;
+  List<NewRelease>? _releases;
+  String? _releaseError;
+  int _shuffle = 0;
+  String? _message;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadDaily();
+    _loadReleases();
+  }
+
+  Future<void> _loadDaily() async {
+    try {
+      final d = await widget.api.dailySong();
+      if (mounted) setState(() => _daily = d);
+    } on ApiException catch (e) {
+      if (e.status == 401) widget.onLogout();
+    } catch (_) {
+      // Yardımcı özellik: hata ekranı bozmaz, kart boş duruma düşer.
+    } finally {
+      if (mounted) setState(() => _dailyLoaded = true);
+    }
+  }
+
+  Future<void> _loadReleases() async {
+    try {
+      final r = await widget.api.newReleases();
+      if (mounted) setState(() => _releases = r);
+    } on ApiException catch (e) {
+      if (e.status == 401) return widget.onLogout();
+      if (mounted) {
+        setState(() => _releaseError = switch (e.status) {
+              404 || 409 => 'Önce oylayıp profilini kur; takip ettiğin sanatçıların yayınları burada çıkar.',
+              _ => e.message,
+            });
+      }
+    } catch (_) {
+      if (mounted) setState(() => _releaseError = 'Sunucuya ulaşılamadı');
+    }
+  }
+
+  Future<void> _openDaily(DailySong d) async {
+    try {
+      await widget.launch(await widget.api.openUrl(d.listId, d.entry.position));
+    } catch (_) {
+      if (mounted) setState(() => _message = 'Şarkı açılamadı');
+    }
+  }
+
+  /// Aynı sıra her zaman aynı karışımı verir (tohum = sayaç); görünen 10 yayını seçer.
+  List<NewRelease> get _shown {
+    final all = [...?_releases];
+    if (_shuffle > 0) all.shuffle(math.Random(_shuffle));
+    return all.take(10).toList();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final c = TiniCosmicColors.of(context);
+    final theme = Theme.of(context);
+    final shown = _shown;
+    final carousel = shown.take(5).toList();
+    final rest = shown.skip(5).toList();
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      body: SafeArea(
+        bottom: false,
+        child: ListView(
+          padding: EdgeInsets.fromLTRB(16, 16, 16, widget.bottomInset + 24),
+          children: [
+            ListenableBuilder(
+              listenable: widget.state,
+              builder: (_, _) => Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const SectionLabel('TINI STÜDYO'),
+                        const SizedBox(height: 4),
+                        Text('Bugünkü Frekansın',
+                            style: studioTitle(context, base: theme.textTheme.headlineSmall)),
+                      ],
+                    ),
+                  ),
+                  InkWell(
+                    key: const ValueKey('level-badge'),
+                    borderRadius: BorderRadius.circular(14),
+                    onTap: widget.onOpenProfile,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: c.primary.withValues(alpha: 0.16),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: c.primary.withValues(alpha: 0.4)),
+                      ),
+                      child: Text('Seviye ${widget.state.level} · ${widget.state.total} Oy',
+                          style: theme.textTheme.labelLarge?.copyWith(
+                              color: c.primary,
+                              fontWeight: FontWeight.w700,
+                              fontFeatures: const [FontFeature.tabularFigures()])),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 24),
+            const SectionLabel('GÜNÜN TINISI'),
+            const SizedBox(height: 10),
+            _hero(context),
+            if (_message != null)
+              Padding(padding: const EdgeInsets.only(top: 8), child: Text(_message!)),
+            const SizedBox(height: 28),
+            Row(
+              children: [
+                const Expanded(child: SectionLabel('YENİ ÇIKANLAR · TAZE KEŞİF')),
+                TextButton.icon(
+                  key: const ValueKey('shuffle'),
+                  onPressed: (_releases?.length ?? 0) < 2 ? null : () => setState(() => _shuffle++),
+                  style: TextButton.styleFrom(
+                      visualDensity: VisualDensity.compact, padding: const EdgeInsets.symmetric(horizontal: 8)),
+                  icon: const Icon(Icons.shuffle_rounded, size: 18),
+                  label: const Text('Yenile / Rastgele'),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            if (_releases == null && _releaseError == null)
+              const Padding(padding: EdgeInsets.all(24), child: Center(child: CircularProgressIndicator()))
+            else if (_releaseError != null)
+              Padding(padding: const EdgeInsets.all(12), child: Text(_releaseError!))
+            else if (_releases!.isEmpty)
+              const Padding(padding: EdgeInsets.all(12), child: Text('Henüz yeni yayın yok.'))
+            else
+              AnimatedSwitcher(
+                duration: const Duration(milliseconds: 320),
+                switchInCurve: Curves.easeOutCubic,
+                child: Column(
+                  key: ValueKey(_shuffle),
+                  children: [
+                    SizedBox(
+                      height: 190,
+                      child: ListView.separated(
+                        scrollDirection: Axis.horizontal,
+                        itemCount: carousel.length,
+                        separatorBuilder: (_, _) => const SizedBox(width: 12),
+                        itemBuilder: (_, i) => _ReleaseCard(release: carousel[i]),
+                      ),
+                    ),
+                    if (rest.isNotEmpty) ...[
+                      const SizedBox(height: 16),
+                      const Align(alignment: Alignment.centerLeft, child: SectionLabel('HIZLI KEŞİF')),
+                      const SizedBox(height: 8),
+                      for (final r in rest) _ReleaseRow(release: r),
+                    ],
+                  ],
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _hero(BuildContext context) {
+    final c = TiniCosmicColors.of(context);
+    final theme = Theme.of(context);
+    final dark = theme.brightness == Brightness.dark;
+    final fill = dark
+        ? const [Color(0xFF3E1F5E), Color(0xFF2A143D)]
+        : const [Color(0xFFE6DAFA), Color(0xFFD3C0F3)];
+    final edge = dark
+        ? (const Color(0xFFE8C98A).withValues(alpha: 0.45), const Color(0xFFB9A4E8).withValues(alpha: 0.18))
+        : (const Color(0xFFB08A3E).withValues(alpha: 0.4), const Color(0xFF8E73D0).withValues(alpha: 0.18));
+    final d = _daily;
+    return StudioSurface(
+      radius: 24,
+      padding: const EdgeInsets.all(16),
+      fill: fill,
+      edge: edge,
+      child: d == null
+          ? Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: Row(
+                children: [
+                  const Icon(Icons.wb_sunny_rounded),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      _dailyLoaded
+                          ? 'Günün şarkısı için önce oylayıp profilini kur.'
+                          : 'Günün şarkısı hazırlanıyor…',
+                      style: theme.textTheme.bodyMedium,
+                    ),
+                  ),
+                ],
+              ),
+            )
+          : _heroBody(context, d, c),
+    );
+  }
+
+  Widget _heroBody(BuildContext context, DailySong d, TiniCosmicColors c) {
+    final theme = Theme.of(context);
+    final title = d.entry.title ?? d.entry.name;
+    final artist = d.artists.isNotEmpty ? d.artists.join(', ') : (d.entry.title != null ? d.entry.name : null);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(Icons.wb_sunny_rounded, size: 16, color: c.votes[4]!.fg),
+            const SizedBox(width: 6),
+            const SectionLabel('GÜNÜN ŞARKISI'),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            CoverArt(url: d.image, size: 88, radius: 16, gradientSeed: title, glow: true),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: studioTitle(context, base: theme.textTheme.titleLarge)),
+                  if (artist != null)
+                    Text(artist, maxLines: 1, overflow: TextOverflow.ellipsis),
+                  const SizedBox(height: 6),
+                  // Gerekçe listeden gelir (PPR çapa payları); sonradan uydurulmaz.
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(Icons.insights_rounded, size: 14, color: c.primary),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Text(reasonText(d.entry, top: 2),
+                            maxLines: 3,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.bodySmall),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 14),
+        Row(
+          children: [
+            Expanded(
+              child: FilledButton.tonalIcon(
+                key: const ValueKey('daily-open'),
+                onPressed: () => _openDaily(d),
+                icon: const Icon(Icons.play_arrow_rounded),
+                label: const Text('Dinle'),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: OutlinedButton.icon(
+                key: const ValueKey('daily-rate'),
+                onPressed: widget.onOpenRating,
+                icon: const Icon(Icons.tune_rounded),
+                label: const Text('Oylama Turuna Geç'),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _ReleaseCard extends StatelessWidget {
+  const _ReleaseCard({required this.release});
+  final NewRelease release;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = TiniCosmicColors.of(context);
+    final theme = Theme.of(context);
+    return SizedBox(
+      width: 140,
+      child: StudioSurface(
+        radius: 18,
+        padding: const EdgeInsets.all(8),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Stack(
+              children: [
+                CoverArt(url: null, size: 124, radius: 12, gradientSeed: release.title, glow: true),
+                Positioned(
+                  left: 6,
+                  top: 6,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: c.votes[6]!.fill,
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: c.votes[6]!.border),
+                    ),
+                    child: Text('YENİ',
+                        style: TextStyle(
+                            fontSize: 9, fontWeight: FontWeight.w800, letterSpacing: 1, color: c.votes[6]!.fg)),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            Text(release.title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: studioTitle(context, base: theme.textTheme.labelLarge)),
+            Text('${release.artist} · ${relativeDate(release.released)}',
+                maxLines: 1, overflow: TextOverflow.ellipsis, style: theme.textTheme.labelSmall),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ReleaseRow extends StatelessWidget {
+  const _ReleaseRow({required this.release});
+  final NewRelease release;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: StudioSurface(
+        radius: 16,
+        padding: const EdgeInsets.all(8),
+        child: Row(
+          children: [
+            CoverArt(url: null, size: 48, radius: 10, gradientSeed: release.title, glow: true),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(release.title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: studioTitle(context, base: theme.textTheme.titleSmall)),
+                  Text('${release.artist} · ${release.type}',
+                      maxLines: 1, overflow: TextOverflow.ellipsis, style: theme.textTheme.bodySmall),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            Text(relativeDate(release.released), style: theme.textTheme.labelSmall),
+          ],
+        ),
+      ),
+    );
+  }
+}

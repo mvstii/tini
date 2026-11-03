@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../api.dart';
 import '../app_state.dart';
 import '../theme/cosmic_colors.dart';
+import '../widgets/studio.dart';
 import 'history_screen.dart';
 import 'home_screen.dart';
 
@@ -70,7 +71,7 @@ class ProfileScreen extends StatelessWidget {
     final theme = Theme.of(context);
     const tab = [FontFeature.tabularFigures()];
     return Scaffold(
-      backgroundColor: c.scaffold,
+      backgroundColor: Colors.transparent,
       body: SafeArea(
         bottom: false,
         child: ListenableBuilder(
@@ -82,14 +83,13 @@ class ProfileScreen extends StatelessWidget {
             return ListView(
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 80 + 24),
               children: [
-                Container(
+                StudioSurface(
                   padding: const EdgeInsets.all(16),
-                  decoration: _box(context, c.card),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text('Seviye ${state.level}',
-                          style: theme.textTheme.headlineSmall?.copyWith(color: c.primary)),
+                          style: studioTitle(context, base: theme.textTheme.headlineSmall)?.copyWith(color: c.primary)),
                       const SizedBox(height: 12),
                       Row(
                         children: [
@@ -102,11 +102,10 @@ class ProfileScreen extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 16),
-                Text('Oy dağılımı', style: theme.textTheme.titleMedium),
+                const SectionLabel('OY DAĞILIMI'),
                 const SizedBox(height: 8),
-                Container(
+                StudioSurface(
                   padding: const EdgeInsets.all(16),
-                  decoration: _box(context, c.card),
                   child: Column(
                     children: [
                       for (var v = 1; v <= 6; v++)
@@ -156,20 +155,16 @@ class ProfileScreen extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 16),
-                Text('Son oylananlar', style: theme.textTheme.titleMedium),
+                const SectionLabel('SON OYLANANLAR'),
                 const SizedBox(height: 8),
                 if (state.recent.isEmpty)
                   const Padding(padding: EdgeInsets.all(12), child: Text('Henüz oy yok.')),
                 for (final h in state.recent)
                   Padding(
                     padding: const EdgeInsets.only(bottom: 6),
-                    child: Material(
-                      color: c.card,
-                      clipBehavior: Clip.antiAlias,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(20),
-                        side: BorderSide(color: Theme.of(context).colorScheme.outlineVariant),
-                      ),
+                    child: StudioSurface(
+                      child: Material(
+                      color: Colors.transparent,
                       child: ListTile(
                         title: Text(h.title ?? 'Parça ${h.track}', maxLines: 1, overflow: TextOverflow.ellipsis),
                         subtitle: Text(h.artists.join(', '), maxLines: 1, overflow: TextOverflow.ellipsis),
@@ -177,6 +172,7 @@ class ProfileScreen extends StatelessWidget {
                         onTap: () => _change(context, h),
                       ),
                     ),
+                  ),
                   ),
                 const SizedBox(height: 8),
                 OutlinedButton.icon(
@@ -214,11 +210,6 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
-  BoxDecoration _box(BuildContext context, Color color) => BoxDecoration(
-        color: color,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
-      );
 }
 
 class _Stat extends StatelessWidget {

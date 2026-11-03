@@ -5,6 +5,7 @@ import '../api.dart';
 import '../app_state.dart';
 import '../theme/cosmic_colors.dart';
 import '../widgets/cover_art.dart';
+import '../widgets/studio.dart';
 import 'list_screen.dart';
 
 export '../app_state.dart' show tourVotes;
@@ -225,7 +226,7 @@ class _RatingScreenState extends State<RatingScreen> {
         _current != null &&
         _state.forced == UiState.normal;
     return Scaffold(
-      backgroundColor: c.scaffold,
+      backgroundColor: Colors.transparent,
       body: SafeArea(
         bottom: false,
         child: Padding(
@@ -428,11 +429,20 @@ class _ProfileBand extends StatelessWidget {
   }
 }
 
-BoxDecoration _cardDecoration(BuildContext context, Color color) => BoxDecoration(
-      color: color,
-      borderRadius: BorderRadius.circular(24),
-      border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
-    );
+BoxDecoration _cardDecoration(BuildContext context, Color color) {
+  final dark = Theme.of(context).brightness == Brightness.dark;
+  return BoxDecoration(
+    borderRadius: BorderRadius.circular(24),
+    gradient: LinearGradient(
+      begin: Alignment.topCenter,
+      end: Alignment.bottomCenter,
+      colors: dark
+          ? const [Color(0xFF1F1A33), Color(0xFF141122)]
+          : [Colors.white, color],
+    ),
+    border: Border.all(color: (dark ? Colors.white : Colors.black).withValues(alpha: dark ? 0.08 : 0.06)),
+  );
+}
 
 class _SwipeCard extends StatefulWidget {
   const _SwipeCard({
@@ -590,6 +600,7 @@ class _SwipeCardState extends State<_SwipeCard> with SingleTickerProviderStateMi
                           size: b.biggest.shortestSide,
                           radius: 16,
                           gradientSeed: item.title,
+                          glow: true,
                         ),
                       ),
                     ),
@@ -600,7 +611,7 @@ class _SwipeCardState extends State<_SwipeCard> with SingleTickerProviderStateMi
                     textAlign: TextAlign.center,
                     maxLines: compact ? 1 : 2,
                     overflow: TextOverflow.ellipsis,
-                    style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
+                    style: studioTitle(context, base: theme.textTheme.titleLarge)),
                 Text(item.artistLine,
                     textAlign: TextAlign.center,
                     maxLines: 1,
@@ -752,17 +763,21 @@ class _VoteButtonState extends State<_VoteButton> {
   @override
   Widget build(BuildContext context) {
     final s = widget.style;
-    final text = Theme.of(context).textTheme;
     return Opacity(
       opacity: widget.enabled ? 1 : 0.45,
       child: AnimatedScale(
         scale: _pressed ? 0.95 : 1,
         duration: const Duration(milliseconds: 90),
-        child: Material(
-          color: s.fill,
-          shape: RoundedRectangleBorder(
+        child: Ink(
+          decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(14),
-            side: BorderSide(color: s.border, width: s.borderWidth),
+            border: Border.all(color: s.border, width: s.borderWidth),
+            // Sol üstten gelen ışık: üstte açılmış, altta kendi rengine inen dikey geçiş.
+            gradient: LinearGradient(
+              begin: const Alignment(-0.6, -1),
+              end: const Alignment(0.4, 1),
+              colors: [Color.alphaBlend(Colors.white.withValues(alpha: 0.10), s.fill), s.fill],
+            ),
           ),
           child: InkWell(
             key: ValueKey('vote-${widget.value}'),
@@ -782,15 +797,19 @@ class _VoteButtonState extends State<_VoteButton> {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Text('${widget.value}',
-                          style: text.titleSmall?.copyWith(
-                              color: s.fg, fontWeight: FontWeight.w800, fontFeatures: _tabular)),
+                          style: TextStyle(
+                              fontSize: 15,
+                              color: s.fg,
+                              fontWeight: FontWeight.w700,
+                              fontFeatures: _tabular)),
                       const SizedBox(width: 4),
                       Icon(s.icon, size: 18, color: s.fg),
                     ],
                   ),
                   Text(s.label,
                       maxLines: 1,
-                      style: text.labelSmall?.copyWith(color: s.fg, height: 1.1)),
+                      style: TextStyle(
+                          fontSize: 12, fontWeight: FontWeight.w600, color: s.fg, height: 1.1)),
                 ],
               ),
             ),

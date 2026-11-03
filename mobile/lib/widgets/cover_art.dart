@@ -12,11 +12,15 @@ class CoverArt extends StatelessWidget {
     this.size = 96,
     this.radius = 12,
     this.gradientSeed,
+    this.glow = false,
   });
   final String? url;
   final double size;
   final double radius;
   final String? gradientSeed;
+
+  /// Kapağın altına, kendi renginden türeyen yumuşak renkli gölge ekler.
+  final bool glow;
 
   Decoration? _gradient(BuildContext context) {
     final seed = gradientSeed;
@@ -59,6 +63,18 @@ class CoverArt extends StatelessWidget {
               ),
       ),
     );
-    return ClipRRect(borderRadius: BorderRadius.circular(radius), child: box);
+    final clipped = ClipRRect(borderRadius: BorderRadius.circular(radius), child: box);
+    if (!glow) return clipped;
+    final c = TiniCosmicColors.of(context);
+    final accent = gradientSeed == null ? c.primary : c.votes[gradientSeed.hashCode.abs() % 6 + 1]!.border;
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(radius),
+        boxShadow: [
+          BoxShadow(color: accent.withValues(alpha: 0.25), blurRadius: 24, offset: const Offset(0, 12)),
+        ],
+      ),
+      child: clipped,
+    );
   }
 }
