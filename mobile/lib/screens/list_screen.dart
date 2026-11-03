@@ -4,7 +4,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../api.dart';
 import '../theme/cosmic_colors.dart';
-import '../widgets/cover_art.dart';
+import '../widgets/artist_avatar.dart';
 import '../widgets/studio.dart';
 
 /// Gerekçe cümlesi: en büyük paylı çapalar, yüzdeyle (hesabın kendisinden gelir).
@@ -45,6 +45,18 @@ class _ListScreenState extends State<ListScreen> {
   bool _busy = false;
   bool _exporting = false;
   String? _error;
+  final Map<int, String?> _photos = {};
+
+  /// Önbellekte olmayan sanatçı portrelerini arka planda ister; kartlar geldikçe güncellenir.
+  void _loadPhotos(DiscoveryList l) {
+    final missing = [
+      for (final e in l.items)
+        if (e.artistId != null && e.artistImage == null) e.artistId!,
+    ];
+    loadArtistPhotos(widget.api, missing, (found) {
+      if (mounted) setState(() => _photos.addAll(found));
+    }, alive: () => mounted);
+  }
 
   Future<void> _generate() async {
     setState(() {
@@ -54,6 +66,7 @@ class _ListScreenState extends State<ListScreen> {
     try {
       final l = await widget.api.generateList();
       if (mounted) setState(() => _list = l);
+      _loadPhotos(l);
     } on ApiException catch (e) {
       if (e.status == 401) {
         if (mounted && Navigator.of(context).canPop()) Navigator.of(context).pop();
@@ -240,7 +253,8 @@ class _ListScreenState extends State<ListScreen> {
                       ),
                       const SizedBox(height: 10),
                       Row(children: [
-                        CoverArt(url: null, size: 56, radius: 12, gradientSeed: e.name, glow: true),
+                        ArtistAvatar(
+                            name: e.name, url: _photos[e.artistId] ?? e.artistImage, size: 64),
                         const SizedBox(width: 12),
                         Expanded(
                           child: Column(

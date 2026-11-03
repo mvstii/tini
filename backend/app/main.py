@@ -2,6 +2,7 @@ import logging
 
 from fastapi import FastAPI
 
+from app.artwork import router as artwork_router
 from app.auth import router as auth_router
 from app.connect import router as connect_router
 from app.feedback import router as feedback_router
@@ -32,6 +33,7 @@ app.include_router(auth_router)
 app.include_router(connect_router)
 app.include_router(library_router)
 app.include_router(feedback_router)
+app.include_router(artwork_router)
 
 
 @app.get("/health")

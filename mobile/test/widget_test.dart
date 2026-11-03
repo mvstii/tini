@@ -16,6 +16,7 @@ import 'package:tini/screens/home_screen.dart';
 import 'package:tini/screens/list_screen.dart';
 import 'package:tini/screens/rating_screen.dart';
 import 'package:tini/screens/shell.dart';
+import 'package:tini/widgets/artist_avatar.dart';
 
 class _MemoryStorage extends FlutterSecureStorage {
   final data = <String, String>{};
@@ -374,6 +375,51 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('yeni'), findsOneWidget);
       expect(find.text('Yeni Albüm · album · 2026-10-30'), findsOneWidget);
+    });
+
+    testWidgets('ArtistAvatar shows the initial when there is no photo', (tester) async {
+      await tester.pumpWidget(const MaterialApp(home: Scaffold(body: ArtistAvatar(name: 'gama'))));
+      expect(find.text('G'), findsOneWidget);
+      expect(find.byType(Image), findsNothing);
+    });
+
+    testWidgets('list asks for missing artist photos until none are pending', (tester) async {
+      final calls = <String>[];
+      final json = {
+        'id': 9,
+        'items': [
+          for (final (i, id) in [10, 11].indexed)
+            {
+              'position': i + 1,
+              'name': 'Sanatçı$id',
+              'artist_id': id,
+              'artist_image': null,
+              'title': null,
+              'reasons': [
+                {'seed_id': 1, 'seed_name': 'Seed', 'share': 1.0, 'is_anchor': true},
+              ],
+            }
+        ],
+      };
+      final api = _api((req) async {
+        if (req.url.path == '/lists/generate') {
+          return http.Response.bytes(utf8.encode(jsonEncode(json)), 201);
+        }
+        calls.add(req.url.queryParameters['ids']!);
+        final first = calls.length == 1;
+        return http.Response(
+            jsonEncode({
+              'images': first ? {'10': 'http://img/10.jpg'} : {'11': null},
+              'pending': first ? 1 : 0,
+            }),
+            200);
+      }, _MemoryStorage());
+      await tester.pumpWidget(MaterialApp(home: ListScreen(api: api)));
+      await tester.tap(find.text('Liste üret'));
+      await tester.pumpAndSettle();
+      expect(calls, ['10,11', '11']);
+      // 11'in fotoğrafı yok; 10'unki testte yüklenemez: ikisi de baş harf yer tutucuya düşer.
+      expect(find.text('S'), findsNWidgets(2));
     });
 
     test('reasonText orders by share and marks anchors', () {

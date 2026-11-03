@@ -70,6 +70,18 @@ class Artist(Base):
     name_norm: Mapped[str | None] = mapped_column(String(256), index=True)
 
 
+class ArtistImage(Base):
+    """Paylaşılan: sanatçı portresinin URL'si (dosya saklanmaz). url boşsa "bulunamadı" kaydıdır."""
+
+    __tablename__ = "artist_image"
+
+    artist_id: Mapped[int] = mapped_column(ForeignKey("artist.id"), primary_key=True)
+    url: Mapped[str | None] = mapped_column(Text)
+    source: Mapped[str] = mapped_column(String(32))
+    fetched_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=_now)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+
+
 class ArtistMember(Base):
     """Paylaşılan: işbirliği düğümü ("A & B") ile üyeleri; app.catalog.collab ile türetilir."""
 

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../api.dart';
+import '../widgets/artist_avatar.dart';
 import '../widgets/studio.dart';
 import 'list_screen.dart' show reasonText;
 
@@ -19,6 +20,17 @@ class _FreshScreenState extends State<FreshScreen> {
   DiscoveryList? _fresh;
   bool _busy = false;
   String? _error;
+  final Map<int, String?> _photos = {};
+
+  void _loadPhotos(DiscoveryList l) {
+    final missing = [
+      for (final e in l.items)
+        if (e.artistId != null && e.artistImage == null) e.artistId!,
+    ];
+    loadArtistPhotos(widget.api, missing, (found) {
+      if (mounted) setState(() => _photos.addAll(found));
+    }, alive: () => mounted);
+  }
 
   @override
   void initState() {
@@ -67,7 +79,10 @@ class _FreshScreenState extends State<FreshScreen> {
             busy: _busy,
             onPressed: _busy
                 ? null
-                : () => _run(() async => _fresh = await widget.api.generateFresh()),
+                : () => _run(() async {
+                      _fresh = await widget.api.generateFresh();
+                      _loadPhotos(_fresh!);
+                    }),
           ),
           const SizedBox(height: 14),
           if (_error != null)
@@ -96,15 +111,26 @@ class _FreshScreenState extends State<FreshScreen> {
                   padding: const EdgeInsets.only(bottom: 8),
                   child: StudioSurface(
                     padding: const EdgeInsets.all(14),
-                    child: Column(
+                    child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('${e.position}. ${e.release?.title ?? e.name}',
-                            style: studioTitle(context)),
-                        const SizedBox(height: 2),
-                        Text('${e.name} · ${e.release?.type ?? ''} · ${e.release?.released ?? ''}'),
-                        const SizedBox(height: 6),
-                        Text(reasonText(e), style: Theme.of(context).textTheme.bodySmall),
+                        ArtistAvatar(
+                            name: e.name, url: _photos[e.artistId] ?? e.artistImage, size: 56),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('${e.position}. ${e.release?.title ?? e.name}',
+                                  style: studioTitle(context)),
+                              const SizedBox(height: 2),
+                              Text(
+                                  '${e.name} · ${e.release?.type ?? ''} · ${e.release?.released ?? ''}'),
+                              const SizedBox(height: 6),
+                              Text(reasonText(e), style: Theme.of(context).textTheme.bodySmall),
+                            ],
+                          ),
+                        ),
                       ],
                     ),
                   ),

@@ -86,8 +86,13 @@ class DailySong {
 }
 
 class ListEntry {
-  ListEntry(this.position, this.name, this.title, this.reasons, {this.release});
+  ListEntry(this.position, this.name, this.title, this.reasons,
+      {this.release, this.artistId, this.artistImage});
   final int position;
+
+  /// Sanatçı kimliği ve (varsa) önbellekteki portre URL'si; fotoğraf sonradan doldurulabilir.
+  final int? artistId;
+  final String? artistImage;
   final String name;
   final String? title;
   final List<Reason> reasons;
@@ -250,6 +255,17 @@ class Api {
     );
   }
 
+  /// Sanatçı portreleri (sunucu eksikleri doldurur). `pending` > 0 ise tekrar sorulmalı.
+  Future<({Map<int, String?> images, int pending})> artistImages(List<int> ids) async {
+    if (ids.isEmpty) return (images: <int, String?>{}, pending: 0);
+    final body = await _send('GET', '/artists/images?ids=${ids.join(',')}');
+    final raw = (body['images'] as Map).cast<String, dynamic>();
+    return (
+      images: {for (final e in raw.entries) int.parse(e.key): e.value as String?},
+      pending: body['pending'] as int,
+    );
+  }
+
   Future<DiscoveryList> generateList() => _generate('/lists/generate');
 
   /// Haftalık Taze liste: takip edilen sanatçıların yeni yayınları (albüm düzeyi).
@@ -277,6 +293,8 @@ class Api {
                     .map((r) => Reason(r['seed_id'] as int, (r['seed_name'] as String?) ?? '?',
                         (r['share'] as num).toDouble(), r['is_anchor'] as bool))
                     .toList(),
+                artistId: e['artist_id'] as int?,
+                artistImage: e['artist_image'] as String?,
                 release: e['release'] == null
                     ? null
                     : ReleaseInfo(e['release']['title'] as String, e['release']['type'] as String,
@@ -316,6 +334,8 @@ class Api {
             .map((r) => Reason(r['seed_id'] as int, (r['seed_name'] as String?) ?? '?',
                 (r['share'] as num).toDouble(), r['is_anchor'] as bool))
             .toList(),
+        artistId: body['artist_id'] as int?,
+        artistImage: body['artist_image'] as String?,
       ),
       artists: (body['artists'] as List?)?.cast<String>() ?? const <String>[],
       image: body['image'] as String?,
