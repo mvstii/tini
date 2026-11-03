@@ -5,12 +5,64 @@ import 'screens/login_screen.dart';
 import 'screens/shell.dart';
 import 'theme/cosmic_colors.dart';
 import 'theme/transitions.dart';
+import 'widgets/brand.dart';
+import 'widgets/studio.dart';
 
-void main() async {
+void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  final api = Api();
-  await api.restore();
-  runApp(TiniApp(api: api, themeMode: await api.loadTheme()));
+  runApp(const TiniBoot());
+}
+
+/// Açılış: oturum ve tema okunurken marka ekranı gösterilir (en az kısa bir an), sonra
+/// uygulamaya yumuşakça geçilir.
+class TiniBoot extends StatefulWidget {
+  const TiniBoot({super.key});
+
+  @override
+  State<TiniBoot> createState() => _TiniBootState();
+}
+
+class _TiniBootState extends State<TiniBoot> {
+  late final Future<TiniApp> _app = _load();
+
+  Future<TiniApp> _load() async {
+    final api = Api();
+    final results = await Future.wait([
+      () async {
+        await api.restore();
+        return await api.loadTheme();
+      }(),
+      Future<void>.delayed(const Duration(milliseconds: 900)),
+    ]);
+    return TiniApp(api: api, themeMode: results[0] as ThemeMode);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<TiniApp>(
+      future: _app,
+      builder: (context, snap) => AnimatedSwitcher(
+        duration: const Duration(milliseconds: 400),
+        child: snap.data ??
+            MaterialApp(
+              key: const ValueKey('splash'),
+              debugShowCheckedModeBanner: false,
+              theme: ThemeData(
+                colorSchemeSeed: Colors.deepPurple,
+                useMaterial3: true,
+                extensions: [TiniCosmicColors.light],
+              ),
+              darkTheme: ThemeData(
+                colorSchemeSeed: Colors.deepPurple,
+                brightness: Brightness.dark,
+                useMaterial3: true,
+                extensions: [TiniCosmicColors.dark],
+              ),
+              home: const Scaffold(body: AmbientBackground(child: SplashScreen())),
+            ),
+      ),
+    );
+  }
 }
 
 class TiniApp extends StatefulWidget {
