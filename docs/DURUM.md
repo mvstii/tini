@@ -196,4 +196,6 @@ S1-7 (3 Kasım 2026): Öneriler sekmesindeki başlık durum çubuğuyla çakış
 
 S1-8 (3 Kasım 2026): Oylama kuyruğunda aynı şarkının sürümleri (remaster, mono, deluxe, explicit vb.) tek sayılır. `queue-4`: `profile/queue.py` içindeki saf `song_key` (normalize başlık + birincil sanatçı; sürüm eki atılır, canlı/remix/akustik ayrı şarkı) ve `pick_versions` (oylanmış sürümü olan şarkı elenir, kalanlardan havuzdaki yoksa en düşük kimlikli bırakılır). Süzme kuyruk sorgusunda yapılır; oylar ve katalog değişmez. Sözcük listesi `ProfileSettings.queue_version_markers`. Göç yok. `stale` sayısı değişmedi (kopyalar stale sayılmaz). Backend 271 test geçiyor, ruff temiz.
 
+S1-9 (3 Kasım 2026): `queue-5`. `song_key` artık `feat.`/`ft.`/`featuring` eklerini ("Şarkı (feat. X)", "Şarkı - feat. X") ve uzun tireli sürüm eklerini (– —) da tek sayar. Sözcük listesi `ProfileSettings.queue_version_markers`; göç yok. "Dinlemedim · Geç" ile geçilen parça, Unheard durum makinesi gereği en çok 3 kez daha sunulabilir (tasarım gereği tekrar).
+
 O1 sonrası (3 Kasım 2026): Ana listede Taze yuvası için PPR artık ikinci kez çalışmıyor. `ppr.propagate` (eski `_propagate`) herkese açık; `compute_candidates` sonucu `Scored.prop` ile taşır, `score_candidates`/`explain`/`fresh_ranked` isteğe bağlı `prop` alır. Sonuçlar aynı (testli), `list-3` değişmedi. Backend 272 test geçiyor, ruff temiz.
