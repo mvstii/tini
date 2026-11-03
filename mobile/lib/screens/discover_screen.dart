@@ -94,6 +94,7 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
   }
 
   Future<void> _loadReleases() async {
+    if (_releaseError != null) setState(() => _releaseError = null);
     try {
       final r = await widget.api.newReleases();
       if (mounted) setState(() => _releases = r);
@@ -224,9 +225,13 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
             if (_releases == null && _releaseError == null)
               const Padding(padding: EdgeInsets.all(24), child: Center(child: CircularProgressIndicator()))
             else if (_releaseError != null)
-              Padding(padding: const EdgeInsets.all(12), child: Text(_releaseError!))
+              Padding(
+                  padding: const EdgeInsets.only(top: 6),
+                  child: StateNote.error(_releaseError!, onRetry: _loadReleases))
             else if (_releases!.isEmpty)
-              const Padding(padding: EdgeInsets.all(12), child: Text('Henüz yeni yayın yok.'))
+              const Padding(
+                  padding: EdgeInsets.only(top: 6),
+                  child: StateNote.empty('Henüz yeni yayın yok.', icon: Icons.album_outlined))
             else
               AnimatedSwitcher(
                 duration: const Duration(milliseconds: 320),
@@ -426,7 +431,9 @@ class _QuickVote extends StatelessWidget {
     return Semantics(
       button: true,
       label: '$vote · ${style.label}',
-      child: Material(
+      child: Hoverable(
+        scale: 1.06,
+        child: Material(
         color: Colors.transparent,
         child: Ink(
           height: 44,
@@ -444,6 +451,7 @@ class _QuickVote extends StatelessWidget {
             ),
           ),
         ),
+      ),
       ),
     );
   }

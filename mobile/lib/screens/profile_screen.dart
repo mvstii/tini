@@ -182,7 +182,7 @@ class ProfileScreen extends StatelessWidget {
                 const SectionLabel('SON OYLANANLAR'),
                 const SizedBox(height: 8),
                 if (state.recent.isEmpty)
-                  const Padding(padding: EdgeInsets.all(12), child: Text('Henüz oy yok.')),
+                  const StateNote.empty('Henüz oy yok.', icon: Icons.how_to_vote_outlined),
                 for (final h in state.recent)
                   Padding(
                     padding: const EdgeInsets.only(bottom: 6),

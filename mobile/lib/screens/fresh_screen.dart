@@ -88,16 +88,7 @@ class _FreshScreenState extends State<FreshScreen> {
           if (_error != null)
             Padding(
               padding: const EdgeInsets.only(bottom: 12),
-              child: StudioSurface(
-                padding: const EdgeInsets.all(12),
-                child: Row(children: [
-                  Icon(Icons.error_outline_rounded, color: Theme.of(context).colorScheme.error),
-                  const SizedBox(width: 10),
-                  Expanded(
-                      child: Text(_error!,
-                          style: TextStyle(color: Theme.of(context).colorScheme.error))),
-                ]),
-              ),
+              child: StateNote.error(_error!),
             ),
           if (_busy && fresh == null && feed != null)
             for (var i = 0; i < 3; i++)
@@ -139,7 +130,7 @@ class _FreshScreenState extends State<FreshScreen> {
           const SizedBox(height: 8),
           Text('Takip ettiklerin', style: Theme.of(context).textTheme.titleMedium),
           if (feed != null && feed.isEmpty)
-            const Padding(padding: EdgeInsets.all(12), child: Text('Henüz yeni yayın yok.')),
+            const StateNote.empty('Henüz yeni yayın yok.', icon: Icons.album_outlined),
           if (feed != null)
             for (final r in feed)
               ListTile(

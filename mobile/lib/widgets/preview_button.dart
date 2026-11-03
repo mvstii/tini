@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../api.dart';
 import '../preview_player.dart';
 import '../theme/cosmic_colors.dart';
+import 'studio.dart';
 
 /// 30 sn'lik önizleme düğmesi: çal / durdur, yüklenirken döner, bulunamazsa soluk görünür.
 class PreviewButton extends StatelessWidget {
@@ -33,7 +34,10 @@ class PreviewButton extends StatelessWidget {
         final unavailable = st == PreviewStatus.unavailable;
         return Tooltip(
           message: unavailable ? 'Önizleme bulunamadı' : '30 sn önizleme',
-          child: Material(
+          child: Hoverable(
+            enabled: !unavailable,
+            scale: 1.1,
+            child: Material(
             color: c.primary.withValues(alpha: st == PreviewStatus.playing ? 0.28 : 0.14),
             shape: const CircleBorder(),
             child: InkWell(
@@ -69,6 +73,7 @@ class PreviewButton extends StatelessWidget {
                 ),
               ),
             ),
+          ),
           ),
         );
       },

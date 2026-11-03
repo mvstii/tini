@@ -699,7 +699,9 @@ class _SkipPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Opacity(
+    return Hoverable(
+      enabled: enabled,
+      child: Opacity(
       opacity: enabled ? 1 : 0.45,
       child: Material(
         color: style.fill,
@@ -731,6 +733,7 @@ class _SkipPill extends StatelessWidget {
             ),
           ),
         ),
+      ),
       ),
     );
   }
@@ -787,6 +790,7 @@ class _VoteButton extends StatefulWidget {
 
 class _VoteButtonState extends State<_VoteButton> {
   bool _pressed = false;
+  bool _hover = false;
 
   @override
   Widget build(BuildContext context) {
@@ -794,7 +798,7 @@ class _VoteButtonState extends State<_VoteButton> {
     return Opacity(
       opacity: widget.enabled ? 1 : 0.45,
       child: AnimatedScale(
-        scale: _pressed ? 0.95 : 1,
+        scale: _pressed ? 0.95 : (_hover && widget.enabled ? 1.05 : 1),
         duration: const Duration(milliseconds: 90),
         child: Ink(
           decoration: BoxDecoration(
@@ -811,6 +815,7 @@ class _VoteButtonState extends State<_VoteButton> {
             key: ValueKey('vote-${widget.value}'),
             customBorder: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
             onHighlightChanged: (v) => setState(() => _pressed = v),
+            onHover: (v) => setState(() => _hover = v),
             onTap: widget.enabled
                 ? () {
                     HapticFeedback.selectionClick();
