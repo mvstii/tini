@@ -187,3 +187,5 @@ S1-2 sınırlamaları (gerekçe: karar 7, uydurma veri yok): tür etiketi, eşle
 S1-3 sınırlamaları: Keşfet'te sahte "%96 Uyum", tür etiketi ve uydurma gerekçe yok. `/releases/new` albüm düzeyinde (kapak/tür/parça yok), bu yüzden yeni çıkanlara oy yok. "Oylama Kuyruğuna Ekle" yapılmadı (yeni tablo gerekir; `docs/ONERI_KESFET_BACKEND.md`, ayrı karar).
 
 S1-4 (onaylı, 3 Kasım 2026): `/recommend/daily` yanıtına `track` eklendi; `POST /votes` kütüphane dışı olsa da kullanıcının kendi oluşturulmuş listesindeki parçayı kabul eder (başkasının listesi 404). Keşfet kahraman kartında 1–6 hızlı oy. Backend 246 test, Flutter 33 test geçiyor. Üretim yığınına (`tini-prod`) yansıması için backend imajı yeniden kurulmalı.
+
+S1-7 (3 Kasım 2026): Öneriler sekmesindeki başlık durum çubuğuyla çakışıyordu, üst boşluk güvenli alana göre ayarlandı. Yazı tipi Plus Jakarta Sans (OFL, `mobile/assets/fonts`, pakete gömülü). Oylama kartına 30 sn önizleme düğmesi eklendi (`/preview?track_id=`, ISRC ile; kart değişince susar). `just_audio` `play()` kesit bitene dek dönmediği için düğme hep "yükleniyor" gösteriyordu, düzeltildi. Flutter 38 test geçiyor.

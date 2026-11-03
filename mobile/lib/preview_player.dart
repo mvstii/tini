@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:just_audio/just_audio.dart';
 
@@ -10,15 +12,18 @@ abstract class PreviewBackend {
 
 class JustAudioBackend implements PreviewBackend {
   AudioPlayer? _player;
+  StreamSubscription<ProcessingState>? _sub;
 
   @override
   Future<void> play(String url, VoidCallback onDone) async {
     final p = _player ??= AudioPlayer();
-    p.processingStateStream.listen((s) {
+    await _sub?.cancel();
+    _sub = p.processingStateStream.listen((s) {
       if (s == ProcessingState.completed) onDone();
     });
     await p.setUrl(url);
-    await p.play();
+    // `play()` kesit bitene kadar dönmez; beklenirse durum "çalıyor"a hiç geçmez.
+    unawaited(p.play());
   }
 
   @override

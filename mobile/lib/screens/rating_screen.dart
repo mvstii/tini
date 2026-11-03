@@ -1,10 +1,14 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../api.dart';
 import '../app_state.dart';
+import '../preview_player.dart';
 import '../theme/cosmic_colors.dart';
 import '../widgets/cover_art.dart';
+import '../widgets/preview_button.dart';
 import '../widgets/studio.dart';
 import 'list_screen.dart';
 
@@ -303,6 +307,7 @@ class _RatingScreenState extends State<RatingScreen> {
     }
     return _SwipeCard(
       key: ValueKey(item.track),
+      api: widget.api,
       item: item,
       color: c.card,
       enabled: canVote,
@@ -448,6 +453,7 @@ BoxDecoration _cardDecoration(BuildContext context, Color color) {
 class _SwipeCard extends StatefulWidget {
   const _SwipeCard({
     super.key,
+    required this.api,
     required this.item,
     required this.color,
     required this.enabled,
@@ -456,6 +462,7 @@ class _SwipeCard extends StatefulWidget {
     required this.onVote,
     required this.onSkip,
   });
+  final Api api;
   final QueueItem item;
   final Color color;
   final bool enabled;
@@ -501,6 +508,9 @@ class _SwipeCardState extends State<_SwipeCard> with SingleTickerProviderStateMi
 
   @override
   void dispose() {
+    // Kart gidince (oy, geçiş) bu şarkının önizlemesi de susar; ağaç kilitliyken bildirim atılmaz.
+    final preview = PreviewController.instance;
+    if (preview.key == 'vote-${widget.item.track}') scheduleMicrotask(preview.stop);
     _ctl.dispose();
     _dx.dispose();
     super.dispose();
@@ -620,9 +630,21 @@ class _SwipeCardState extends State<_SwipeCard> with SingleTickerProviderStateMi
                     style: theme.textTheme.bodyMedium
                         ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
                 const SizedBox(height: 8),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: _SkipPill(style: c.skip, enabled: widget.enabled, onTap: widget.onSkip),
+                Row(
+                  children: [
+                    PreviewButton(
+                        api: widget.api,
+                        previewKey: 'vote-${item.track}',
+                        trackId: item.track),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Align(
+                        alignment: Alignment.centerRight,
+                        child: _SkipPill(
+                            style: c.skip, enabled: widget.enabled, onTap: widget.onSkip),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -694,11 +716,15 @@ class _SkipPill extends StatelessWidget {
                 children: [
                   Icon(style.icon, size: 20, color: style.fg),
                   const SizedBox(width: 6),
-                  Text(style.label,
-                      style: Theme.of(context)
-                          .textTheme
-                          .labelLarge
-                          ?.copyWith(color: style.fg)),
+                  Flexible(
+                    child: Text(style.label,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context)
+                            .textTheme
+                            .labelLarge
+                            ?.copyWith(color: style.fg)),
+                  ),
                 ],
               ),
             ),
