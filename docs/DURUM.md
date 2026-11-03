@@ -188,4 +188,8 @@ S1-3 sınırlamaları: Keşfet'te sahte "%96 Uyum", tür etiketi ve uydurma gere
 
 S1-4 (onaylı, 3 Kasım 2026): `/recommend/daily` yanıtına `track` eklendi; `POST /votes` kütüphane dışı olsa da kullanıcının kendi oluşturulmuş listesindeki parçayı kabul eder (başkasının listesi 404). Keşfet kahraman kartında 1–6 hızlı oy. Backend 246 test, Flutter 33 test geçiyor. Üretim yığınına (`tini-prod`) yansıması için backend imajı yeniden kurulmalı.
 
+S1-5 (3 Kasım 2026): Oracle Cloud VM dağıtımı hazırlandı (`docker-compose.prod.yml` `caddy` profili, `Caddyfile`, `docs/DAGITIM.md` "Oracle Cloud VM"). Compose yapılandırması doğrulandı; VM henüz açılmadı, veri taşınmadı (geliştirici adımı).
+
+S1-6 (3 Kasım 2026): Barındırma Render (ücretsiz, Docker) + Neon (PG16, pgvector) üzerine taşındı: `https://tini-74he.onrender.com/health` 200. Veri Neon'a taşındı (3 hesap, 132 oy, alembic 0016). 127 çıkış hatası Docker Command alanındaki `sh -c` yüzünden çıktı; alan boşaltıldı. APK yeni `API_BASE` ile derlendi (54 MB). Oracle VM yolu kart reddi nedeniyle kullanılmadı. Telefonda kurulum ve Spotify dönüşü denemesi geliştiriciden bekleniyor; ardından yerel Docker/ngrok yığını kapatılır. Ayrıntı: `docs/DAGITIM.md`.
+
 S1-7 (3 Kasım 2026): Öneriler sekmesindeki başlık durum çubuğuyla çakışıyordu, üst boşluk güvenli alana göre ayarlandı. Yazı tipi Plus Jakarta Sans (OFL, `mobile/assets/fonts`, pakete gömülü). Oylama kartına 30 sn önizleme düğmesi eklendi (`/preview?track_id=`, ISRC ile; kart değişince susar). `just_audio` `play()` kesit bitene dek dönmediği için düğme hep "yükleniyor" gösteriyordu, düzeltildi. Flutter 38 test geçiyor.
