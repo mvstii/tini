@@ -3,7 +3,8 @@ import pytest
 
 from app.config import GraphSettings, RecommendSettings
 from app.graph.matrix import build_matrix
-from app.recommend.ppr import score_candidates
+from app.recommend import ppr
+from app.recommend.ppr import explain, score_candidates
 
 GCFG = GraphSettings(_env_file=None)
 CFG = RecommendSettings(_env_file=None)
@@ -110,3 +111,19 @@ def test_deterministic_regardless_of_seed_order():
 def test_top_n_limit():
     cfg = RecommendSettings(_env_file=None, candidate_top_n=1)
     assert len(score_candidates(graph(EDGES), profile([(1, 0.7)]), set(), cfg)) == 1
+
+
+def test_explain_without_artists_skips_propagation(monkeypatch):
+    def boom(*a, **k):
+        raise AssertionError("boş kümede PPR çalışmamalı")
+
+    monkeypatch.setattr(ppr, "_propagate", boom)
+    assert explain(graph(EDGES), profile([(1, 0.7)]), set(), CFG) == {}
+
+
+def test_explain_matches_score_candidates_for_same_artist():
+    gm, prof = graph(EDGES), profile([(1, 0.7)])
+    cand = by_id(score_candidates(gm, prof, set(), CFG))[10]
+    score, reasons = explain(gm, prof, {10}, CFG)[10]
+    assert score == pytest.approx(cand.score)
+    assert [r.seed_id for r in reasons] == [r.seed_id for r in cand.reasons]
