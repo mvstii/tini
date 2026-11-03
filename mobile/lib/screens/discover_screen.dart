@@ -245,7 +245,7 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
     final dark = theme.brightness == Brightness.dark;
     final fill = dark
         ? const [Color(0xFF3E1F5E), Color(0xFF2A143D)]
-        : const [Color(0xFFE6DAFA), Color(0xFFD3C0F3)];
+        : const [Color(0xFFF1EAFF), Color(0xFFE2D6FA)];
     final edge = dark
         ? (const Color(0xFFE8C98A).withValues(alpha: 0.45), const Color(0xFFB9A4E8).withValues(alpha: 0.18))
         : (const Color(0xFFB08A3E).withValues(alpha: 0.4), const Color(0xFF8E73D0).withValues(alpha: 0.18));

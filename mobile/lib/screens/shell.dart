@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../api.dart';
 import '../app_state.dart';
 import '../theme/cosmic_colors.dart';
+import '../theme/transitions.dart';
 import '../widgets/studio.dart';
 import 'discover_screen.dart';
 import 'profile_screen.dart';
@@ -55,10 +56,11 @@ class _AppShellState extends State<AppShell> {
     final c = TiniCosmicColors.of(context);
     final content = Stack(
       children: [
-        IndexedStack(
-          index: _tab,
+        Stack(
+          fit: StackFit.expand,
           children: [
-            DiscoverScreen(
+            for (final (i, w) in [
+              DiscoverScreen(
               api: widget.api,
               state: _state,
               onLogout: widget.onLogout,
@@ -86,6 +88,8 @@ class _AppShellState extends State<AppShell> {
               themeMode: widget.themeMode,
               onThemeChanged: widget.onThemeChanged,
             ),
+            ].indexed)
+              TabPane(active: _tab == i, child: w),
           ],
         ),
         Positioned(
@@ -143,10 +147,22 @@ class PillNav extends StatelessWidget {
     return Container(
       height: _navHeight,
       decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.92),
+        color: theme.brightness == Brightness.dark
+            ? theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.92)
+            : Colors.white.withValues(alpha: 0.96),
         borderRadius: BorderRadius.circular(28),
-        border: Border.all(color: theme.colorScheme.outlineVariant),
-        boxShadow: const [BoxShadow(color: Color(0x33000000), blurRadius: 12, offset: Offset(0, 4))],
+        border: Border.all(
+            color: theme.brightness == Brightness.dark
+                ? theme.colorScheme.outlineVariant
+                : c.primary.withValues(alpha: 0.14)),
+        boxShadow: [
+          BoxShadow(
+              color: theme.brightness == Brightness.dark
+                  ? const Color(0x33000000)
+                  : const Color(0xFF4A3A8C).withValues(alpha: 0.16),
+              blurRadius: 20,
+              offset: const Offset(0, 6)),
+        ],
       ),
       child: Stack(
         children: [

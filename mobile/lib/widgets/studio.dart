@@ -79,14 +79,24 @@ class StudioSurface extends StatelessWidget {
     final fillColors = fill ??
         (dark
             ? const [Color(0xFF1F1A33), Color(0xFF141122)]
-            : const [Color(0xFFFFFFFF), Color(0xFFF0ECF9)]);
+            : const [Color(0xFFFFFFFF), Color(0xFFFAF8FF)]);
     final (hi, lo) = edge ??
         (dark
             ? (Colors.white.withValues(alpha: 0.12), Colors.white.withValues(alpha: 0.04))
-            : (Colors.black.withValues(alpha: 0.08), Colors.black.withValues(alpha: 0.03)));
+            : (const Color(0xFF6750A4).withValues(alpha: 0.16),
+                const Color(0xFF6750A4).withValues(alpha: 0.05)));
     return DecoratedBox(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(radius),
+        // Açık temada kart gölgeyle zeminden ayrılır; koyuda ışık kenarı yeterli.
+        boxShadow: dark
+            ? null
+            : [
+                BoxShadow(
+                    color: const Color(0xFF4A3A8C).withValues(alpha: 0.10),
+                    blurRadius: 22,
+                    offset: const Offset(0, 8)),
+              ],
         gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [hi, lo]),
       ),
       child: Padding(

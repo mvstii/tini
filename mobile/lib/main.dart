@@ -4,6 +4,7 @@ import 'api.dart';
 import 'screens/login_screen.dart';
 import 'screens/shell.dart';
 import 'theme/cosmic_colors.dart';
+import 'theme/transitions.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -39,6 +40,7 @@ class _TiniAppState extends State<TiniApp> {
         brightness: b,
         useMaterial3: true,
         scaffoldBackgroundColor: c.scaffold,
+        pageTransitionsTheme: tiniPageTransitions,
         extensions: [c],
       );
     }

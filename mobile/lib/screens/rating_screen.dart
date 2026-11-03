@@ -397,8 +397,8 @@ class _ProfileBand extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = TiniCosmicColors.of(context);
     return Container(
-      height: 40,
-      padding: const EdgeInsets.only(left: 12, right: 4),
+      height: 52,
+      padding: const EdgeInsets.only(left: 12, right: 6),
       decoration: BoxDecoration(
         color: c.card,
         borderRadius: BorderRadius.circular(12),
@@ -414,14 +414,15 @@ class _ProfileBand extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
                 style: Theme.of(context).textTheme.labelLarge),
           ),
-          FilledButton.tonal(
-            onPressed: busy ? null : onBuild,
-            style: FilledButton.styleFrom(
-              minimumSize: const Size(0, 32),
-              padding: const EdgeInsets.symmetric(horizontal: 14),
-              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          SizedBox(
+            width: 168,
+            child: StudioButton(
+              dense: true,
+              icon: built ? Icons.sync_rounded : Icons.auto_awesome_rounded,
+              label: built ? 'Profili Güncelle' : 'Profili Kur',
+              busy: busy,
+              onPressed: busy ? null : onBuild,
             ),
-            child: Text(built ? 'Profili Güncelle' : 'Profili Kur'),
           ),
         ],
       ),
