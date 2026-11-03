@@ -97,6 +97,24 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
     }
   }
 
+  int? _dailyVote;
+
+  Future<void> _voteDaily(DailySong d, int vote) async {
+    final track = d.track;
+    if (track == null) return;
+    try {
+      await widget.api.castVote(track, vote);
+      widget.state.recordVote(
+          QueueItem(track, d.entry.title ?? d.entry.name, d.artists, d.image), vote);
+      if (mounted) setState(() => _dailyVote = vote);
+    } on ApiException catch (e) {
+      if (e.status == 401) return widget.onLogout();
+      if (mounted) setState(() => _message = e.message);
+    } catch (_) {
+      if (mounted) setState(() => _message = 'Sunucuya ulaşılamadı');
+    }
+  }
+
   Future<void> _openDaily(DailySong d) async {
     try {
       await widget.launch(await widget.api.openUrl(d.listId, d.entry.position));
@@ -309,6 +327,31 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
             ),
           ],
         ),
+        if (d.track != null) ...[
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              for (var v = 1; v <= 6; v++) ...[
+                if (v > 1) const SizedBox(width: 6),
+                Expanded(
+                  child: _QuickVote(
+                    key: ValueKey('daily-vote-$v'),
+                    vote: v,
+                    style: c.votes[v]!,
+                    selected: _dailyVote == v,
+                    onTap: () => _voteDaily(d, v),
+                  ),
+                ),
+              ],
+            ],
+          ),
+          if (_dailyVote != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: Text('Oyun kaydedildi: $_dailyVote · ${c.votes[_dailyVote]!.label}',
+                  style: theme.textTheme.labelSmall),
+            ),
+        ],
         const SizedBox(height: 14),
         Row(
           children: [
@@ -332,6 +375,43 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
           ],
         ),
       ],
+    );
+  }
+}
+
+/// Günün şarkısı için küçük 1–6 oy düğmesi (oylama ekranındaki renklerle).
+class _QuickVote extends StatelessWidget {
+  const _QuickVote(
+      {super.key, required this.vote, required this.style, required this.selected, required this.onTap});
+  final int vote;
+  final VoteStyle style;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      label: '$vote · ${style.label}',
+      child: Material(
+        color: Colors.transparent,
+        child: Ink(
+          height: 44,
+          decoration: BoxDecoration(
+            color: selected ? style.border.withValues(alpha: 0.35) : style.fill,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: style.border, width: selected ? 2 : style.borderWidth),
+          ),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(12),
+            onTap: onTap,
+            child: Center(
+              child: Text('$vote',
+                  style: TextStyle(color: style.fg, fontWeight: FontWeight.w800, fontSize: 15)),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

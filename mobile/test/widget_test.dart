@@ -610,6 +610,7 @@ void main() {
     final dailyJson = {
       'list_id': 7,
       'position': 3,
+      'track': 11,
       'name': 'Sanatçı',
       'title': 'Şarkı Adı',
       'artists': ['Sanatçı'],
@@ -618,6 +619,7 @@ void main() {
         {'seed_id': 1, 'seed_name': 'Seed', 'share': 0.6, 'is_anchor': true},
       ],
     };
+    final castVotes = <Map>[];
     final feedJson = {
       'total': 3,
       'items': [
@@ -640,6 +642,10 @@ void main() {
         }
         if (req.url.path == '/lists/7/items/3/open') {
           return http.Response(jsonEncode({'kind': 'track', 'url': 'spotify:track:T1'}), 200);
+        }
+        if (req.method == 'POST' && req.url.path == '/votes') {
+          castVotes.add(jsonDecode(req.body) as Map);
+          return http.Response('{}', 201);
         }
         return http.Response('{"total":0,"items":[]}', 200);
       }, _MemoryStorage()..data['session'] = 'T');
@@ -676,6 +682,13 @@ void main() {
       expect(find.text('Bugünkü Frekansın'), findsOneWidget);
       expect(find.text('Şarkı Adı'), findsOneWidget);
       expect(find.textContaining('★ Seed %60'), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('daily-vote-5')));
+      await tester.pumpAndSettle();
+      expect(castVotes, [
+        {'track': 11, 'vote': 5}
+      ]);
+      expect(s.votes[11], 5);
+      expect(find.text('Oyun kaydedildi: 5 · Harika'), findsOneWidget);
       await tester.tap(find.byKey(const ValueKey('daily-open')));
       await tester.pumpAndSettle();
       expect(opened, ['spotify:track:T1']);
@@ -707,7 +720,7 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const ValueKey('level-badge')));
       expect(profile, 1);
-      await tester.ensureVisible(find.byKey(const ValueKey('shuffle')));
+      await tester.scrollUntilVisible(find.byKey(const ValueKey('shuffle')), 200);
       await tester.tap(find.byKey(const ValueKey('shuffle')));
       await tester.pumpAndSettle();
       for (final n in [1, 2, 3]) {

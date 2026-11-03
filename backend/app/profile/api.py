@@ -17,6 +17,8 @@ from app.config import (
 )
 from app.deps import current_user, get_db
 from app.models import (
+    GeneratedList,
+    ListItem,
     TasteProfile,
     Track,
     UnheardEvent,
@@ -63,7 +65,15 @@ def cast_vote(
         .limit(1)
     )
     if owned is None:
-        raise HTTPException(404, "Parça kütüphanede yok")
+        # Kütüphane dışı ama kullanıcıya üretilmiş bir listedeki öneri de oylanabilir.
+        owned = db.scalar(
+            select(ListItem.list_id)
+            .join(GeneratedList, GeneratedList.id == ListItem.list_id)
+            .where(GeneratedList.user_id == user.id, ListItem.track_id == body.track)
+            .limit(1)
+        )
+    if owned is None:
+        raise HTTPException(404, "Parça kütüphanede ya da listelerinde yok")
     ev = VoteEvent(user_id=user.id, track_id=body.track, vote=body.vote)
     db.add(ev)
     db.commit()

@@ -74,8 +74,12 @@ class ExportResult {
 }
 
 class DailySong {
-  DailySong({required this.listId, required this.entry, required this.artists, this.image});
+  DailySong(
+      {required this.listId, required this.entry, required this.artists, this.image, this.track});
   final int listId;
+
+  /// Parça kimliği; yalnızca parçası çözülmüş öğelerde var (yoksa oy verilemez).
+  final int? track;
   final ListEntry entry;
   final List<String> artists;
   final String? image;
@@ -303,6 +307,7 @@ class Api {
     }
     return DailySong(
       listId: body['list_id'] as int,
+      track: body['track'] as int?,
       entry: ListEntry(
         body['position'] as int,
         (body['name'] as String?) ?? '?',

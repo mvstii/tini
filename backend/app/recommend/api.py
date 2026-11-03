@@ -199,6 +199,7 @@ def daily(
         "date": day.isoformat(),
         "list_id": lst.id,
         "position": item.position,
+        "track": item.track_id,
         "name": names.get(item.artist_id),
         "title": None,
         "artists": None,

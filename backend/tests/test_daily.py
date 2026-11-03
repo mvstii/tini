@@ -76,6 +76,42 @@ def test_daily_card_comes_from_service_and_survives_errors(client, db, monkeypat
     assert body["title"] is None and body["name"] in {"DBA", "DBB"}
 
 
+def test_daily_returns_track_and_it_can_be_voted_outside_library(client, db):
+    from sqlalchemy import select
+
+    from app.models import ListItem, Track
+
+    h, seed, c1, c2 = setup_user(client, db, "d4@example.com", "DD")
+    lst = client.post("/lists/generate", headers=h).json()
+    t = Track(isrc="ZZDD00000077", artist_id=c1.id)  # kütüphanede değil
+    db.add(t)
+    db.flush()
+    for it in db.scalars(select(ListItem).where(ListItem.list_id == lst["id"])):
+        it.track_id = t.id
+    db.flush()
+    body = client.get("/recommend/daily", headers=h).json()
+    assert body["track"] == t.id
+    r = client.post("/votes", json={"track": body["track"], "vote": 5}, headers=h)
+    assert r.status_code == 201
+
+
+def test_vote_on_other_users_list_track_is_rejected(client, db):
+    from sqlalchemy import select
+
+    from app.models import ListItem, Track
+
+    h1, seed, c1, c2 = setup_user(client, db, "d5@example.com", "DE")
+    lst = client.post("/lists/generate", headers=h1).json()
+    t = Track(isrc="ZZDE00000077", artist_id=c1.id)
+    db.add(t)
+    db.flush()
+    for it in db.scalars(select(ListItem).where(ListItem.list_id == lst["id"])):
+        it.track_id = t.id
+    db.flush()
+    h2 = register(client, "d6@example.com")
+    assert client.post("/votes", json={"track": t.id, "vote": 5}, headers=h2).status_code == 404
+
+
 def test_daily_skips_voted_tracks(client, db):
     h, seed, c1, c2 = setup_user(client, db, "d3@example.com", "DC")
     t1 = library_track(db, "d3@example.com", "ZZDC00000099", c1)

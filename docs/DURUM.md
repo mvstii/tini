@@ -179,4 +179,6 @@ S5b notu: Ana listede "Yeni" yuvası bandit dışı sabit paydır (`round(list_s
 
 S1-2 sınırlamaları (gerekçe: karar 7, uydurma veri yok): tür etiketi, eşleşme yüzdesi, filtre çipi ve öneri kartında hızlı oy yok; "Dinlemedim" sayacı oturuma özel; dağılım son 200 oydan; günün şarkısı kartı artık Keşfet'te (ana ekran Profil → Bağlantılar ve ayarlar altında); geri al sunucu toplamını değiştirmez.
 
-S1-3 sınırlamaları: Keşfet'te sahte "%96 Uyum", tür etiketi ve uydurma gerekçe yok. Günün şarkısı yanıtında parça kimliği yok ve `/releases/new` albüm düzeyinde (kapak/tür/parça yok); bu yüzden Keşfet'ten 1–6 hızlı oy ve "Oylama Kuyruğuna Ekle" yapılamıyor. Gerekirse backend değişikliği (günün şarkısına `track` kimliği, kuyruğa ekleme uç noktası) ayrıca onaya sunulacak.
+S1-3 sınırlamaları: Keşfet'te sahte "%96 Uyum", tür etiketi ve uydurma gerekçe yok. `/releases/new` albüm düzeyinde (kapak/tür/parça yok), bu yüzden yeni çıkanlara oy yok. "Oylama Kuyruğuna Ekle" yapılmadı (yeni tablo gerekir; `docs/ONERI_KESFET_BACKEND.md`, ayrı karar).
+
+S1-4 (onaylı, 3 Kasım 2026): `/recommend/daily` yanıtına `track` eklendi; `POST /votes` kütüphane dışı olsa da kullanıcının kendi oluşturulmuş listesindeki parçayı kabul eder (başkasının listesi 404). Keşfet kahraman kartında 1–6 hızlı oy. Backend 246 test, Flutter 33 test geçiyor. Üretim yığınına (`tini-prod`) yansıması için backend imajı yeniden kurulmalı.
