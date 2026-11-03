@@ -11,6 +11,8 @@ class Settings(BaseSettings):
 
     database_url: str = "postgresql+psycopg://tini:tini@localhost:5432/tini"
     session_ttl_days: int = 30
+    # "prod" iken /docs ve /openapi.json kapalıdır (.env: APP_ENV).
+    app_env: str = "dev"
     # Fernet anahtarı (servis kimlik bilgilerini şifreler); .env'den gelir.
     credential_key: str = ""
     spotify_client_id: str = ""
@@ -32,6 +34,18 @@ class Settings(BaseSettings):
     def _empty_means_default(cls, v, info):
         """Şablondan gelen boş satırlar varsayılanı ezmesin."""
         return cls.model_fields[info.field_name].default if v == "" else v
+
+
+class AuthSettings(BaseSettings):
+    """Giriş/kayıt hız sınırı eşikleri; ortamdan AUTH_ önekiyle ezilir."""
+
+    model_config = SettingsConfigDict(env_file=".env", env_prefix="AUTH_", extra="ignore")
+
+    login_email_limit: int = 5
+    login_ip_limit: int = 20
+    login_window_seconds: int = 900
+    register_ip_limit: int = 10
+    register_window_seconds: int = 3600
 
 
 class GraphSettings(BaseSettings):

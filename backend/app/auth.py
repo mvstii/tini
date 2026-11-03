@@ -1,6 +1,6 @@
 from datetime import UTC, datetime, timedelta
 
-from fastapi import APIRouter, Depends, Header, HTTPException
+from fastapi import APIRouter, Depends, Header, HTTPException, Request
 from pydantic import BaseModel, EmailStr, Field
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
@@ -8,7 +8,14 @@ from sqlalchemy.orm import Session
 from app.config import get_settings
 from app.deps import current_user, get_db
 from app.models import User, UserSession
-from app.security import hash_password, hash_token, new_session_token, verify_password
+from app.ratelimit import AuthLimits, client_ip, get_auth_limits, too_many
+from app.security import (
+    burn_verify,
+    hash_password,
+    hash_token,
+    new_session_token,
+    verify_password,
+)
 
 router = APIRouter()
 
@@ -37,7 +44,17 @@ def _issue(db: Session, user: User) -> SessionOut:
 
 
 @router.post("/auth/register", status_code=201)
-def register(body: Credentials, db: Session = Depends(get_db)) -> SessionOut:
+def register(
+    body: Credentials,
+    request: Request,
+    db: Session = Depends(get_db),
+    limits: AuthLimits = Depends(get_auth_limits),
+) -> SessionOut:
+    ip = client_ip(request)
+    wait = limits.register_ip.retry_after(ip)
+    if wait is not None:
+        raise too_many(wait)
+    limits.register_ip.hit(ip)
     email = body.email.lower()
     if db.scalar(select(User).where(User.email == email)):
         raise HTTPException(409, "Bu e-posta zaten kayıtlı")
@@ -48,10 +65,25 @@ def register(body: Credentials, db: Session = Depends(get_db)) -> SessionOut:
 
 
 @router.post("/auth/login")
-def login(body: Credentials, db: Session = Depends(get_db)) -> SessionOut:
-    user = db.scalar(select(User).where(User.email == body.email.lower()))
+def login(
+    body: Credentials,
+    request: Request,
+    db: Session = Depends(get_db),
+    limits: AuthLimits = Depends(get_auth_limits),
+) -> SessionOut:
+    ip = client_ip(request)
+    email = body.email.lower()
+    waits = [limits.login_email.retry_after(email), limits.login_ip.retry_after(ip)]
+    if any(w is not None for w in waits):
+        raise too_many(max(w for w in waits if w is not None))
+    user = db.scalar(select(User).where(User.email == email))
+    if user is None:
+        burn_verify(body.password)
     if user is None or not verify_password(user.password_hash, body.password):
+        limits.login_email.hit(email)
+        limits.login_ip.hit(ip)
         raise HTTPException(401, "E-posta veya parola hatalı")
+    limits.login_email.reset(email)
     return _issue(db, user)
 
 

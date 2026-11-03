@@ -4,6 +4,7 @@ from fastapi import FastAPI
 
 from app.artwork import router as artwork_router
 from app.auth import router as auth_router
+from app.config import get_settings
 from app.connect import router as connect_router
 from app.feedback import router as feedback_router
 from app.graph.api import router as graph_router
@@ -22,7 +23,14 @@ if not logging.getLogger("tini.request").handlers:
     _h.setFormatter(logging.Formatter("%(asctime)s %(message)s"))
     logging.getLogger("tini.request").addHandler(_h)
 
-app = FastAPI(title="Tını")
+def docs_urls(app_env: str) -> dict[str, str | None]:
+    """Canlıda (prod) API şeması ve etkileşimli dokümanlar kapalıdır."""
+    if app_env == "prod":
+        return {"docs_url": None, "redoc_url": None, "openapi_url": None}
+    return {"docs_url": "/docs", "redoc_url": "/redoc", "openapi_url": "/openapi.json"}
+
+
+app = FastAPI(title="Tını", **docs_urls(get_settings().app_env))
 install_request_log(app)
 app.include_router(votes_router)
 app.include_router(profile_router)

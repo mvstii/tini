@@ -20,6 +20,14 @@ def verify_password(password_hash: str, password: str) -> bool:
         return False
 
 
+_DUMMY_HASH = _ph.hash("tini-dummy-password")
+
+
+def burn_verify(password: str) -> None:
+    """Kullanıcı yokken de aynı Argon2 maliyetini öde; yanıt süresi e-postayı ele vermesin."""
+    verify_password(_DUMMY_HASH, password)
+
+
 def new_session_token() -> tuple[str, str]:
     """(istemciye verilen değer, veritabanında saklanan özet)."""
     token = secrets.token_urlsafe(32)
