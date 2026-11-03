@@ -116,7 +116,8 @@ class ReleaseInfo {
 }
 
 class NewTrack {
-  NewTrack(this.deezerId, this.title, this.artist, this.release, this.released);
+  NewTrack(this.deezerId, this.title, this.artist, this.release, this.released, {this.cover});
+  final String? cover;
   final int deezerId;
   final String title;
   final String artist;
@@ -125,7 +126,8 @@ class NewTrack {
 }
 
 class NewRelease {
-  NewRelease(this.title, this.type, this.released, this.artist, this.follow);
+  NewRelease(this.title, this.type, this.released, this.artist, this.follow, {this.cover});
+  final String? cover;
   final String title;
   final String type;
   final String released;
@@ -308,7 +310,8 @@ class Api {
     final body = await _send('GET', '/releases/new');
     return (body['items'] as List)
         .map((e) => NewRelease(e['title'] as String, e['type'] as String,
-            e['released'] as String, (e['artist'] as String?) ?? '?', e['follow'] as String))
+            e['released'] as String, (e['artist'] as String?) ?? '?', e['follow'] as String,
+            cover: e['cover'] as String?))
         .toList();
   }
 
@@ -317,7 +320,8 @@ class Api {
     final body = await _send('GET', '/releases/new-tracks');
     return (body['items'] as List)
         .map((e) => NewTrack(e['deezer_id'] as int, e['title'] as String,
-            (e['artist'] as String?) ?? '?', e['release'] as String, e['released'] as String))
+            (e['artist'] as String?) ?? '?', e['release'] as String, e['released'] as String,
+            cover: e['cover'] as String?))
         .toList();
   }
 

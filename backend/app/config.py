@@ -179,7 +179,8 @@ class ReleasesSettings(BaseSettings):
     new_tracks_days: int = 7  # "Bu hafta çıkanlar" penceresi
     new_tracks_max_releases: int = 12  # tek istekte parça listesi çözülecek en çok yayın
     tracks_cache_hours: int = 6  # yayın parça listesi bellek önbelleği (kalıcı saklanmaz)
-    auto_detect: bool = True  # sunucu içinde periyodik yayın tespiti (Render'da ayrı cron yok)
+    cover_base_url: str = "https://coverartarchive.org"  # kapak URL'si üretimi (saklanmaz)
+    auto_detect: bool = True # sunucu içinde periyodik yayın tespiti (Render'da ayrı cron yok)
     auto_detect_hours: int = 12  # tespit turları arası süre
     auto_detect_delay_seconds: int = 60  # açılıştan ilk tura kadar bekleme
 

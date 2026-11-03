@@ -467,7 +467,7 @@ class _ReleaseCard extends StatelessWidget {
           children: [
             Stack(
               children: [
-                CoverArt(url: null, size: 124, radius: 12, gradientSeed: release.title, glow: true),
+                CoverArt(url: release.cover, size: 124, radius: 12, gradientSeed: release.title, glow: true),
                 Positioned(
                   left: 6,
                   top: 6,
@@ -515,7 +515,7 @@ class _TrackRow extends StatelessWidget {
         padding: const EdgeInsets.fromLTRB(8, 8, 4, 8),
         child: Row(
           children: [
-            CoverArt(url: null, size: 48, radius: 10, gradientSeed: track.release, glow: true),
+            CoverArt(url: track.cover, size: 48, radius: 10, gradientSeed: track.release, glow: true),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
@@ -556,7 +556,7 @@ class _ReleaseRow extends StatelessWidget {
         padding: const EdgeInsets.all(8),
         child: Row(
           children: [
-            CoverArt(url: null, size: 48, radius: 10, gradientSeed: release.title, glow: true),
+            CoverArt(url: release.cover, size: 48, radius: 10, gradientSeed: release.title, glow: true),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
