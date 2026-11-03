@@ -36,6 +36,28 @@ Api _api(MockClientHandler handler, _MemoryStorage storage) =>
     Api(client: MockClient(handler), storage: storage);
 
 void main() {
+  test('deleteAccount sends the password and clears the session only on success', () async {
+    final storage = _MemoryStorage()..data['session'] = 'T1';
+    Map? sent;
+    var status = 403;
+    final api = _api((req) async {
+      expect(req.method, 'DELETE');
+      expect(req.url.path, '/me');
+      sent = jsonDecode(req.body) as Map;
+      return http.Response(status == 204 ? '' : jsonEncode({'detail': 'wrong password'}), status);
+    }, storage);
+    await api.restore();
+
+    await expectLater(api.deleteAccount('yanlis'), throwsA(isA<ApiException>()));
+    expect(sent, {'password': 'yanlis'});
+    expect(api.loggedIn, isTrue, reason: '403 oturumu düşürmemeli');
+
+    status = 204;
+    await api.deleteAccount('dogru');
+    expect(api.loggedIn, isFalse);
+    expect(storage.data, isEmpty);
+  });
+
   test('login stores the session and sends it as Bearer', () async {
     final storage = _MemoryStorage();
     String? auth;

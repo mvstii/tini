@@ -95,3 +95,24 @@ def test_value_encryption_roundtrip():
     key = Fernet.generate_key().decode()
     blob = encrypt_value(key, "gizli-deger")
     assert blob != b"gizli-deger" and decrypt_value(key, blob) == "gizli-deger"
+
+
+def test_delete_me_requires_correct_password(client):
+    h = _register(client, "del-me@example.com")
+    r = client.request("DELETE", "/me", headers=h, json={"password": "yanlis-parola-9"})
+    assert r.status_code == 403  # 401 olsaydı istemci oturumu geçersiz sayıp çıkış yapardı
+    assert client.get("/me", headers=h).status_code == 200
+
+
+def test_delete_me_removes_account_and_sessions(client):
+    h = _register(client, "del-me2@example.com")
+    r = client.request("DELETE", "/me", headers=h, json={"password": PW})
+    assert r.status_code == 204
+    assert client.get("/me", headers=h).status_code == 401
+    r = client.post("/auth/login", json={"email": "del-me2@example.com", "password": PW})
+    assert r.status_code == 401
+
+
+def test_delete_me_needs_auth(client):
+    r = client.request("DELETE", "/me", json={"password": PW})
+    assert r.status_code == 401
