@@ -126,3 +126,189 @@ class SectionLabel extends StatelessWidget {
 TextStyle? studioTitle(BuildContext context, {TextStyle? base}) =>
     (base ?? Theme.of(context).textTheme.titleMedium)
         ?.copyWith(fontWeight: FontWeight.w700, letterSpacing: -0.4);
+
+/// Birincil (gradyan dolgu) ya da ikincil (gradyan çerçeve) eylem düğmesi. Basınca hafifçe küçülür,
+/// [busy] iken etiketi korur ve başına dönen bir gösterge koyar; tekrar basılmasını engeller.
+class StudioButton extends StatefulWidget {
+  const StudioButton({
+    super.key,
+    required this.label,
+    required this.onPressed,
+    this.icon,
+    this.busy = false,
+    this.primary = true,
+    this.dense = false,
+  });
+  final String label;
+  final VoidCallback? onPressed;
+  final IconData? icon;
+  final bool busy;
+  final bool primary;
+  final bool dense;
+
+  @override
+  State<StudioButton> createState() => _StudioButtonState();
+}
+
+class _StudioButtonState extends State<StudioButton> {
+  bool _down = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final enabled = widget.onPressed != null && !widget.busy;
+    final radius = BorderRadius.circular(widget.dense ? 12 : 16);
+    final fg = widget.primary ? Colors.white : scheme.onSurface;
+    final h = widget.dense ? 40.0 : 52.0;
+    final decoration = widget.primary
+        ? BoxDecoration(
+            borderRadius: radius,
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [scheme.primary, Color.lerp(scheme.primary, const Color(0xFFE0479E), 0.55)!],
+            ),
+            boxShadow: enabled
+                ? [
+                    BoxShadow(
+                        color: scheme.primary.withValues(alpha: 0.35),
+                        blurRadius: 16,
+                        offset: const Offset(0, 6))
+                  ]
+                : null,
+          )
+        : BoxDecoration(
+            borderRadius: radius,
+            color: scheme.surfaceContainerHighest.withValues(alpha: 0.35),
+            border: Border.all(color: scheme.outlineVariant),
+          );
+    return Semantics(
+      button: true,
+      enabled: enabled,
+      label: widget.label,
+      child: AnimatedScale(
+        scale: _down && enabled ? 0.97 : 1,
+        duration: const Duration(milliseconds: 90),
+        child: Opacity(
+          opacity: widget.onPressed == null && !widget.busy ? 0.45 : 1,
+          child: Material(
+            color: Colors.transparent,
+            child: Ink(
+              height: h,
+              decoration: decoration,
+              child: InkWell(
+                borderRadius: radius,
+                onTap: enabled ? widget.onPressed : null,
+                onHighlightChanged: (v) => setState(() => _down = v),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 18),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      if (widget.busy)
+                        SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2.2, color: fg),
+                        )
+                      else if (widget.icon != null)
+                        Icon(widget.icon, size: 20, color: fg),
+                      if (widget.busy || widget.icon != null) const SizedBox(width: 8),
+                      Flexible(
+                        child: Text(widget.label,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                                color: fg, fontWeight: FontWeight.w700, letterSpacing: 0.1)),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Yükleme sırasında listenin yerini tutan, nefes alan iskelet kartı.
+class SkeletonCard extends StatefulWidget {
+  const SkeletonCard({super.key, this.height = 84});
+  final double height;
+
+  @override
+  State<SkeletonCard> createState() => _SkeletonCardState();
+}
+
+class _SkeletonCardState extends State<SkeletonCard> with SingleTickerProviderStateMixin {
+  late final AnimationController _c =
+      AnimationController(vsync: this, duration: const Duration(milliseconds: 1100))
+        ..repeat(reverse: true);
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final base = Theme.of(context).colorScheme.onSurface;
+    Widget bar(double w, double h) => Container(
+          width: w,
+          height: h,
+          decoration: BoxDecoration(
+              color: base.withValues(alpha: 0.10), borderRadius: BorderRadius.circular(6)),
+        );
+    return FadeTransition(
+      opacity: Tween(begin: 0.45, end: 1.0).animate(_c),
+      child: StudioSurface(
+        padding: const EdgeInsets.all(14),
+        child: SizedBox(
+          height: widget.height,
+          child: Row(children: [
+            Container(
+              width: 56,
+              height: 56,
+              decoration: BoxDecoration(
+                  color: base.withValues(alpha: 0.10), borderRadius: BorderRadius.circular(12)),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [bar(160, 14), const SizedBox(height: 10), bar(100, 10)],
+              ),
+            ),
+          ]),
+        ),
+      ),
+    );
+  }
+}
+
+/// Çocuğu [index]'e göre gecikmeli olarak yumuşakça yukarı kayarak görünür kılar.
+class StaggerIn extends StatelessWidget {
+  const StaggerIn({super.key, required this.index, required this.child});
+  final int index;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final delay = index.clamp(0, 8) * 45;
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0, end: 1),
+      duration: Duration(milliseconds: 280 + delay),
+      curve: Curves.easeOutCubic,
+      builder: (_, t, c) => Opacity(
+        opacity: t,
+        child: Transform.translate(offset: Offset(0, (1 - t) * 14), child: c),
+      ),
+      child: child,
+    );
+  }
+}

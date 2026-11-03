@@ -356,20 +356,23 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
         Row(
           children: [
             Expanded(
-              child: FilledButton.tonalIcon(
+              child: StudioButton(
                 key: const ValueKey('daily-open'),
+                dense: true,
                 onPressed: () => _openDaily(d),
-                icon: const Icon(Icons.play_arrow_rounded),
-                label: const Text('Dinle'),
+                icon: Icons.play_arrow_rounded,
+                label: 'Dinle',
               ),
             ),
             const SizedBox(width: 8),
             Expanded(
-              child: OutlinedButton.icon(
+              child: StudioButton(
                 key: const ValueKey('daily-rate'),
+                dense: true,
+                primary: false,
                 onPressed: widget.onOpenRating,
-                icon: const Icon(Icons.tune_rounded),
-                label: const Text('Oylama Turuna Geç'),
+                icon: Icons.tune_rounded,
+                label: 'Oylama Turuna Geç',
               ),
             ),
           ],

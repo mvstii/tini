@@ -43,6 +43,7 @@ class ListScreen extends StatefulWidget {
 class _ListScreenState extends State<ListScreen> {
   DiscoveryList? _list;
   bool _busy = false;
+  bool _exporting = false;
   String? _error;
 
   Future<void> _generate() async {
@@ -70,6 +71,7 @@ class _ListScreenState extends State<ListScreen> {
 
   Future<void> _export() async {
     setState(() {
+      _exporting = true;
       _busy = true;
       _error = null;
     });
@@ -92,7 +94,12 @@ class _ListScreenState extends State<ListScreen> {
     } catch (_) {
       if (mounted) setState(() => _error = 'Sunucuya ulaşılamadı');
     } finally {
-      if (mounted) setState(() => _busy = false);
+      if (mounted) {
+        setState(() {
+          _busy = false;
+          _exporting = false;
+        });
+      }
     }
   }
 
@@ -164,26 +171,46 @@ class _ListScreenState extends State<ListScreen> {
               padding: const EdgeInsets.only(bottom: 12),
               child: Text('Sana Özel Tını Eşleşmeleri', style: theme.textTheme.headlineSmall),
             ),
-          FilledButton(
+          StudioButton(
+            icon: list == null ? Icons.auto_awesome_rounded : Icons.refresh_rounded,
+            label: list == null ? 'Liste üret' : 'Yeniden üret',
+            busy: _busy && !_exporting,
             onPressed: _busy ? null : _generate,
-            child: Text(list == null ? 'Liste üret' : 'Yeniden üret'),
           ),
-          if (list != null && list.items.isNotEmpty)
-            OutlinedButton(
+          if (list != null && list.items.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            StudioButton(
+              primary: false,
+              icon: Icons.playlist_add_rounded,
+              label: "Spotify'a kaydet",
+              busy: _exporting,
               onPressed: _busy ? null : _export,
-              child: const Text("Spotify'a kaydet"),
             ),
-          if (_busy) const Padding(padding: EdgeInsets.all(16), child: LinearProgressIndicator()),
+          ],
+          const SizedBox(height: 14),
           if (_error != null)
             Padding(
-              padding: const EdgeInsets.all(12),
-              child: Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
+              padding: const EdgeInsets.only(bottom: 12),
+              child: StudioSurface(
+                padding: const EdgeInsets.all(12),
+                child: Row(children: [
+                  Icon(Icons.error_outline_rounded, color: theme.colorScheme.error),
+                  const SizedBox(width: 10),
+                  Expanded(child: Text(_error!, style: TextStyle(color: theme.colorScheme.error))),
+                ]),
+              ),
             ),
+          if (_busy && !_exporting && list == null)
+            for (var i = 0; i < 4; i++)
+              const Padding(padding: EdgeInsets.only(bottom: 8), child: SkeletonCard(height: 120)),
           if (list != null && list.items.isEmpty)
             const Padding(padding: EdgeInsets.all(12), child: Text('Öneri çıkmadı.')),
           if (list != null)
-            for (final e in list.items)
-              Padding(
+            for (final (i, e) in list.items.indexed)
+              StaggerIn(
+                key: ValueKey('${list.id}-${e.position}'),
+                index: i,
+                child: Padding(
                 padding: const EdgeInsets.only(bottom: 8),
                 child: StudioSurface(
                 child: Padding(
@@ -239,9 +266,15 @@ class _ListScreenState extends State<ListScreen> {
                             onPressed: () => _object(e),
                             child: const Text('Bu gerekçe yanlış'),
                           ),
-                          FilledButton.tonal(
-                            onPressed: () => _open(e),
-                            child: const Text("Spotify'da aç"),
+                          const SizedBox(width: 6),
+                          SizedBox(
+                            width: 150,
+                            child: StudioButton(
+                              dense: true,
+                              icon: Icons.open_in_new_rounded,
+                              label: "Spotify'da aç",
+                              onPressed: () => _open(e),
+                            ),
                           ),
                         ],
                       ),
@@ -249,6 +282,7 @@ class _ListScreenState extends State<ListScreen> {
                   ),
                 ),
                 ),
+              ),
               ),
         ],
       ),
