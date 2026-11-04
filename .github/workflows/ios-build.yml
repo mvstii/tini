@@ -1,0 +1,60 @@
+name: ios-build
+
+on:
+  workflow_dispatch:
+
+jobs:
+  ios-unsigned:
+    runs-on: macos-latest
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: mobile
+    env:
+      # Gercek cihazda emulator adresi (10.0.2.2) calismaz; Render adresi gomulur.
+      API_BASE: https://tini-74he.onrender.com
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: "3.47.9"
+          cache: true
+
+      - name: Bagimliliklari kur
+        run: flutter pub get
+
+      - name: CocoaPods onbellegi
+        uses: actions/cache@v4
+        with:
+          path: |
+            mobile/ios/Pods
+            ~/Library/Caches/CocoaPods
+          key: pods-${{ runner.os }}-${{ hashFiles('mobile/pubspec.lock', 'mobile/ios/Podfile') }}
+          restore-keys: pods-${{ runner.os }}-
+
+      - name: Pod install
+        working-directory: mobile/ios
+        run: pod install --repo-update
+
+      - name: Release derlemesi (imzasiz)
+        run: >
+          flutter build ios --release --no-codesign
+          --dart-define=API_BASE=$API_BASE
+
+      - name: Imzasiz IPA olustur
+        run: |
+          rm -rf Payload app-unsigned.ipa
+          mkdir Payload
+          cp -R build/ios/iphoneos/Runner.app Payload/Runner.app
+          zip -r app-unsigned.ipa Payload
+          ls -lh app-unsigned.ipa
+
+      - name: IPA'yi yukle
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-unsigned-ipa
+          path: mobile/app-unsigned.ipa
+          if-no-files-found: error
+          retention-days: 14
