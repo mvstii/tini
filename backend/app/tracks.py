@@ -23,6 +23,7 @@ later_router = APIRouter(prefix="/later", tags=["later"])
 comments_router = APIRouter(tags=["comments"])
 
 _REFRESH_MAX = 10  # istek başına en çok bu kadar servis çağrısı (429 koruması)
+_EXPORT_MAX = 100  # dışa aktarımda en eski bu kadar parça (find_track başına bir servis çağrısı)
 
 
 def _ttl() -> timedelta:
@@ -190,6 +191,7 @@ def export_later(
         .join(Track, Track.id == ListenLater.track_id)
         .where(ListenLater.user_id == user.id)
         .order_by(ListenLater.created_at)
+        .limit(_EXPORT_MAX)
     ).all()
     ids: list[str] = []
     skipped: list[int] = []
