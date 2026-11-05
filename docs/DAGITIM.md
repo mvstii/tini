@@ -59,7 +59,9 @@ Bilgisayar kapalıyken de erişim için aynı yığın Oracle Always Free VM'ind
 
 Güncelleme: VM'de `git pull`, sonra aynı `--profile caddy up -d --build` komutu. Sistem güncellemesi (`apt upgrade`) senin sorumluluğunda.
 
-## Başlatma / durdurma (bilgisayar + ngrok)
+## Başlatma / durdurma (bilgisayar + ngrok) — eski, kapatıldı
+
+Yerel yığın 5 Kasım 2026'da kapatıldı; yalnızca geri dönüş için duruyor.
 
 ```bash
 docker compose -p tini-prod -f docker-compose.yml -f docker-compose.prod.yml --profile tunnel up -d --build
@@ -115,3 +117,20 @@ flutter build apk --release --dart-define=API_BASE=https://<NGROK_DOMAIN>
 ```
 
 Çıktı: `mobile/build/app/outputs/flutter-apk/app-release.apk` (~49 MB). Testçilere dosya olarak gönder; telefonda "bilinmeyen kaynaklardan yükleme" izni gerekir. Release yapıda düz http kapalıdır (yalnızca debug yapıda açık).
+
+## iOS (imzasız IPA + Sideloadly)
+
+Mac ve ücretli Apple hesabı gerekmez. Ücretsiz Apple ID ile kurulan uygulama **7 gün** geçerlidir; süre dolunca yeniden kurulur.
+
+1. GitHub → Actions → `ios-build` → Run workflow (yalnızca elle tetiklenir; özel depoda macOS dakikası 10 kat sayılır, herkese açık depoda ücretsizdir). Yaklaşık 6 dk sürer.
+2. Biten çalıştırmanın altındaki Artifacts bölümünden `app-unsigned-ipa` indir (14 gün saklanır), zip'ten `app-unsigned.ipa` çıkar.
+3. Windows'ta iTunes ve iCloud'un **web sürümlerini** kur (Microsoft Store sürümleri olmaz), Sideloadly'yi kur.
+4. iPhone'u USB ile bağla, "Güven"e dokun. Sideloadly'de IPA'yı sürükle, Apple ID'ni gir, Start.
+5. iPhone: Ayarlar → Gizlilik ve Güvenlik → Geliştirici Modu (aç, yeniden başlat); Ayarlar → Genel → VPN ve Aygıt Yönetimi → Apple ID profiline güven.
+
+API adresi derleme sırasında `API_BASE` ile gömülür (`https://tini-74he.onrender.com`).
+
+## Son APK'ya ulaşma
+
+- Sürümler: GitHub → Releases (`v0.3.0` ve sonrası), `app-release.apk` indir.
+- Yerel derleme: `cd mobile && flutter build apk --release --dart-define=API_BASE=https://tini-74he.onrender.com` → `mobile/build/app/outputs/flutter-apk/app-release.apk` (ayrıca ABI'ye özel `app-arm64-v8a-release.apk` vb.).
