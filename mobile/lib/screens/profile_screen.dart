@@ -5,6 +5,7 @@ import '../app_state.dart';
 import '../theme/cosmic_colors.dart';
 import '../widgets/studio.dart';
 import 'home_screen.dart';
+import 'tracks_screen.dart' show LaterScreen;
 
 /// Profil sekmesi: seviye özeti, canlı oy dağılımı ve son oylananlar (hepsi [AppState]'ten).
 class ProfileScreen extends StatelessWidget {
@@ -98,6 +99,34 @@ class ProfileScreen extends StatelessWidget {
                         ],
                       ),
                     ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+                const SectionLabel('LİSTELERİM'),
+                const SizedBox(height: 8),
+                StudioSurface(
+                  child: Material(
+                    color: Colors.transparent,
+                    child: Column(
+                      children: [
+                        ListTile(
+                          key: const ValueKey('open-later-list'),
+                          leading: const Icon(Icons.bookmark_border_rounded),
+                          title: const Text('Sonra dinle'),
+                          trailing: const Icon(Icons.chevron_right_rounded),
+                          onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(
+                              builder: (_) => LaterScreen(api: api))),
+                        ),
+                        ListTile(
+                          key: const ValueKey('open-likes-list'),
+                          leading: const Icon(Icons.favorite_border_rounded),
+                          title: const Text('Beğendiklerim'),
+                          trailing: const Icon(Icons.chevron_right_rounded),
+                          onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(
+                              builder: (_) => LaterScreen(api: api, likes: true))),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
                 const SizedBox(height: 16),

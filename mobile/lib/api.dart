@@ -36,7 +36,7 @@ class ImportResult {
 }
 
 class QueueItem {
-  QueueItem(this.track, this.title, this.artists, [this.image]);
+  QueueItem(this.track, this.title, this.artists, [this.image, this.liked = false]);
   final int track;
   final String title;
   final List<String> artists;
@@ -44,16 +44,20 @@ class QueueItem {
   /// Albüm kapağı URL'si (yoksa null); sunucu kullanıcıya özel önbellekten verir.
   final String? image;
 
+  /// Beğeni (kalp) durumu; oy değildir, profili etkilemez. Kart üzerinde yerelde değişir.
+  bool liked;
+
   String get artistLine => artists.join(', ');
 }
 
 /// Arama / "Sonra dinle" satırı; başlık servis önbelleği doluysa gelir.
 class TrackCard {
-  TrackCard(this.track, this.title, this.artists, [this.image]);
+  TrackCard(this.track, this.title, this.artists, [this.image, this.liked = false]);
   final int track;
   final String? title;
   final List<String> artists;
   final String? image;
+  bool liked;
 
   String get artistLine => artists.join(', ');
 }
@@ -250,7 +254,7 @@ class Api {
       (body['items'] as List)
           .map((e) => QueueItem(
               e['track'] as int, e['title'] as String, (e['artists'] as List).cast<String>(),
-              e['image'] as String?))
+              e['image'] as String?, e['liked'] == true))
           .toList(),
     );
   }
@@ -269,6 +273,16 @@ class Api {
     return _cards(body['items'] as List);
   }
 
+  /// Beğeni (kalp): yer imidir, oy değildir.
+  Future<void> addLike(int track) => _send('POST', '/likes', {'track': track});
+
+  Future<void> removeLike(int track) => _send('DELETE', '/likes/$track');
+
+  Future<List<TrackCard>> likesList() async {
+    final body = await _send('GET', '/likes');
+    return _cards(body['items'] as List);
+  }
+
   /// Listeyi kullanıcının servisinde özel çalma listesi olarak yazar.
   Future<({int added, int skipped})> exportLater({String service = 'spotify'}) async {
     final body = await _send('POST', '/later/export/$service');
@@ -283,7 +297,8 @@ class Api {
 
   List<TrackCard> _cards(List items) => items
       .map((e) => TrackCard(e['track'] as int, e['title'] as String?,
-          ((e['artists'] as List?) ?? const []).cast<String>(), e['image'] as String?))
+          ((e['artists'] as List?) ?? const []).cast<String>(), e['image'] as String?,
+          e['liked'] == true))
       .toList();
 
   Future<({TrackCard track, List<TrackComment> items})> comments(int track) async {

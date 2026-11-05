@@ -25,6 +25,7 @@ from app.models import (
     ListItem,
     TasteProfile,
     Track,
+    TrackLike,
     UnheardEvent,
     User,
     UserTrackLink,
@@ -208,6 +209,15 @@ def queue(
             set(fresh) | expired | set(db.scalars(later_ids)), cfg, rcfg, gcfg,
         )
     mark_awaiting(db, user.id, pool & {i["track"] for i in items}, statuses)
+    shown = [i["track"] for i in items]
+    liked = set(
+        db.scalars(
+            select(TrackLike.track_id).where(
+                TrackLike.user_id == user.id, TrackLike.track_id.in_(shown)
+            )
+        )
+    )
+    items = [{**i, "liked": i["track"] in liked} for i in items]
     return {
         "algo_version": cfg.queue_algo_version,
         "remaining": len(fresh),
