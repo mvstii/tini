@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../api.dart';
 import '../app_state.dart';
@@ -17,8 +18,23 @@ export '../app_state.dart' show tourVotes;
 /// Kalan kart sayısı bunun altına düşünce kuyruk arka planda yenilenir.
 const prefetchBelow = 6;
 
-/// Sağa kaydırma "Great" oyudur; sola kaydırma "Unheard" olayı yazar (oy değildir).
-const swipeRightVote = 5;
+/// Sağa kaydırma "Good" oyudur (orta-olumlu, profili besler); sola kaydırma "Unheard" olayı yazar
+/// (oy değildir). Güçlü beğeni için kartın altındaki kademe düğmeleri kullanılır.
+const swipeRightVote = 4;
+
+/// Parça Spotify'da aranır: uygulama kuruluysa uygulamada, değilse web'de açılır.
+Future<void> openInSpotify(String title, String artist) async {
+  final q = Uri.encodeComponent('$title $artist'.trim());
+  try {
+    if (await launchUrl(Uri.parse('spotify:search:$q'), mode: LaunchMode.externalApplication)) {
+      return;
+    }
+  } catch (_) {}
+  try {
+    await launchUrl(Uri.parse('https://open.spotify.com/search/$q'),
+        mode: LaunchMode.externalApplication);
+  } catch (_) {}
+}
 
 /// Sunucudaki (İngilizce) kademe adları; geçmiş ekranı kullanır.
 const voteLabels = <int, String>{
@@ -576,8 +592,8 @@ class _SwipeCardState extends State<_SwipeCard> with SingleTickerProviderStateMi
                       child: _SwipeOverlay(
                         right: dx > 0,
                         strength: ((dx.abs() - 20) / _threshold).clamp(0.0, 1.0),
-                        style: dx > 0 ? c.votes[5]! : c.skip,
-                        label: dx > 0 ? '5 · HARİKA' : 'DİNLEMEDİM · GEÇ',
+                        style: dx > 0 ? c.votes[swipeRightVote]! : c.skip,
+                        label: dx > 0 ? '4 · İYİ' : 'DİNLEMEDİM · GEÇ',
                       ),
                     ),
                   ),
@@ -597,7 +613,7 @@ class _SwipeCardState extends State<_SwipeCard> with SingleTickerProviderStateMi
                         Icon(Icons.chevron_left_rounded, size: 18, color: theme.colorScheme.onSurface),
                         Text('Geç', style: hintStyle),
                         const Spacer(),
-                        Text('Harika', style: hintStyle),
+                        Text('İyi', style: hintStyle),
                         Icon(Icons.chevron_right_rounded, size: 18, color: theme.colorScheme.onSurface),
                       ],
                     ),
@@ -637,7 +653,15 @@ class _SwipeCardState extends State<_SwipeCard> with SingleTickerProviderStateMi
                         api: widget.api,
                         previewKey: 'vote-${item.track}',
                         trackId: item.track),
-                    const SizedBox(width: 8),
+                    const SizedBox(width: 4),
+                    IconButton(
+                      key: const ValueKey('open-spotify'),
+                      tooltip: "Spotify'da aç",
+                      onPressed: () => openInSpotify(item.title, item.artistLine),
+                      icon: Icon(Icons.open_in_new_rounded,
+                          size: 20, color: theme.colorScheme.onSurfaceVariant),
+                    ),
+                    const SizedBox(width: 4),
                     Expanded(
                       child: Align(
                         alignment: Alignment.centerRight,
@@ -670,8 +694,8 @@ class _SwipeOverlay extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Sağ: Macenta (#59184A, "Harika" dolgusu); sol: nötr gri.
-    final base = right ? const Color(0xFF59184A) : style.fill;
+    // Renkler kademenin (sağ: "İyi") kendi stilinden gelir; sol: nötr gri.
+    final base = style.fill;
     return Container(
       decoration: BoxDecoration(
         color: base.withValues(alpha: 0.35 + 0.5 * strength),
@@ -683,7 +707,7 @@ class _SwipeOverlay extends StatelessWidget {
         opacity: 0.4 + 0.6 * strength,
         child: Text(label,
             style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                color: right ? const Color(0xFFFFB0E8) : style.fg,
+                color: style.fg,
                 fontWeight: FontWeight.w800,
                 letterSpacing: 1)),
       ),

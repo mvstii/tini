@@ -300,13 +300,16 @@ class _ListScreenState extends State<ListScreen> {
                               api: widget.api,
                               previewKey: 'list-${list.id}-${e.position}',
                               artistId: e.artistId),
-                        const SizedBox(width: 6),
-                        Chip(
-                          label: Text(e.slot),
-                          visualDensity: VisualDensity.compact,
-                          labelStyle: theme.textTheme.labelSmall,
-                          padding: EdgeInsets.zero,
-                        ),
+                        // Varsayılan "keşif" etiketi gürültüydü; yalnızca yeni yayınlar işaretlenir.
+                        if (e.release != null) ...[
+                          const SizedBox(width: 6),
+                          Chip(
+                            label: Text(e.slot),
+                            visualDensity: VisualDensity.compact,
+                            labelStyle: theme.textTheme.labelSmall,
+                            padding: EdgeInsets.zero,
+                          ),
+                        ],
                       ]),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.end,

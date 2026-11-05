@@ -156,6 +156,14 @@ def test_open_url_falls_back_to_artist_search():
     assert empty.open_url(None, "Drake") == ("search", "spotify:search:Drake")
 
 
+def test_open_url_with_hint_searches_artist_and_title_instead_of_random_track():
+    def handler(req):
+        raise AssertionError("ISRC yok ve ipucu var: sanatçı parçası aranmamalı")
+
+    a = _adapter(handler)
+    assert a.open_url(None, "Drake", "Views") == ("search", "spotify:search:Drake%20Views")
+
+
 def test_find_artist_track_requires_matching_artist_name():
     seen = []
 

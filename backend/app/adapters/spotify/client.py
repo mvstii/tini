@@ -135,11 +135,16 @@ class SpotifyAdapter:
                 break
         return None
 
-    def open_url(self, isrc: str | None, artist_name: str) -> tuple[str, str]:
+    def open_url(
+        self, isrc: str | None, artist_name: str, hint: str | None = None
+    ) -> tuple[str, str]:
         try:
-            tid = (self.find_track(isrc) if isrc else None) or self.find_artist_track(artist_name)
+            tid = self.find_track(isrc) if isrc else None
+            if not tid and not hint:
+                tid = self.find_artist_track(artist_name)
         except httpx.HTTPError:
             tid = None  # servis yanıt vermiyorsa arama bağlantısına düş
         if tid:
             return "track", f"spotify:track:{tid}"
-        return "search", f"spotify:search:{quote(artist_name)}"
+        query = f"{artist_name} {hint}".strip() if hint else artist_name
+        return "search", f"spotify:search:{quote(query)}"

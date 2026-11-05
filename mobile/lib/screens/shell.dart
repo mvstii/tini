@@ -36,13 +36,26 @@ const _navBottom = 12.0;
 /// Sekme içeriğinin menünün altında kalmaması için ayrılan alt boşluk.
 const navInset = _navHeight + _navBottom + 12;
 
-class _AppShellState extends State<AppShell> {
+class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
   late final AppState _state = AppState(widget.api);
   int _tab = 1; // açılışta Oylama; Keşfet solda (0)
   bool _seenRecs = false;
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  /// Uygulama arka plana alınınca (ya da kilit/uygulama değiştirici açılınca) önizleme susar.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state != AppLifecycleState.resumed) PreviewController.instance.stop();
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     PreviewController.instance.stop();
     _state.dispose();
     super.dispose();

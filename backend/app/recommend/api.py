@@ -346,10 +346,20 @@ def item_open(
     adapter = _service_adapter(db, user, service, http)
     name = db.scalar(select(Artist.name).where(Artist.id == item.artist_id)) or ""
     isrc = db.scalar(select(Track.isrc).where(Track.id == item.track_id)) if item.track_id else None
+    # Arama ipucu: albüm öğesinde albüm adı, parça öğesinde (kullanıcı önbelleğindeki) parça adı.
+    hint = None
+    if item.release_id:
+        hint = db.scalar(select(Release.title).where(Release.id == item.release_id))
+    elif item.track_id:
+        hint = db.scalar(
+            select(UserTrackMeta.title).where(
+                UserTrackMeta.user_id == user.id, UserTrackMeta.track_id == item.track_id
+            )
+        )
     try:
-        kind, url = adapter.open_url(isrc, name)
+        kind, url = adapter.open_url(isrc, name, hint)
     except httpx.HTTPError:
-        kind, url = adapter.open_url(None, name)
+        kind, url = adapter.open_url(None, name, hint)
     return {"kind": kind, "url": url}
 
 

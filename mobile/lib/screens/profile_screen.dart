@@ -4,7 +4,6 @@ import '../api.dart';
 import '../app_state.dart';
 import '../theme/cosmic_colors.dart';
 import '../widgets/studio.dart';
-import 'history_screen.dart';
 import 'home_screen.dart';
 
 /// Profil sekmesi: seviye özeti, canlı oy dağılımı ve son oylananlar (hepsi [AppState]'ten).
@@ -198,13 +197,6 @@ class ProfileScreen extends StatelessWidget {
                     ),
                   ),
                   ),
-                const SizedBox(height: 8),
-                OutlinedButton.icon(
-                  onPressed: () => Navigator.of(context).push(MaterialPageRoute<void>(
-                      builder: (_) => HistoryScreen(api: api, onLogout: onLogout))),
-                  icon: const Icon(Icons.history_rounded),
-                  label: const Text('Tüm oy geçmişi'),
-                ),
                 const SizedBox(height: 8),
                 OutlinedButton.icon(
                   onPressed: () => Navigator.of(context).push(MaterialPageRoute<void>(

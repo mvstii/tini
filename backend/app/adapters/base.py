@@ -47,7 +47,12 @@ class MusicServiceAdapter(Protocol):
     def find_card(self, isrc: str | None, artist_name: str) -> TrackCard | None:
         """Başlık, sanatçılar ve kapak (ISRC'den ya da sanatçı aramasından); bulunamazsa None."""
 
-    def open_url(self, isrc: str | None, artist_name: str) -> tuple[str, str]:
+    def open_url(
+        self, isrc: str | None, artist_name: str, hint: str | None = None
+    ) -> tuple[str, str]:
         """Servis uygulamasında açılacak bağlantı: ("track", url) ya da ("search", url) yedeği.
+
+        `hint` (albüm/parça adı) verilirse ve ISRC çözülemezse rastgele bir sanatçı parçası yerine
+        "sanatçı + hint" araması döner.
 
         Hiçbir kimlik saklanmaz; çağıran yalnızca sonucu istemciye iletir."""

@@ -11,7 +11,6 @@ import 'package:tini/screens/discover_screen.dart';
 import 'package:tini/main.dart';
 import 'package:tini/screens/feedback_screen.dart';
 import 'package:tini/screens/fresh_screen.dart';
-import 'package:tini/screens/history_screen.dart';
 import 'package:tini/screens/home_screen.dart';
 import 'package:tini/screens/list_screen.dart';
 import 'package:tini/screens/rating_screen.dart';
@@ -194,7 +193,7 @@ void main() {
       expect(find.text('Başlangıç Turu · 1 / $tourVotes'), findsOneWidget);
     });
 
-    testWidgets('swipe right votes Great, swipe left skips without a vote', (tester) async {
+    testWidgets('swipe right votes Good, swipe left skips without a vote', (tester) async {
       final f = fake();
       await open(tester, f.api);
 
@@ -469,7 +468,7 @@ void main() {
       await tester.tap(find.text('Liste üret'));
       await tester.pumpAndSettle();
       expect(find.text('1. Beta'), findsOneWidget);
-      expect(find.text('keşif'), findsOneWidget);
+      expect(find.text('keşif'), findsNothing); // varsayılan etiket gösterilmez
       expect(find.text('NEDEN SANA?'), findsOneWidget);
       expect(find.textContaining('Seed A', findRichText: true), findsOneWidget);
       expect(find.textContaining('%60', findRichText: true), findsOneWidget);
@@ -552,39 +551,6 @@ void main() {
         find.text("Spotify'a kaydedildi: 3 parça, 2 öğe atlandı (Child Rebel Soldier, Foo)"),
         findsOneWidget,
       );
-    });
-  });
-
-  group('history screen', () {
-    testWidgets('lists current votes and changing one casts a new vote', (tester) async {
-      Object? cast;
-      final api = _api((req) async {
-        if (req.url.path == '/votes/history') {
-          return http.Response.bytes(
-              utf8.encode(jsonEncode({
-                'total': 1,
-                'items': [
-                  {'track': 5, 'vote': 4, 'title': 'Şarkı', 'artists': ['Sanatçı']}
-                ],
-              })),
-              200);
-        }
-        if (req.url.path == '/votes' && req.method == 'POST') {
-          cast = jsonDecode(req.body);
-          return http.Response('{}', 201);
-        }
-        return http.Response('{}', 200);
-      }, _MemoryStorage());
-      await tester.pumpWidget(MaterialApp(home: HistoryScreen(api: api)));
-      await tester.pumpAndSettle();
-      expect(find.text('Şarkı'), findsOneWidget);
-      expect(find.text('4 · Good'), findsOneWidget);
-
-      await tester.tap(find.text('Şarkı'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('6 · Amazing'));
-      await tester.pumpAndSettle();
-      expect(cast, {'track': 5, 'vote': 6});
     });
   });
 
