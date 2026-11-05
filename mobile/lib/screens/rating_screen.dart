@@ -689,7 +689,7 @@ class _SwipeCardState extends State<_SwipeCard> with SingleTickerProviderStateMi
                         Icon(Icons.chevron_left_rounded, size: 18, color: theme.colorScheme.onSurface),
                         Text('Geç', style: hintStyle),
                         const Spacer(),
-                        Text('İyi', style: hintStyle),
+                        Text('Sonra dinle', style: hintStyle),
                         Icon(Icons.chevron_right_rounded, size: 18, color: theme.colorScheme.onSurface),
                       ],
                     ),
@@ -777,7 +777,7 @@ class _SwipeOverlay extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Renkler kademenin (sağ: "İyi") kendi stilinden gelir; sol: nötr gri.
+    // Renkler sağda "İyi" kademesinin stilinden gelir (yalnızca renk; sağ kaydırma oy vermez); sol: nötr gri.
     final base = style.fill;
     return Container(
       decoration: BoxDecoration(
