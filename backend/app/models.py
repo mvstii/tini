@@ -400,6 +400,19 @@ class ListenLater(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=_now)
 
 
+class TrackLike(Base):
+    """Beğenilen parçalar: kullanıcıya özel yer imi, yalnızca katalog kimliği. Oy değildir; profili
+    ve önerileri etkilemez. Hesap silinince tamamen silinir."""
+
+    __tablename__ = "track_like"
+
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("user_account.id", ondelete="CASCADE"), primary_key=True
+    )
+    track_id: Mapped[int] = mapped_column(ForeignKey("track.id"), primary_key=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=_now)
+
+
 class TrackComment(Base):
     """Parça yorumu (test kullanıcıları arasında herkese açık). Yalnızca kullanıcının kendi metni;
     Spotify verisi içermez. Moderasyon (şikayet/engelleme) son fazda eklenecek."""

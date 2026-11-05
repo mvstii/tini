@@ -9,6 +9,7 @@ import '../app_state.dart';
 import '../preview_player.dart';
 import '../theme/cosmic_colors.dart';
 import '../widgets/cover_art.dart';
+import '../widgets/like_button.dart';
 import '../widgets/preview_button.dart';
 import '../widgets/studio.dart';
 import 'list_screen.dart';
@@ -699,12 +700,27 @@ class _SwipeCardState extends State<_SwipeCard> with SingleTickerProviderStateMi
                     child: AspectRatio(
                       aspectRatio: 1,
                       child: LayoutBuilder(
-                        builder: (_, b) => CoverArt(
-                          url: item.image,
-                          size: b.biggest.shortestSide,
-                          radius: 16,
-                          gradientSeed: item.title,
-                          glow: true,
+                        builder: (_, b) => Stack(
+                          children: [
+                            CoverArt(
+                              url: item.image,
+                              size: b.biggest.shortestSide,
+                              radius: 16,
+                              gradientSeed: item.title,
+                              glow: true,
+                            ),
+                            Positioned(
+                              top: 6,
+                              right: 6,
+                              child: LikeButton(
+                                api: widget.api,
+                                track: item.track,
+                                liked: item.liked,
+                                overlay: true,
+                                onChanged: (v) => item.liked = v,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ),

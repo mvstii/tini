@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 
 import '../api.dart';
 import '../theme/cosmic_colors.dart';
+import '../widgets/like_button.dart';
+import '../widgets/preview_button.dart';
 import 'rating_screen.dart' show openInSpotify;
 
 String _msg(Object e) => e is ApiException ? e.message : 'Bağlantı hatası, tekrar dene';
@@ -143,10 +145,14 @@ class _SearchScreenState extends State<SearchScreen> {
   }
 }
 
-/// "Sonra dinle" listesi: yorum sayfasına geç, Spotify'da aç, listeden çıkar, Spotify'a aktar.
+/// "Sonra dinle" ve "Beğendiklerim" listeleri: önizleme, beğeni, tek şarkıyı oylama, yorum
+/// sayfası, Spotify'da aç. Sonra dinle'de oy verilen şarkı listeden çıkar.
 class LaterScreen extends StatefulWidget {
-  const LaterScreen({super.key, required this.api});
+  const LaterScreen({super.key, required this.api, this.likes = false});
   final Api api;
+
+  /// true: "Beğendiklerim" (beğeni geri çekilince satır kalkar); false: "Sonra dinle".
+  final bool likes;
 
   @override
   State<LaterScreen> createState() => _LaterScreenState();
@@ -157,6 +163,8 @@ class _LaterScreenState extends State<LaterScreen> {
   String? _error;
   bool _exporting = false;
 
+  bool get _likes => widget.likes;
+
   @override
   void initState() {
     super.initState();
@@ -165,18 +173,63 @@ class _LaterScreenState extends State<LaterScreen> {
 
   Future<void> _load() async {
     try {
-      final r = await widget.api.laterList();
+      final r = _likes ? await widget.api.likesList() : await widget.api.laterList();
       if (mounted) setState(() => _items = r);
     } catch (e) {
       if (mounted) setState(() => _error = _msg(e));
     }
   }
 
+  void _drop(TrackCard t) =>
+      setState(() => _items = _items!.where((e) => e.track != t.track).toList());
+
   Future<void> _remove(TrackCard t) async {
     final m = ScaffoldMessenger.of(context);
     try {
-      await widget.api.removeLater(t.track);
-      if (mounted) setState(() => _items = _items!.where((e) => e.track != t.track).toList());
+      await (_likes ? widget.api.removeLike(t.track) : widget.api.removeLater(t.track));
+      if (mounted) _drop(t);
+    } catch (e) {
+      m.showSnackBar(SnackBar(content: Text(_msg(e))));
+    }
+  }
+
+  /// Yalnızca bu şarkıyı oylar (yeni bir oy olayı). Sonra dinle'den oylanan şarkı listeden çıkar.
+  Future<void> _vote(TrackCard t) async {
+    final c = TiniCosmicColors.of(context);
+    final picked = await showModalBottomSheet<int>(
+      context: context,
+      isScrollControlled: true,
+      builder: (ctx) => SafeArea(
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                  title: Text(_title(t), maxLines: 1, overflow: TextOverflow.ellipsis),
+                  subtitle: Text(t.artistLine, maxLines: 1, overflow: TextOverflow.ellipsis)),
+              for (var v = 1; v <= 6; v++)
+                ListTile(
+                  key: ValueKey('vote-$v'),
+                  leading: Icon(c.votes[v]!.icon, color: c.votes[v]!.fg),
+                  title: Text('$v · ${c.votes[v]!.label}'),
+                  onTap: () => Navigator.pop(ctx, v),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+    if (picked == null || !mounted) return;
+    final m = ScaffoldMessenger.of(context);
+    try {
+      await widget.api.castVote(t.track, picked);
+      if (!_likes) {
+        try {
+          await widget.api.removeLater(t.track);
+        } catch (_) {} // oy yazıldı; listeden çıkarma başarısızsa şarkı listede kalır
+        if (mounted) _drop(t);
+      }
+      m.showSnackBar(SnackBar(content: Text('Oylandı: ${c.votes[picked]!.label}')));
     } catch (e) {
       m.showSnackBar(SnackBar(content: Text(_msg(e))));
     }
@@ -204,13 +257,14 @@ class _LaterScreenState extends State<LaterScreen> {
     final items = _items;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Sonra dinle'),
+        title: Text(_likes ? 'Beğendiklerim' : 'Sonra dinle'),
         actions: [
-          TextButton.icon(
-            onPressed: _exporting || items == null || items.isEmpty ? null : _export,
-            icon: const Icon(Icons.playlist_add_rounded),
-            label: const Text('Spotify’a aktar'),
-          ),
+          if (!_likes)
+            TextButton.icon(
+              onPressed: _exporting || items == null || items.isEmpty ? null : _export,
+              icon: const Icon(Icons.playlist_add_rounded),
+              label: const Text('Spotify’a aktar'),
+            ),
         ],
       ),
       body: _error != null
@@ -218,11 +272,15 @@ class _LaterScreenState extends State<LaterScreen> {
           : items == null
               ? const Center(child: CircularProgressIndicator())
               : items.isEmpty
-                  ? const Center(
+                  ? Center(
                       child: Padding(
-                        padding: EdgeInsets.all(24),
-                        child: Text('Liste boş. Oylama ekranında bir kartı sağa kaydırınca '
-                            'buraya eklenir.', textAlign: TextAlign.center),
+                        padding: const EdgeInsets.all(24),
+                        child: Text(
+                            _likes
+                                ? 'Henüz beğendiğin şarkı yok. Oylama kartındaki kalbe dokun.'
+                                : 'Liste boş. Oylama ekranında bir kartı sağa kaydırınca '
+                                    'buraya eklenir.',
+                            textAlign: TextAlign.center),
                       ),
                     )
                   : ListView.builder(
@@ -230,21 +288,52 @@ class _LaterScreenState extends State<LaterScreen> {
                       itemBuilder: (_, i) {
                         final t = items[i];
                         return ListTile(
+                          key: ValueKey('row-${t.track}'),
                           leading: _Thumb(t.image),
                           title: Text(_title(t), maxLines: 1, overflow: TextOverflow.ellipsis),
                           subtitle:
                               Text(t.artistLine, maxLines: 1, overflow: TextOverflow.ellipsis),
-                          trailing: PopupMenuButton<String>(
-                            onSelected: (v) => v == 'open'
-                                ? openInSpotify(_title(t), t.artistLine)
-                                : _remove(t),
-                            itemBuilder: (_) => const [
-                              PopupMenuItem(value: 'open', child: Text('Spotify’da aç')),
-                              PopupMenuItem(value: 'remove', child: Text('Listeden çıkar')),
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              PreviewButton(
+                                  api: widget.api,
+                                  previewKey: '${_likes ? 'likes' : 'later'}-${t.track}',
+                                  trackId: t.track),
+                              LikeButton(
+                                api: widget.api,
+                                track: t.track,
+                                liked: t.liked,
+                                onChanged: (v) {
+                                  t.liked = v;
+                                  if (_likes && !v) _drop(t);
+                                },
+                              ),
+                              PopupMenuButton<String>(
+                                onSelected: (v) {
+                                  switch (v) {
+                                    case 'open':
+                                      openInSpotify(_title(t), t.artistLine);
+                                    case 'comments':
+                                      Navigator.of(context).push(MaterialPageRoute<void>(
+                                          builder: (_) =>
+                                              TrackScreen(api: widget.api, card: t)));
+                                    default:
+                                      _remove(t);
+                                  }
+                                },
+                                itemBuilder: (_) => [
+                                  const PopupMenuItem(
+                                      value: 'open', child: Text('Spotify’da aç')),
+                                  const PopupMenuItem(value: 'comments', child: Text('Yorumlar')),
+                                  if (!_likes)
+                                    const PopupMenuItem(
+                                        value: 'remove', child: Text('Listeden çıkar')),
+                                ],
+                              ),
                             ],
                           ),
-                          onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(
-                              builder: (_) => TrackScreen(api: widget.api, card: t))),
+                          onTap: () => _vote(t),
                         );
                       },
                     ),

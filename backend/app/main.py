@@ -19,7 +19,7 @@ from app.recommend.api import router as recommend_router
 from app.releases.api import router as releases_router
 from app.releases.scheduler import lifespan as releases_lifespan
 from app.requestlog import install as install_request_log
-from app.tracks import comments_router, later_router, search_router
+from app.tracks import comments_router, later_router, likes_router, search_router
 
 logging.getLogger("tini.request").setLevel(logging.INFO)
 if not logging.getLogger("tini.request").handlers:
@@ -56,6 +56,7 @@ app.include_router(artwork_router)
 app.include_router(preview_router)
 app.include_router(search_router)
 app.include_router(later_router)
+app.include_router(likes_router)
 app.include_router(comments_router)
 
 

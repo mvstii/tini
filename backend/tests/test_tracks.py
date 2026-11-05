@@ -173,3 +173,39 @@ def test_account_deletion_removes_later_and_comments(client, db):  # noqa: F811
     db.flush()
     assert db.scalar(select(func.count()).select_from(ListenLater)) == 0
     assert db.scalar(select(func.count()).select_from(TrackComment)) == 0
+
+
+# ---- Beğeniler ---------------------------------------------------------------------------------
+
+
+def test_like_add_list_remove_is_idempotent_private_and_not_a_vote(client, db):  # noqa: F811
+    h = register(client, "l1@example.com")
+    t = lib_track(db, "l1@example.com", "ZZL000000001", mk_artist(db, "LA"), "Bir")
+    assert client.post("/likes", json={"track": t.id}, headers=h).status_code == 201
+    assert client.post("/likes", json={"track": t.id}, headers=h).status_code == 201
+    items = client.get("/likes", headers=h).json()["items"]
+    assert [i["track"] for i in items] == [t.id] and items[0]["liked"] is True
+    q = client.get("/votes/queue", headers=h).json()["items"]
+    assert [i["track"] for i in q] == [t.id] and q[0]["liked"] is True  # kuyrukta kalır, oy değil
+    h2 = register(client, "l2@example.com")
+    assert client.get("/likes", headers=h2).json()["items"] == []
+    assert client.delete(f"/likes/{t.id}", headers=h2).status_code == 204
+    assert len(client.get("/likes", headers=h).json()["items"]) == 1
+    assert client.delete(f"/likes/{t.id}", headers=h).status_code == 204
+    assert client.get("/likes", headers=h).json()["items"] == []
+    assert client.get("/votes/queue", headers=h).json()["items"][0]["liked"] is False
+
+
+def test_like_unknown_track_404_and_requires_auth(client, db):  # noqa: F811
+    h = register(client, "l3@example.com")
+    assert client.post("/likes", json={"track": 999999999}, headers=h).status_code == 404
+    assert client.post("/likes", json={"track": 1}).status_code == 401
+
+
+def test_later_list_carries_liked_flag(client, db):  # noqa: F811
+    h = register(client, "l4@example.com")
+    t = lib_track(db, "l4@example.com", "ZZL000000002", mk_artist(db, "LB"), "Iki")
+    client.post("/later", json={"track": t.id}, headers=h)
+    assert client.get("/later", headers=h).json()["items"][0]["liked"] is False
+    client.post("/likes", json={"track": t.id}, headers=h)
+    assert client.get("/later", headers=h).json()["items"][0]["liked"] is True

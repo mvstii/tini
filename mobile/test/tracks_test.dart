@@ -141,4 +141,87 @@ void main() {
     expect(find.textContaining('Sen · 05.11.2026'), findsOneWidget);
     expect(find.byType(PopupMenuButton<String>), findsOneWidget);
   });
+
+  testWidgets('tapping a later row votes only that track and drops it from the list',
+      (tester) async {
+    final calls = <String>[];
+    final api = await _api((r) async {
+      calls.add('${r.method} ${r.url.path}');
+      if (r.method == 'GET' && r.url.path == '/later') {
+        return _json({
+          'items': [
+            {'track': 1, 'title': 'Şarkı Bir', 'artists': ['A'], 'image': null, 'liked': false},
+            {'track': 2, 'title': 'Şarkı İki', 'artists': ['B'], 'image': null, 'liked': false},
+          ]
+        });
+      }
+      if (r.method == 'POST' && r.url.path == '/votes') {
+        expect(jsonDecode(r.body), {'track': 1, 'vote': 5});
+        return _json({}, 201);
+      }
+      return r.method == 'DELETE' ? http.Response('', 204) : _json({});
+    });
+    await tester.pumpWidget(MaterialApp(home: LaterScreen(api: api)));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Şarkı Bir'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('vote-5')));
+    await tester.pumpAndSettle();
+
+    expect(calls, containsAll(['POST /votes', 'DELETE /later/1']));
+    expect(find.text('Şarkı Bir'), findsNothing);
+    expect(find.text('Şarkı İki'), findsOneWidget);
+    expect(find.textContaining('Oylandı'), findsOneWidget);
+  });
+
+  testWidgets('heart toggles a like on and off without voting', (tester) async {
+    final calls = <String>[];
+    final api = await _api((r) async {
+      calls.add('${r.method} ${r.url.path}');
+      if (r.method == 'GET' && r.url.path == '/later') {
+        return _json({
+          'items': [
+            {'track': 7, 'title': 'Kalpli', 'artists': ['A'], 'image': null, 'liked': false},
+          ]
+        });
+      }
+      return r.method == 'DELETE' ? http.Response('', 204) : _json({}, 201);
+    });
+    await tester.pumpWidget(MaterialApp(home: LaterScreen(api: api)));
+    await tester.pumpAndSettle();
+    expect(find.byIcon(Icons.favorite_rounded), findsNothing);
+
+    await tester.tap(find.byKey(const ValueKey('like-7')));
+    await tester.pumpAndSettle();
+    expect(find.byIcon(Icons.favorite_rounded), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('like-7')));
+    await tester.pumpAndSettle();
+    expect(find.byIcon(Icons.favorite_rounded), findsNothing);
+
+    expect(calls, containsAllInOrder(['POST /likes', 'DELETE /likes/7']));
+    expect(calls, isNot(contains('POST /votes')));
+  });
+
+  testWidgets('likes screen lists liked tracks and unliking removes the row', (tester) async {
+    final api = await _api((r) async {
+      if (r.method == 'GET' && r.url.path == '/likes') {
+        return _json({
+          'items': [
+            {'track': 3, 'title': 'Sevilen', 'artists': ['A'], 'image': null, 'liked': true},
+          ]
+        });
+      }
+      return r.method == 'DELETE' ? http.Response('', 204) : _json({});
+    });
+    await tester.pumpWidget(MaterialApp(home: LaterScreen(api: api, likes: true)));
+    await tester.pumpAndSettle();
+    expect(find.text('Beğendiklerim'), findsOneWidget);
+    expect(find.text('Sevilen'), findsOneWidget);
+    expect(find.byIcon(Icons.favorite_rounded), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('like-3')));
+    await tester.pumpAndSettle();
+    expect(find.text('Sevilen'), findsNothing);
+  });
 }

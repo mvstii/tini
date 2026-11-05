@@ -14,12 +14,13 @@ from sqlalchemy.orm import Session
 from app.config import get_settings
 from app.connect import get_http
 from app.deps import current_user, get_db
-from app.models import ListenLater, Track, TrackComment, User, UserTrackMeta
+from app.models import ListenLater, Track, TrackComment, TrackLike, User, UserTrackMeta
 from app.profile.suggest import connected_adapter
 from app.recommend.api import _service_adapter
 
 search_router = APIRouter(tags=["search"])
 later_router = APIRouter(prefix="/later", tags=["later"])
+likes_router = APIRouter(prefix="/likes", tags=["likes"])
 comments_router = APIRouter(tags=["comments"])
 
 _REFRESH_MAX = 10  # istek başına en çok bu kadar servis çağrısı (429 koruması)
@@ -174,7 +175,63 @@ def list_later(
         )
     )
     cards = track_cards(db, user, ids, http)
-    return {"items": [cards[t] for t in ids]}
+    liked = liked_ids(db, user, ids)
+    return {"items": [{**cards[t], "liked": t in liked} for t in ids]}
+
+
+def liked_ids(db: Session, user: User, track_ids: list[int]) -> set[int]:
+    """Verilen parçalardan kullanıcının beğendiklerinin kimlikleri."""
+    if not track_ids:
+        return set()
+    return set(
+        db.scalars(
+            select(TrackLike.track_id).where(
+                TrackLike.user_id == user.id, TrackLike.track_id.in_(track_ids)
+            )
+        )
+    )
+
+
+# ---- Beğeniler (oy değil; profili etkilemez) ----------------------------------------------------
+
+
+@likes_router.post("", status_code=201)
+def add_like(
+    body: LaterIn, user: User = Depends(current_user), db: Session = Depends(get_db)
+) -> dict:
+    _track_or_404(db, body.track)
+    db.execute(
+        insert(TrackLike).values(user_id=user.id, track_id=body.track).on_conflict_do_nothing()
+    )
+    db.commit()
+    return {"track": body.track}
+
+
+@likes_router.delete("/{track_id}", status_code=204)
+def remove_like(
+    track_id: int, user: User = Depends(current_user), db: Session = Depends(get_db)
+) -> None:
+    row = db.get(TrackLike, (user.id, track_id))
+    if row is not None:
+        db.delete(row)
+        db.commit()
+
+
+@likes_router.get("")
+def list_likes(
+    user: User = Depends(current_user),
+    db: Session = Depends(get_db),
+    http: httpx.Client = Depends(get_http),
+) -> dict:
+    ids = list(
+        db.scalars(
+            select(TrackLike.track_id)
+            .where(TrackLike.user_id == user.id)
+            .order_by(TrackLike.created_at.desc(), TrackLike.track_id)
+        )
+    )
+    cards = track_cards(db, user, ids, http)
+    return {"items": [{**cards[t], "liked": True} for t in ids]}
 
 
 @later_router.post("/export/{service}", status_code=201)
