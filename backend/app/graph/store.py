@@ -2,6 +2,7 @@
 
 Yalnızca kaynağın kanonik adı/kimliği ve ham ağırlık yazılır; ham yanıt saklanmaz.
 """
+import hashlib
 import logging
 import uuid
 from collections.abc import Sequence
@@ -23,13 +24,27 @@ SOURCE_REF = "lastfm"
 METHOD_SIMILAR = "lastfm_similar"
 
 
+_REF_MAX = 128  # artist_ref.provider_id sütun uzunluğu
+_NAME_MAX = 256  # artist.name ve name_norm sütun uzunluğu
+
+
+def _name_ref(norm: str) -> str:
+    """`name:<ad>` kimliği; sütuna sığmayan (bozuk/çöp) adlar kesilip özetle birlikte yazılır,
+    böylece tek kötü komşu sanatçının tüm kenar yazımını düşürmez. Kimlik deterministiktir."""
+    pid = f"name:{norm}"
+    if len(pid) <= _REF_MAX:
+        return pid
+    return f"name:{norm[:100]}:{hashlib.sha1(norm.encode()).hexdigest()[:16]}"
+
+
 def neighbor_artist_id(db: Session, mbid: uuid.UUID | None, name: str) -> int:
     """Komşu için paylaşılan satırı bulur/açar; kimlik Last.fm'in kendi kimliğidir (güven 1)."""
     if mbid is not None:
         aid, pid = upsert_artist(db, mbid, name), str(mbid)
     else:
         norm = normalize_name(name)
-        pid = f"name:{norm}"
+        pid = _name_ref(norm)
+        name, norm = name[:_NAME_MAX], norm[:_NAME_MAX]  # artist.name / name_norm: VARCHAR(256)
         aid = db.scalar(
             select(ArtistRef.artist_id).where(
                 ArtistRef.provider == SOURCE_REF, ArtistRef.provider_id == pid
