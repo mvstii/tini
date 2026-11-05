@@ -93,6 +93,7 @@ Kapı: TestFlight ve Play kapalı test kanalında, Spotify'sız kullanıcı uygu
 - [ ] Bağlantısız mod: platformlar arası şarkı bağlantıları
 - [ ] Apple ile giriş, Google ile giriş, hesap ve veri silme
 - [ ] Gizlilik politikası, KVKK metni, mağaza görselleri
+- [ ] Yorumlar için moderasyon (son faz; mağaza UGC şartı): şikâyet et, kullanıcı engelle, kullanım koşulları onayı, silinen hesabın yorumları, oran sınırı. Şu an yorumlar yalnızca test kullanıcıları arasında görünür, moderasyonsuzdur (S1-18)
 - [ ] TestFlight ve Google Play kapalı test yayını
 
 ## Başarı ölçütleri (v1 hedefleri)

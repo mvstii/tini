@@ -47,6 +47,27 @@ class QueueItem {
   String get artistLine => artists.join(', ');
 }
 
+/// Arama / "Sonra dinle" satırı; başlık servis önbelleği doluysa gelir.
+class TrackCard {
+  TrackCard(this.track, this.title, this.artists, [this.image]);
+  final int track;
+  final String? title;
+  final List<String> artists;
+  final String? image;
+
+  String get artistLine => artists.join(', ');
+}
+
+class TrackComment {
+  TrackComment(this.id, this.author, this.body, this.createdAt, this.edited, this.mine);
+  final int id;
+  final String author;
+  final String body;
+  final DateTime createdAt;
+  final bool edited;
+  final bool mine;
+}
+
 class VoteQueue {
   VoteQueue(this.remaining, this.stale, this.items);
   final int remaining;
@@ -238,6 +259,52 @@ class Api {
   Future<void> castVote(int track, int vote) =>
       _send('POST', '/votes', {'track': track, 'vote': vote});
 
+  /// "Sonra dinle" listesine ekler / çıkarır (oy değildir).
+  Future<void> addLater(int track) => _send('POST', '/later', {'track': track});
+
+  Future<void> removeLater(int track) => _send('DELETE', '/later/$track');
+
+  Future<List<TrackCard>> laterList() async {
+    final body = await _send('GET', '/later');
+    return _cards(body['items'] as List);
+  }
+
+  /// Listeyi kullanıcının servisinde özel çalma listesi olarak yazar.
+  Future<({int added, int skipped})> exportLater({String service = 'spotify'}) async {
+    final body = await _send('POST', '/later/export/$service');
+    return (added: body['added'] as int, skipped: (body['skipped'] as List).length);
+  }
+
+  /// Servis aramasından parçalar (en çok 10).
+  Future<List<TrackCard>> searchTracks(String q) async {
+    final body = await _send('GET', '/search?${Uri(queryParameters: {'q': q}).query}');
+    return _cards(body['items'] as List);
+  }
+
+  List<TrackCard> _cards(List items) => items
+      .map((e) => TrackCard(e['track'] as int, e['title'] as String?,
+          ((e['artists'] as List?) ?? const []).cast<String>(), e['image'] as String?))
+      .toList();
+
+  Future<({TrackCard track, List<TrackComment> items})> comments(int track) async {
+    final body = await _send('GET', '/tracks/$track/comments');
+    return (
+      track: _cards([body['track']]).first,
+      items: (body['items'] as List)
+          .map((e) => TrackComment(e['id'] as int, e['author'] as String, e['body'] as String,
+              DateTime.parse(e['created_at'] as String), e['edited_at'] != null,
+              e['mine'] as bool))
+          .toList(),
+    );
+  }
+
+  Future<void> addComment(int track, String body) =>
+      _send('POST', '/tracks/$track/comments', {'body': body});
+
+  Future<void> editComment(int id, String body) => _send('PATCH', '/comments/$id', {'body': body});
+
+  Future<void> deleteComment(int id) => _send('DELETE', '/comments/$id');
+
   /// Sola kaydırma: Unheard olayı yazar (silinmez; 3 sunumda oy gelmezse zayıf negatif olur).
   Future<void> markUnheard(int track) => _send('POST', '/votes/unheard', {'track': track});
 
@@ -298,6 +365,13 @@ class Api {
     ].join('&');
     final body = await _send('GET', '/preview?$q');
     return body['url'] as String?;
+  }
+
+  /// Sanatçı için örnek parça adı (önizleme kaynağından, saklanmaz); bulunamazsa null.
+  Future<String?> previewTitle(int artistId) async {
+    final body = await _send('GET', '/preview?artist_id=$artistId');
+    final t = body['title'] as String?;
+    return (t == null || t.isEmpty) ? null : t;
   }
 
   Future<DiscoveryList> generateList() => _generate('/lists/generate');

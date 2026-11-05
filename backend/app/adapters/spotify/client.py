@@ -4,7 +4,7 @@ from urllib.parse import quote
 
 import httpx
 
-from app.adapters.base import Library, LibraryTrack, TrackCard
+from app.adapters.base import Library, LibraryTrack, SearchTrack, TrackCard
 from app.catalog.names import normalize_name
 
 API = "https://api.spotify.com/v1"
@@ -116,6 +116,25 @@ class SpotifyAdapter:
         return TrackCard(
             item.get("name") or "", names, _cover_url((item.get("album") or {}).get("images"))
         )
+
+    def search_tracks(self, query: str, limit: int = _SEARCH_PAGE) -> list[SearchTrack]:
+        """Serbest metin arama (Development Mode'da en çok 10 sonuç); ISRC'siz kayıtlar atlanır."""
+        body = self._request(
+            "GET", "/search",
+            params={"q": query, "type": "track", "limit": min(limit, _SEARCH_PAGE)},
+        )
+        out: list[SearchTrack] = []
+        seen: set[str] = set()
+        for t in (body.get("tracks") or {}).get("items") or []:
+            isrc = ((t.get("external_ids") or {}).get("isrc") or "").upper()
+            names = tuple(a["name"] for a in t.get("artists") or [] if a.get("name"))
+            if not (isrc and t.get("name") and names) or isrc in seen:
+                continue
+            seen.add(isrc)
+            out.append(SearchTrack(
+                isrc, t["name"], names, _cover_url((t.get("album") or {}).get("images"))
+            ))
+        return out
 
     def _artist_item(self, artist_name: str) -> dict | None:
         if not artist_name:

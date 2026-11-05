@@ -385,3 +385,32 @@ class FollowedArtist(Base):
     artist_id: Mapped[int] = mapped_column(ForeignKey("artist.id"), primary_key=True)
     source: Mapped[str] = mapped_column(String(16))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=_now)
+
+
+class ListenLater(Base):
+    """Sonra dinle listesi: kullanıcıya özel, yalnızca katalog kimliği; oy yazmaz, profili
+    etkilemez. Başlık/kapak gösterimde kullanıcıya özel TTL önbelleğinden gelir."""
+
+    __tablename__ = "listen_later"
+
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("user_account.id", ondelete="CASCADE"), primary_key=True
+    )
+    track_id: Mapped[int] = mapped_column(ForeignKey("track.id"), primary_key=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=_now)
+
+
+class TrackComment(Base):
+    """Parça yorumu (test kullanıcıları arasında herkese açık). Yalnızca kullanıcının kendi metni;
+    Spotify verisi içermez. Moderasyon (şikayet/engelleme) son fazda eklenecek."""
+
+    __tablename__ = "track_comment"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("user_account.id", ondelete="CASCADE"), index=True
+    )
+    track_id: Mapped[int] = mapped_column(ForeignKey("track.id"), index=True)
+    body: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=_now)
+    edited_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

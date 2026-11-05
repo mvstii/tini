@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show PlatformException;
 import 'package:url_launcher/url_launcher.dart';
@@ -93,6 +95,7 @@ class _ListScreenState extends State<ListScreen> {
   bool _exporting = false;
   String? _error;
   final Map<int, String?> _photos = {};
+  final Map<int, String> _titles = {};
 
   /// Önbellekte olmayan sanatçı portrelerini arka planda ister; kartlar geldikçe güncellenir.
   void _loadPhotos(DiscoveryList l) {
@@ -105,6 +108,20 @@ class _ListScreenState extends State<ListScreen> {
     }, alive: () => mounted);
   }
 
+  /// Parça adı gelmeyen sanatçı öğeleri için adı arka planda, sırayla çözer (sunucu hız sınırlı).
+  Future<void> _loadTitles(DiscoveryList l) async {
+    for (final e in l.items) {
+      if (e.title != null || e.release != null || e.artistId == null) continue;
+      try {
+        final t = await widget.api.previewTitle(e.artistId!);
+        if (!mounted) return;
+        if (t != null) setState(() => _titles[e.position] = t);
+      } catch (_) {
+        if (!mounted) return;
+      }
+    }
+  }
+
   Future<void> _generate() async {
     setState(() {
       _busy = true;
@@ -112,8 +129,14 @@ class _ListScreenState extends State<ListScreen> {
     });
     try {
       final l = await widget.api.generateList();
-      if (mounted) setState(() => _list = l);
+      if (mounted) {
+        setState(() {
+          _list = l;
+          _titles.clear();
+        });
+      }
       _loadPhotos(l);
+      unawaited(_loadTitles(l));
     } on ApiException catch (e) {
       if (e.status == 401) {
         if (mounted && Navigator.of(context).canPop()) Navigator.of(context).pop();
@@ -288,7 +311,8 @@ class _ListScreenState extends State<ListScreen> {
                                   style: studioTitle(context),
                                   maxLines: 2,
                                   overflow: TextOverflow.ellipsis),
-                              if (e.title != null) Text(e.title!),
+                              if ((e.title ?? _titles[e.position]) != null)
+                                Text(e.title ?? _titles[e.position]!),
                               if (e.release != null)
                                 Text(
                                     '${e.release!.title} · ${e.release!.type} · ${e.release!.released}'),

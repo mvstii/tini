@@ -22,6 +22,16 @@ class TrackCard:
     image_url: str | None = None
 
 
+@dataclass(frozen=True)
+class SearchTrack:
+    """Arama sonucu; yalnızca ISRC kalıcıdır, başlık/kapak kullanıcıya özel TTL önbelleğine girer"""
+
+    isrc: str
+    title: str
+    artist_names: tuple[str, ...]
+    image_url: str | None = None
+
+
 @dataclass
 class Library:
     tracks: list[LibraryTrack] = field(default_factory=list)
@@ -46,6 +56,9 @@ class MusicServiceAdapter(Protocol):
 
     def find_card(self, isrc: str | None, artist_name: str) -> TrackCard | None:
         """Başlık, sanatçılar ve kapak (ISRC'den ya da sanatçı aramasından); bulunamazsa None."""
+
+    def search_tracks(self, query: str, limit: int = 10) -> list[SearchTrack]:
+        """Serbest metin parça araması; ISRC'siz sonuçlar atlanır."""
 
     def open_url(
         self, isrc: str | None, artist_name: str, hint: str | None = None

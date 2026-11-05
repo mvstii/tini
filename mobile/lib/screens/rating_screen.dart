@@ -12,15 +12,15 @@ import '../widgets/cover_art.dart';
 import '../widgets/preview_button.dart';
 import '../widgets/studio.dart';
 import 'list_screen.dart';
+import 'tracks_screen.dart';
 
 export '../app_state.dart' show tourVotes;
 
 /// Kalan kart sayısı bunun altına düşünce kuyruk arka planda yenilenir.
 const prefetchBelow = 6;
 
-/// Sağa kaydırma "Good" oyudur (orta-olumlu, profili besler); sola kaydırma "Unheard" olayı yazar
-/// (oy değildir). Güçlü beğeni için kartın altındaki kademe düğmeleri kullanılır.
-const swipeRightVote = 4;
+/// Sağa kaydırma parçayı "Sonra dinle" listesine ekler (oy değildir, profili etkilemez); sola
+/// kaydırma "Unheard" olayı yazar. Oy vermek için kartın altındaki kademe düğmeleri kullanılır.
 
 /// Parça Spotify'da aranır: uygulama kuruluysa uygulamada, değilse web'de açılır.
 Future<void> openInSpotify(String title, String artist) async {
@@ -76,9 +76,10 @@ class RatingScreen extends StatefulWidget {
 /// Geri alınabilir tek adım. Oy olayı silinmez; geri alınan kart yeniden gösterilir ve
 /// verilecek yeni oy, yeni bir olay olarak öncekinin yerini alır.
 class _Step {
-  _Step(this.item, this.vote);
+  _Step(this.item, this.vote, {this.later = false});
   final QueueItem item;
-  final int? vote; // null: Unheard
+  final int? vote; // null: Unheard (later değilse)
+  final bool later; // "Sonra dinle" listesine eklendi
 }
 
 class _RatingScreenState extends State<RatingScreen> {
@@ -211,9 +212,41 @@ class _RatingScreenState extends State<RatingScreen> {
     }
   }
 
+  /// Sağa kaydırma: parça "Sonra dinle" listesine girer, kuyruktan çıkar.
+  Future<void> _later() async {
+    final item = _current;
+    if (item == null || _busy || _state.forced != UiState.normal) return;
+    setState(() {
+      _busy = true;
+      _error = null;
+      _cards.removeAt(0);
+    });
+    var saved = false;
+    await _guard(() async {
+      await widget.api.addLater(item.track);
+      _skipped.add(item.track);
+      saved = true;
+      _history.add(_Step(item, null, later: true));
+    });
+    if (mounted) {
+      setState(() {
+        if (!saved) _cards.insert(0, item);
+        _busy = false;
+      });
+      if (saved) {
+        ScaffoldMessenger.of(context)
+          ..clearSnackBars()
+          ..showSnackBar(const SnackBar(
+              content: Text('Sonra dinle listesine eklendi'), duration: Duration(seconds: 2)));
+        if (_cards.length < prefetchBelow) _topUp();
+      }
+    }
+  }
+
   void _undo() {
     if (_history.isEmpty || _busy) return;
     final step = _history.removeLast();
+    if (step.later) unawaited(widget.api.removeLater(step.item.track).catchError((_) {}));
     setState(() {
       _skipped.remove(step.item.track);
       _voted.remove(step.item.track);
@@ -254,7 +287,15 @@ class _RatingScreenState extends State<RatingScreen> {
           padding: EdgeInsets.fromLTRB(16, 0, 16, widget.bottomInset + 8),
           child: Column(
             children: [
-              _TopBar(state: _state, canUndo: _history.isNotEmpty && !_busy, onUndo: _undo),
+              _TopBar(
+                state: _state,
+                canUndo: _history.isNotEmpty && !_busy,
+                onUndo: _undo,
+                onSearch: () => Navigator.of(context).push(MaterialPageRoute<void>(
+                    builder: (_) => SearchScreen(api: widget.api))),
+                onLater: () => Navigator.of(context).push(MaterialPageRoute<void>(
+                    builder: (_) => LaterScreen(api: widget.api))),
+              ),
               AnimatedSize(
                 duration: const Duration(milliseconds: 220),
                 curve: Curves.easeOutCubic,
@@ -330,17 +371,25 @@ class _RatingScreenState extends State<RatingScreen> {
       enabled: canVote,
       peek: _peekPending,
       onPeeked: () => _peekPending = false,
-      onVote: _answer,
+      onLater: _later,
       onSkip: () => _answer(null),
     );
   }
 }
 
 class _TopBar extends StatelessWidget {
-  const _TopBar({required this.state, required this.canUndo, required this.onUndo});
+  const _TopBar({
+    required this.state,
+    required this.canUndo,
+    required this.onUndo,
+    required this.onSearch,
+    required this.onLater,
+  });
   final AppState state;
   final bool canUndo;
   final VoidCallback onUndo;
+  final VoidCallback onSearch;
+  final VoidCallback onLater;
 
   @override
   Widget build(BuildContext context) {
@@ -395,9 +444,32 @@ class _TopBar extends StatelessWidget {
             ),
           ),
           SizedBox(
-            width: 48,
+            width: 40,
             height: 48,
             child: IconButton(
+              key: const ValueKey('open-search'),
+              padding: EdgeInsets.zero,
+              onPressed: onSearch,
+              icon: const Icon(Icons.search_rounded),
+              tooltip: 'Şarkı ara',
+            ),
+          ),
+          SizedBox(
+            width: 40,
+            height: 48,
+            child: IconButton(
+              key: const ValueKey('open-later'),
+              padding: EdgeInsets.zero,
+              onPressed: onLater,
+              icon: const Icon(Icons.bookmark_border_rounded),
+              tooltip: 'Sonra dinle',
+            ),
+          ),
+          SizedBox(
+            width: 40,
+            height: 48,
+            child: IconButton(
+              padding: EdgeInsets.zero,
               onPressed: canUndo ? onUndo : null,
               icon: const Icon(Icons.undo_rounded),
               tooltip: 'Geri al',
@@ -476,7 +548,7 @@ class _SwipeCard extends StatefulWidget {
     required this.enabled,
     required this.peek,
     required this.onPeeked,
-    required this.onVote,
+    required this.onLater,
     required this.onSkip,
   });
   final Api api;
@@ -485,7 +557,7 @@ class _SwipeCard extends StatefulWidget {
   final bool enabled;
   final bool peek;
   final VoidCallback onPeeked;
-  final ValueChanged<int?> onVote;
+  final VoidCallback onLater;
   final VoidCallback onSkip;
 
   @override
@@ -557,7 +629,11 @@ class _SwipeCardState extends State<_SwipeCard> with SingleTickerProviderStateMi
     final fling = v.abs() > 900 && dx.abs() > 20 && v.sign == dx.sign;
     _crossed = false;
     if (widget.enabled && (dx.abs() >= _threshold || fling)) {
-      widget.onVote(dx > 0 ? swipeRightVote : null);
+      if (dx > 0) {
+        widget.onLater();
+      } else {
+        widget.onSkip();
+      }
     }
     _snapBack();
   }
@@ -592,8 +668,8 @@ class _SwipeCardState extends State<_SwipeCard> with SingleTickerProviderStateMi
                       child: _SwipeOverlay(
                         right: dx > 0,
                         strength: ((dx.abs() - 20) / _threshold).clamp(0.0, 1.0),
-                        style: dx > 0 ? c.votes[swipeRightVote]! : c.skip,
-                        label: dx > 0 ? '4 · İYİ' : 'DİNLEMEDİM · GEÇ',
+                        style: dx > 0 ? c.votes[4]! : c.skip,
+                        label: dx > 0 ? 'SONRA DİNLE' : 'DİNLEMEDİM · GEÇ',
                       ),
                     ),
                   ),
@@ -654,19 +730,26 @@ class _SwipeCardState extends State<_SwipeCard> with SingleTickerProviderStateMi
                         previewKey: 'vote-${item.track}',
                         trackId: item.track),
                     const SizedBox(width: 4),
-                    IconButton(
+                    TextButton.icon(
                       key: const ValueKey('open-spotify'),
-                      tooltip: "Spotify'da aç",
                       onPressed: () => openInSpotify(item.title, item.artistLine),
-                      icon: Icon(Icons.open_in_new_rounded,
-                          size: 20, color: theme.colorScheme.onSurfaceVariant),
+                      icon: const Icon(Icons.open_in_new_rounded, size: 18),
+                      label: const Text("Spotify'da aç"),
+                      style: TextButton.styleFrom(
+                          foregroundColor: theme.colorScheme.onSurfaceVariant,
+                          textStyle: theme.textTheme.labelMedium,
+                          padding: const EdgeInsets.symmetric(horizontal: 8)),
                     ),
                     const SizedBox(width: 4),
                     Expanded(
                       child: Align(
                         alignment: Alignment.centerRight,
-                        child: _SkipPill(
-                            style: c.skip, enabled: widget.enabled, onTap: widget.onSkip),
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          alignment: Alignment.centerRight,
+                          child: _SkipPill(
+                              style: c.skip, enabled: widget.enabled, onTap: widget.onSkip),
+                        ),
                       ),
                     ),
                   ],

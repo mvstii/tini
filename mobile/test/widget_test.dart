@@ -193,19 +193,19 @@ void main() {
       expect(find.text('Başlangıç Turu · 1 / $tourVotes'), findsOneWidget);
     });
 
-    testWidgets('swipe right votes Good, swipe left skips without a vote', (tester) async {
+    testWidgets('swipe right adds to listen-later (no vote), swipe left skips', (tester) async {
       final f = fake();
       await open(tester, f.api);
 
       await tester.drag(find.text('Alpha'), const Offset(600, 0));
       await tester.pumpAndSettle();
-      expect(f.votes, [
-        {'track': 1, 'vote': swipeRightVote}
-      ]);
+      expect(f.votes, isEmpty);
+      expect(f.calls, contains('POST /later'));
+      expect(find.text('Sonra dinle listesine eklendi'), findsOneWidget);
 
       await tester.drag(find.text('Beta'), const Offset(-600, 0));
       await tester.pumpAndSettle();
-      expect(f.votes.length, 1);
+      expect(f.votes, isEmpty);
       expect(f.calls, contains('POST /votes/unheard'));
       expect(find.text('Gamma'), findsOneWidget);
     });

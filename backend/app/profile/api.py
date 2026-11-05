@@ -21,6 +21,7 @@ from app.deps import current_user, get_db
 from app.graph.auto import after_vote
 from app.models import (
     GeneratedList,
+    ListenLater,
     ListItem,
     TasteProfile,
     Track,
@@ -147,6 +148,7 @@ def queue(
     önbellekli parçalar atlanır ve `stale` ile sayılır (istemci kütüphaneyi yeniden aktarır)."""
     size = min(limit or cfg.queue_size, cfg.queue_max_size)
     voted = select(VoteEvent.track_id).where(VoteEvent.user_id == user.id)
+    later_ids = select(ListenLater.track_id).where(ListenLater.user_id == user.id)
     rows = db.execute(
         select(
             Track.id, Track.artist_id, UserTrackMeta.title, UserTrackMeta.artist_names,
@@ -160,6 +162,7 @@ def queue(
         .where(
             UserTrackLink.user_id == user.id,
             Track.id.not_in(voted),
+            Track.id.not_in(later_ids),
         )
         .ext(distinct_on(Track.id))
         .order_by(Track.id)
@@ -202,7 +205,7 @@ def queue(
         # Kütüphane tükeniyor: öneri motorundan sürekli yeni parça karışır.
         items += suggest_items(
             db, user, lambda: connected_adapter(db, user, http), now, size - len(items),
-            set(fresh) | expired, cfg, rcfg, gcfg,
+            set(fresh) | expired | set(db.scalars(later_ids)), cfg, rcfg, gcfg,
         )
     mark_awaiting(db, user.id, pool & {i["track"] for i in items}, statuses)
     return {
