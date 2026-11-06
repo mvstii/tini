@@ -92,7 +92,9 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
       }
     } on ApiException catch (e) {
       if (e.status == 401) widget.onLogout();
-      _dailyNote = 'Günün şarkısı şu an yüklenemedi. Biraz sonra tekrar dene.';
+      _dailyNote = (e.status == 404 || e.status == 409)
+          ? 'Günün şarkısı şu an hazır değil: ${e.message}'
+          : 'Günün şarkısı şu an yüklenemedi. Biraz sonra tekrar dene.';
     } catch (_) {
       // Yardımcı özellik: hata ekranı bozmaz; profil yokmuş gibi yanıltmayız.
       _dailyNote = 'Günün şarkısı şu an yüklenemedi. Biraz sonra tekrar dene.';

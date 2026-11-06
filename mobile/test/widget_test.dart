@@ -685,7 +685,7 @@ void main() {
         if (req.url.path == '/recommend/daily') {
           return hasDaily
               ? http.Response.bytes(utf8.encode(jsonEncode(dailyJson)), 200)
-              : http.Response('{"detail":"x"}', 404);
+              : http.Response.bytes(utf8.encode('{"detail":"Henüz profil üretilmedi"}'), 404);
         }
         if (req.url.path == '/releases/new') {
           return http.Response.bytes(
