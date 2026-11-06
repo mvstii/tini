@@ -31,7 +31,7 @@ def test_two_communities_become_two_clusters():
     body = build_profile(likes(), two_communities(), CFG, graph_version=7)
     got = sorted(sorted(x["artist_id"] for x in c["artists"]) for c in body["clusters"])
     assert got == [[1, 2, 3, 4], [11, 12, 13, 14]]
-    assert body["graph_version"] == 7 and body["algo_version"] == "profile-2"
+    assert body["graph_version"] == 7 and body["algo_version"] == "profile-3"
 
 
 def test_deterministic_across_input_order_and_cluster_ids_stable():

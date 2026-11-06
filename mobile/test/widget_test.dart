@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:tini/api.dart';
+import 'package:tini/preview_player.dart';
 import 'package:tini/app_state.dart';
 import 'package:tini/screens/discover_screen.dart';
 import 'package:tini/main.dart';
@@ -174,6 +175,21 @@ void main() {
       expect(find.text('Beta'), findsOneWidget);
       expect(find.byType(Image), findsNothing);
       expect(find.byIcon(Icons.album_rounded), findsOneWidget); // gradyan yer tutucu
+    });
+
+    testWidgets('autoplay on plays each new top card; off plays nothing', (tester) async {
+      addTearDown(() => PreviewController.autoplay.value = false);
+      final f = fake();
+      await open(tester, f.api);
+      expect(f.calls.where((c) => c.contains('/preview')), isEmpty); // kapalıyken çalmaz
+
+      await tester.tap(find.byKey(const ValueKey('toggle-autoplay')));
+      await tester.pumpAndSettle();
+      expect(PreviewController.autoplay.value, isTrue);
+      await tester.tap(find.byKey(const ValueKey('vote-6')));
+      await tester.pumpAndSettle();
+      // Açar açmaz Alpha, oydan sonra Beta için önizleme otomatik istendi.
+      expect(f.calls.where((c) => c == 'GET /preview'), hasLength(2));
     });
 
     testWidgets('shows the first card and casts a button vote', (tester) async {

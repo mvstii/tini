@@ -39,6 +39,9 @@ class PreviewController extends ChangeNotifier {
   /// Uygulama genelinde paylaşılan örnek; testte `backend` sahteyle değiştirilir.
   static PreviewController instance = PreviewController(JustAudioBackend());
 
+  /// Oylama ekranında kart değişince önizleme kendiliğinden çalsın mı (kullanıcı ayarı).
+  static final ValueNotifier<bool> autoplay = ValueNotifier(false);
+
   final PreviewBackend backend;
   String? _key;
   PreviewStatus _status = PreviewStatus.idle;

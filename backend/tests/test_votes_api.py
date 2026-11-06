@@ -69,7 +69,7 @@ def test_revote_appends_event_and_current_is_last(client, db):
     events = db.scalars(select(VoteEvent).where(VoteEvent.user_id == u.id)).all()
     assert len(events) == 2  # silinmez, yeni olay eklenir
     body = client.get("/votes/current", headers=h).json()
-    assert body["algo_version"] == "profile-2"
+    assert body["algo_version"] == "profile-3"
     assert [(v["track"], v["vote"], v["score"]) for v in body["votes"]] == [(t.id, 2, -0.6)]
 
 
@@ -115,7 +115,7 @@ def test_expired_unheard_enters_profile_as_weak_negative(client, db):
         client.post("/votes/unheard", json={"track": t.id}, headers=h)
     # artist çözülmemiş parça profile girmez ama oy sayısına yansır
     body = client.post("/profile/rebuild", headers=h).json()
-    assert body["algo_version"] == "profile-2" and body["vote_count"] == 1
+    assert body["algo_version"] == "profile-3" and body["vote_count"] == 1
 
 
 def test_vote_after_unheard_removes_track_from_pool(client, db):
@@ -125,3 +125,13 @@ def test_vote_after_unheard_removes_track_from_pool(client, db):
     client.post("/votes", json={"track": t.id, "vote": 5}, headers=h)
     body = client.post("/profile/rebuild", headers=h).json()
     assert body["vote_count"] == 1  # yalnız gerçek oy; örtük negatif eklenmedi
+
+
+def test_like_enters_profile_as_weak_positive_but_vote_wins(client, db):
+    h, _, t = setup_user(db, client)
+    assert client.post("/likes", json={"track": t.id}, headers=h).status_code == 201
+    body = client.post("/profile/rebuild", headers=h).json()
+    assert body["vote_count"] == 1  # beğeni örtük pozitif olarak sayıldı
+    client.post("/votes", json={"track": t.id, "vote": 5}, headers=h)
+    body = client.post("/profile/rebuild", headers=h).json()
+    assert body["vote_count"] == 1  # açık oy varken beğeni ikinci kez sayılmaz
