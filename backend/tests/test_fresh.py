@@ -115,11 +115,11 @@ def test_main_list_reserves_fresh_slot_at_the_end(client, db):  # noqa: F811
     h, seed, c1, c2 = setup_user(client, db, "f4@example.com", "FM")
     base = client.post("/lists/generate", headers=h).json()
     assert base["params"]["fresh_count"] == 0
-    assert {i["slot"] for i in base["items"]} <= {"familiar", "unheard", "explore"}
+    assert {i["slot"] for i in base["items"]} <= {"familiar", "unheard", "explore", "far"}
 
     rel = add_release(db, seed, "Yeni Albüm", 3)
     body = client.post("/lists/generate", headers=h).json()
-    assert body["algo_version"] == "list-3" and body["params"]["fresh_count"] == 1
+    assert body["algo_version"] == "list-4" and body["params"]["fresh_count"] == 1
     last = body["items"][-1]
     assert last["slot"] == "fresh" and last["release"]["id"] == rel.id
     assert last["track_id"] is None and last["reasons"][0]["seed_name"] == "FMSeed"

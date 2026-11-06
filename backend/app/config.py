@@ -164,7 +164,7 @@ class RecommendSettings(BaseSettings):
     novelty_gamma: float = 0.4
     candidate_top_n: int = 100
     reason_count: int = 3
-    list_algo_version: str = "list-3"
+    list_algo_version: str = "list-4"
     list_size: int = 20
     mmr_lambda: float = 0.6  # 1 = yalnız alaka, 0 = yalnız çeşitlilik
     # Slot dağılımı (Faz 5 S3): Thompson sampling
@@ -174,6 +174,13 @@ class RecommendSettings(BaseSettings):
     slot_floor_share: float = 0.1  # her slotun taban payı
     bandit_min_outcomes: int = 10  # bundan az sonuçta pay öncüle eşit
     familiar_fraction: float = 0.5  # havuzsuz adayların üst kesri = familiar, kalanı explore
+    # Çeşitlilik: "uzak" yuva (bandit dışı sabit pay) ve tek topluluk tavanı
+    far_share: float = 0.2
+    far_pool_size: int = 1000  # uzak adaylar için geniş skor havuzu
+    far_home_exclude: int = 2  # en çok sevilen bu kadar topluluk uzak sayılmaz
+    max_cluster_share: float = 0.5
+    community_count: int = 12
+    community_seed: int = 0
     # Taze liste (Faz 5 S5): takip edilen sanatçıların son yayınları, albüm düzeyinde
     fresh_algo_version: str = "fresh-1"
     fresh_share: float = 0.12  # ana listede "Yeni" yuvasının sabit payı (bandit dışı)
