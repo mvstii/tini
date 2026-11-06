@@ -1,7 +1,7 @@
 from datetime import UTC, datetime, timedelta
 
 from app.config import ProfileSettings
-from app.profile.scoring import ScoredVote, decay_weight, implicit_negatives
+from app.profile.scoring import ScoredVote, decay_weight, implicit_negatives, implicit_positives
 from app.profile.unheard import UnheardEvt, next_state, resolve
 
 NOW = datetime(2026, 12, 1, tzinfo=UTC)
@@ -64,9 +64,16 @@ def test_implicit_negative_is_not_exempt_from_decay_like_awful():
 
 
 def test_algo_version_bumped():
-    assert CFG.profile_algo_version == "profile-2"
+    assert CFG.profile_algo_version == "profile-3"
 
 
 def test_vote_at_same_instant_as_last_event_resolves_track():
     events = [ue(1, 7, "pooled")]
     assert resolve(events, {7: NOW}, expire_after=3) == []
+
+
+def test_implicit_positives_skip_voted_and_use_config_score_with_decay():
+    old = NOW - timedelta(days=400)
+    got = implicit_positives([(1, old), (2, NOW)], {2}, NOW, CFG)
+    assert got == [ScoredVote(1, 0, CFG.like_score, decay_weight(0, old, NOW, CFG))]
+    assert got[0].score > 0

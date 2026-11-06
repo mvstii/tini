@@ -6,9 +6,9 @@ from sqlalchemy.orm import Session
 
 from app.config import GraphSettings, ProfileSettings
 from app.graph.service import get_matrix
-from app.models import TasteProfile, Track, UnheardEvent, UserTrackArtist, VoteEvent
+from app.models import TasteProfile, Track, TrackLike, UnheardEvent, UserTrackArtist, VoteEvent
 from app.profile.build import ProfileVote, build_profile
-from app.profile.scoring import VoteEvt, implicit_negatives, score_votes
+from app.profile.scoring import VoteEvt, implicit_negatives, implicit_positives, score_votes
 from app.profile.unheard import UnheardEvt, UnheardStatus, resolve
 
 
@@ -41,6 +41,10 @@ def load_profile_votes(
     ).all()
     scored = score_votes([VoteEvt(*r) for r in rows], now, cfg)
     scored += implicit_negatives(unheard_statuses(db, user_id, cfg), now, cfg)
+    likes = db.execute(
+        select(TrackLike.track_id, TrackLike.created_at).where(TrackLike.user_id == user_id)
+    ).all()
+    scored += implicit_positives(likes, {r[1] for r in rows}, now, cfg)
     track_ids = [s.track_id for s in scored]
     shared = dict(
         db.execute(select(Track.id, Track.artist_id).where(Track.id.in_(track_ids))).all()

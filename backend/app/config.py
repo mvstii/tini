@@ -102,7 +102,7 @@ class ProfileSettings(BaseSettings):
 
     model_config = SettingsConfigDict(env_file=".env", env_prefix="PROFILE_", extra="ignore")
 
-    profile_algo_version: str = "profile-2"
+    profile_algo_version: str = "profile-3"
     # Soğuk başlangıç skorları (CLAUDE.md oylama ölçeği)
     vote_scores: dict[int, float] = {1: -1.0, 2: -0.6, 3: -0.15, 4: 0.35, 5: 0.7, 6: 1.0}
     # Persentil normalizasyonu: en az bu kadar güncel oydan sonra devreye girer; işaret korunur,
@@ -124,6 +124,8 @@ class ProfileSettings(BaseSettings):
     # Unheard (Faz 5 S1): bu kadar sunumda oy gelmezse süresi dolar ve zayıf örtük negatif sayılır.
     unheard_expire_after: int = 3
     unheard_expired_score: float = -0.05
+    # Beğeniler (kalp): oy almamış beğenilen parça zayıf, sönümlü örtük pozitif sayılır (vote=0).
+    like_score: float = 0.25
     # Aktif öğrenme kuyruğu (Faz 5 S2)
     queue_algo_version: str = "queue-6"
     # Kuyruğa öneri motoru karışımı: kütüphane kalanı eşiğin altına inince öneriler eklenir;

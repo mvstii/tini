@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../api.dart';
@@ -98,6 +99,7 @@ class _RatingScreenState extends State<RatingScreen> {
   bool _busy = false;
   bool _peekPending = true;
   String? _error;
+  int? _autoplayed; // otomatik çalma en son bu parça için tetiklendi
 
   QueueItem? get _current => _cards.isEmpty ? null : _cards.first;
 
@@ -105,12 +107,46 @@ class _RatingScreenState extends State<RatingScreen> {
   void initState() {
     super.initState();
     _state.addListener(_onState);
+    PreviewController.autoplay.addListener(_onState);
+    _loadAutoplay();
     _init();
+  }
+
+  static const _autoplayKey = 'preview_autoplay';
+
+  Future<void> _loadAutoplay() async {
+    try {
+      final v = await const FlutterSecureStorage().read(key: _autoplayKey);
+      PreviewController.autoplay.value = v == '1';
+    } catch (_) {}
+  }
+
+  void _toggleAutoplay() {
+    final on = !PreviewController.autoplay.value;
+    PreviewController.autoplay.value = on;
+    if (!on) PreviewController.instance.stop();
+    unawaited(const FlutterSecureStorage()
+        .write(key: _autoplayKey, value: on ? '1' : '0')
+        .catchError((_) {}));
+  }
+
+  /// Otomatik çalma açıkken üstteki kart değişince önizlemesi kendiliğinden başlar.
+  void _maybeAutoplay() {
+    final item = _current;
+    if (!PreviewController.autoplay.value || item == null || _busy) return;
+    if (_autoplayed == item.track) return;
+    _autoplayed = item.track;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || _current?.track != item.track) return;
+      PreviewController.instance.toggle(
+          'vote-${item.track}', () => widget.api.previewUrl(trackId: item.track));
+    });
   }
 
   @override
   void dispose() {
     _state.removeListener(_onState);
+    PreviewController.autoplay.removeListener(_onState);
     if (widget.state == null) _state.dispose();
     super.dispose();
   }
@@ -307,6 +343,8 @@ class _RatingScreenState extends State<RatingScreen> {
                 state: _state,
                 canUndo: _history.isNotEmpty && !_busy,
                 onUndo: _undo,
+                autoplay: PreviewController.autoplay.value,
+                onAutoplay: _toggleAutoplay,
                 onSearch: () => Navigator.of(context).push(MaterialPageRoute<void>(
                     builder: (_) => SearchScreen(api: widget.api))),
                 onLater: () => Navigator.of(context).push(MaterialPageRoute<void>(
@@ -344,6 +382,7 @@ class _RatingScreenState extends State<RatingScreen> {
   }
 
   Widget _cardArea(TiniCosmicColors c, bool canVote) {
+    _maybeAutoplay();
     final forced = _state.forced;
     final item = _current;
     if (forced == UiState.loading || _loading) return _SkeletonCard(color: c.card);
@@ -398,12 +437,16 @@ class _TopBar extends StatelessWidget {
     required this.state,
     required this.canUndo,
     required this.onUndo,
+    required this.autoplay,
+    required this.onAutoplay,
     required this.onSearch,
     required this.onLater,
   });
   final AppState state;
   final bool canUndo;
   final VoidCallback onUndo;
+  final bool autoplay;
+  final VoidCallback onAutoplay;
   final VoidCallback onSearch;
   final VoidCallback onLater;
 
@@ -457,6 +500,19 @@ class _TopBar extends StatelessWidget {
                   ),
                 ),
               ],
+            ),
+          ),
+          SizedBox(
+            width: 40,
+            height: 48,
+            child: IconButton(
+              key: const ValueKey('toggle-autoplay'),
+              padding: EdgeInsets.zero,
+              onPressed: onAutoplay,
+              isSelected: autoplay,
+              icon: const Icon(Icons.volume_off_rounded),
+              selectedIcon: const Icon(Icons.volume_up_rounded),
+              tooltip: autoplay ? 'Otomatik çalma açık' : 'Otomatik çalma kapalı',
             ),
           ),
           SizedBox(

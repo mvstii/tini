@@ -76,6 +76,18 @@ def implicit_negatives(
     ]
 
 
+def implicit_positives(
+    likes: Iterable[tuple[int, datetime]], voted: set[int], now: datetime, cfg: ProfileSettings
+) -> list[ScoredVote]:
+    """Beğenilen ama oylanmamış parçalar: zayıf, sönümlü örtük pozitif (vote=0, gerçek oy değil).
+    Açık oy her zaman beğeniden önce gelir."""
+    return [
+        ScoredVote(t, 0, cfg.like_score, decay_weight(0, at, now, cfg))
+        for t, at in likes
+        if t not in voted
+    ]
+
+
 def score_votes(events: Iterable[VoteEvt], now: datetime, cfg: ProfileSettings) -> list[ScoredVote]:
     current = current_votes(events)
     scores = _normalized_scores([e.vote for e in current], cfg)
