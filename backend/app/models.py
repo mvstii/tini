@@ -10,6 +10,7 @@ from datetime import date, datetime
 
 from sqlalchemy import (
     BigInteger,
+    Boolean,
     CheckConstraint,
     Date,
     DateTime,
@@ -80,6 +81,27 @@ class ArtistImage(Base):
     source: Mapped[str] = mapped_column(String(32))
     fetched_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=_now)
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+
+
+class ArtistTag(Base):
+    """Paylaşılan: sanatçının tür etiketi (MusicBrainz/Last.fm). weight 0–100'e normalize edilir."""
+
+    __tablename__ = "artist_tag"
+
+    artist_id: Mapped[int] = mapped_column(ForeignKey("artist.id"), primary_key=True)
+    tag: Mapped[str] = mapped_column(String(64), primary_key=True)
+    weight: Mapped[int] = mapped_column(SmallInteger)
+    source: Mapped[str] = mapped_column(String(16))
+
+
+class ArtistTagFetch(Base):
+    """Paylaşılan: etiket çekme denemesi; etiketsiz sanatçı her koşuda yeniden sorulmasın diye."""
+
+    __tablename__ = "artist_tag_fetch"
+
+    artist_id: Mapped[int] = mapped_column(ForeignKey("artist.id"), primary_key=True)
+    fetched_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=_now)
+    found: Mapped[bool] = mapped_column(Boolean)
 
 
 class ArtistMember(Base):

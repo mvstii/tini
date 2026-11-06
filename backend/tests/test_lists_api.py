@@ -95,7 +95,7 @@ def test_generate_persists_list_with_reasons_and_track(client, db):
     r = client.post("/lists/generate", headers=h)
     assert r.status_code == 201
     body = r.json()
-    assert body["algo_version"] == "list-4" and body["profile_version"] == 1
+    assert body["algo_version"] == "list-5" and body["profile_version"] == 1
     items = {i["artist_id"]: i for i in body["items"]}
     assert set(items) == {c1.id, c2.id}
     assert [i["position"] for i in body["items"]] == [1, 2]
