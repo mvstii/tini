@@ -179,19 +179,31 @@ def daily(
         .order_by(GeneratedList.id.desc())
         .limit(1)
     )
-    if lst is None:
+    voted = set(db.scalars(select(VoteEvent.track_id).where(VoteEvent.user_id == user.id)))
+    day = datetime.now(UTC).date()
+
+    def _pick(source: GeneratedList) -> tuple[list[ListItem], int | None]:
+        its = db.scalars(select(ListItem).where(ListItem.list_id == source.id)).all()
+        return its, pick_daily(
+            [(i.position, i.track_id) for i in its], day, str(user.id), voted,
+            cfg.daily_algo_version,
+        )
+
+    def _generate() -> GeneratedList:
         try:
-            lst = generate_list(db, user.id, datetime.now(UTC), cfg, pcfg, gcfg)
+            return generate_list(db, user.id, datetime.now(UTC), cfg, pcfg, gcfg)
         except NoProfile:
             raise HTTPException(404, "Henüz profil üretilmedi") from None
         except NoGraph:
             raise HTTPException(409, "Grafik henüz kurulmadı") from None
-    items = db.scalars(select(ListItem).where(ListItem.list_id == lst.id)).all()
-    voted = set(db.scalars(select(VoteEvent.track_id).where(VoteEvent.user_id == user.id)))
-    day = datetime.now(UTC).date()
-    pos = pick_daily(
-        [(i.position, i.track_id) for i in items], day, str(user.id), voted, cfg.daily_algo_version
-    )
+
+    if lst is None:
+        lst = _generate()
+    items, pos = _pick(lst)
+    if pos is None:
+        # Liste oylandıkça tükenir (oylanan parçalar elenir); yeni liste oylanan sanatçıları dışlar.
+        lst = _generate()
+        items, pos = _pick(lst)
     if pos is None:
         raise HTTPException(404, "Önerilecek şarkı kalmadı")
     item = next(i for i in items if i.position == pos)

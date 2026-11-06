@@ -120,3 +120,22 @@ def test_daily_skips_voted_tracks(client, db):
     for n in range(5):  # her gün oylanmamış olan (DCB) çıkmalı
         body = client.get("/recommend/daily", headers=h).json()
         assert body["name"] == "DCB", n
+
+
+def test_daily_regenerates_list_when_all_items_are_voted(client, db):
+    from sqlalchemy import select
+
+    from app.models import ListItem, Track
+
+    h, seed, c1, c2 = setup_user(client, db, "d7@example.com", "DF")
+    lst = client.post("/lists/generate", headers=h).json()
+    t = Track(isrc="ZZDF00000077", artist_id=c1.id)
+    db.add(t)
+    db.flush()
+    for it in db.scalars(select(ListItem).where(ListItem.list_id == lst["id"])):
+        it.track_id = t.id
+    db.flush()
+    assert client.post("/votes", json={"track": t.id, "vote": 5}, headers=h).status_code == 201
+    r = client.get("/recommend/daily", headers=h)  # eski listenin tüm öğeleri oylandı
+    assert r.status_code == 200
+    assert r.json()["list_id"] != lst["id"]

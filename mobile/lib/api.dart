@@ -454,7 +454,9 @@ class Api {
     try {
       body = await _send('GET', '/recommend/daily');
     } on ApiException catch (e) {
-      if (e.status == 404 || e.status == 409) return null;
+      // Yalnızca gerçekten profil yoksa null; diğer 404/409 nedenleri (liste tükendi, grafik
+      // kurulmadı) çağırana iletilir ki "profilini kur" yanlış yönlendirmesi çıkmasın.
+      if (e.status == 404 && e.message.contains('profil')) return null;
       rethrow;
     }
     return DailySong(
