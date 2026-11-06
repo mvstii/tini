@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 
 from app.catalog.resolve import resolve_pending
 from app.catalog.resolve_b import resolve_pending_b
+from app.catalog.tags import fetch_artist_tags
 from app.config import get_graph_settings, get_settings
 from app.db import make_engine
 from app.sources.http import SourceClient
@@ -55,10 +56,13 @@ def run(limit: int = 100) -> dict[str, dict[str, int]]:
     engine = make_engine()
     result: dict[str, dict[str, int]] = {}
     with httpx.Client(timeout=20) as client, Session(engine) as db:
-        result["tier_a"] = resolve_pending(db, make_musicbrainz(client), cfg, limit=limit)
+        mb = make_musicbrainz(client)
+        result["tier_a"] = resolve_pending(db, mb, cfg, limit=limit)
         lfm = make_lastfm(client)
         if lfm is not None:
             result["tier_b"] = resolve_pending_b(db, lfm, cfg, limit=limit)
+        # Yeni/etiketsiz sanatçıların tür etiketleri (denenenler atlanır)
+        result["tags"] = fetch_artist_tags(db, mb, lfm, cfg, limit=limit)
     log.info("enrich: %s", result)
     return result
 
