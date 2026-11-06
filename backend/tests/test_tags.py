@@ -1,10 +1,11 @@
 import uuid
 
+from test_lists_api import db  # noqa: F401
+
 from app.catalog.tags import fetch_artist_tags, normalize_tags
 from app.config import GraphSettings
 from app.models import Artist, ArtistTag, ArtistTagFetch
 from app.sources.musicbrainz import parse_artist_tags
-from test_lists_api import db  # noqa: F401
 
 
 def test_normalize_scales_musicbrainz_and_filters():
