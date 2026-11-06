@@ -65,6 +65,18 @@ class LastfmClient:
             return None
         return LfmArtist(art["name"], _mbid(art.get("mbid")))
 
+    def get_top_tags(
+        self, name: str | None = None, mbid: uuid.UUID | None = None
+    ) -> list[tuple[str, int]]:
+        """(küçük harf etiket, oy 0–100) çiftleri, oya göre azalan; sanatçı yoksa boş."""
+        data = self._call("artist.getTopTags", name, mbid)
+        out: list[tuple[str, int]] = []
+        for t in ((data or {}).get("toptags") or {}).get("tag") or []:
+            tag = (t.get("name") or "").strip().lower()
+            if tag:
+                out.append((tag, int(t.get("count") or 0)))
+        return out
+
     def get_similar(
         self, name: str | None = None, mbid: uuid.UUID | None = None, limit: int = 20
     ) -> list[LfmSimilar]:

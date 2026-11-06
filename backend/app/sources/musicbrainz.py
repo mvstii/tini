@@ -50,6 +50,13 @@ class MusicBrainzClient:
         )
         return parse_artist_isrcs(data)
 
+    def artist_tags(self, artist_mbid: uuid.UUID) -> list[tuple[str, int]]:
+        """Sanatçının (etiket, oy) çiftleri; `genres` ve `tags` birleştirilir, oya göre azalan."""
+        data = self._http.get_json(
+            f"{self._base}/artist/{artist_mbid}", {"fmt": "json", "inc": "genres+tags"}
+        )
+        return parse_artist_tags(data)
+
     def release_groups(
         self, artist_mbid: uuid.UUID, since: date, until: date, types: tuple[str, ...], limit: int
     ) -> list["MbReleaseGroup"]:
@@ -106,3 +113,14 @@ def parse_artist_isrcs(data: dict | None) -> list[tuple[str, uuid.UUID]]:
                 out.append((isrc, uuid.UUID(rec["id"])))
                 break  # kayıt başına tek ISRC
     return out
+
+
+def parse_artist_tags(data: dict | None) -> list[tuple[str, int]]:
+    """Yanıttan (küçük harf etiket, oy) çiftleri; aynı ad iki listede varsa büyük oy alınır."""
+    best: dict[str, int] = {}
+    for key in ("genres", "tags"):
+        for t in (data or {}).get(key) or []:
+            name = (t.get("name") or "").strip().lower()
+            if name:
+                best[name] = max(best.get(name, 0), int(t.get("count") or 0))
+    return sorted(best.items(), key=lambda kv: (-kv[1], kv[0]))

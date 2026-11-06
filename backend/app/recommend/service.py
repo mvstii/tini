@@ -6,6 +6,7 @@ from datetime import date, datetime, timedelta
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.catalog.tags import load_genres
 from app.config import GraphSettings, ProfileSettings, RecommendSettings
 from app.graph.matrix import GraphMatrix
 from app.graph.service import get_matrix
@@ -25,6 +26,7 @@ from app.profile.service import load_profile_votes, unheard_statuses
 from app.recommend.bandit import SLOTS, allocate, slot_shares
 from app.recommend.diverse import cached_labels, cap_share, home_weights, pick_far
 from app.recommend.fresh import FreshRelease, rank_fresh
+from app.recommend.genres import blend_labels
 from app.recommend.outcomes import ArtistVote, ItemRef, derive_outcomes
 from app.recommend.ppr import Candidate, Propagated, explain, propagate, score_candidates
 from app.recommend.select import select_mmr
@@ -185,6 +187,8 @@ def generate_list(
     fresh_artists = {i.artist_id for i in fresh}
     pool = _pool_tracks(db, user_id, pcfg)
     labels = cached_labels(sc.gm, sc.graph_version, cfg.community_count, cfg.community_seed)
+    genre_of = load_genres(db, sc.gm.node_ids.tolist()) if cfg.use_genre_labels else {}
+    labels = blend_labels(labels, genre_of)
     seeds = (
         list(zip(map(int, sc.prop.seed_ids), map(float, sc.prop.w), strict=True))
         if sc.prop is not None else []
@@ -236,6 +240,7 @@ def generate_list(
             "slot_counts": counts,
             "far_count": len(far), "far_share": cfg.far_share,
             "max_cluster_share": cfg.max_cluster_share, "community_count": cfg.community_count,
+            "genre_labeled": len(genre_of),
             "fresh_share": cfg.fresh_share, "fresh_count": len(fresh),
             "slot_outcomes": {k: list(v) for k, v in outcomes.items()},
         },

@@ -61,6 +61,9 @@ class GraphSettings(BaseSettings):
     http_backoff_max_seconds: float = 60.0
     lastfm_base_url: str = "https://ws.audioscrobbler.com/2.0/"
     lastfm_min_interval_seconds: float = 0.25
+    # Tür etiketleri (catalog/tags.py)
+    tag_max_per_artist: int = 8
+    tag_min_weight: int = 20  # 0–100; altı gürültü sayılır
     # Kademe B güveni: ad eşitliği, bulanık benzerlik ağırlığı, MBID bonusu; eşik altı bağlanmaz.
     tier_b_exact_confidence: float = 0.8
     tier_b_fuzzy_weight: float = 0.7
@@ -164,7 +167,7 @@ class RecommendSettings(BaseSettings):
     novelty_gamma: float = 0.4
     candidate_top_n: int = 100
     reason_count: int = 3
-    list_algo_version: str = "list-4"
+    list_algo_version: str = "list-5"
     list_size: int = 20
     mmr_lambda: float = 0.6  # 1 = yalnız alaka, 0 = yalnız çeşitlilik
     # Slot dağılımı (Faz 5 S3): Thompson sampling
@@ -179,6 +182,7 @@ class RecommendSettings(BaseSettings):
     far_pool_size: int = 1000  # uzak adaylar için geniş skor havuzu
     far_home_exclude: int = 2  # en çok sevilen bu kadar topluluk uzak sayılmaz
     max_cluster_share: float = 0.5
+    use_genre_labels: bool = True  # etiketi olan sanatçıda topluluk yerine ana tür kullanılır
     community_count: int = 12
     community_seed: int = 0
     # Taze liste (Faz 5 S5): takip edilen sanatçıların son yayınları, albüm düzeyinde
