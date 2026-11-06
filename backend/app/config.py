@@ -130,7 +130,12 @@ class ProfileSettings(BaseSettings):
     # Beğeniler (kalp): oy almamış beğenilen parça zayıf, sönümlü örtük pozitif sayılır (vote=0).
     like_score: float = 0.25
     # Aktif öğrenme kuyruğu (Faz 5 S2)
-    queue_algo_version: str = "queue-6"
+    queue_algo_version: str = "queue-7"
+    # Çeşitlilik (queue-7): son N parçadaki sanatçı/tür tekrar etmez; her `explore_every`'inci
+    # yuva tohumlu rastgele keşif yuvasıdır (0 = kapalı).
+    queue_artist_gap: int = 4
+    queue_genre_gap: int = 2
+    queue_explore_every: int = 4
     # Kuyruğa öneri motoru karışımı: kütüphane kalanı eşiğin altına inince öneriler eklenir;
     # her istekte en çok `batch` servis çağrısı; bu kadar yeni oydan sonra profil yenilenir.
     queue_suggest_threshold: int = 20

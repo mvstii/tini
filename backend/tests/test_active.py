@@ -62,3 +62,41 @@ def test_unknown_artists_use_config_default():
     cands = [(1, 10), (2, 20)]
     order = order_active(cands, {10: 0.2}, set(), set(), 0, CFG)  # 20 bilinmiyor -> 0.75
     assert order == [2, 1]
+
+
+def test_diversify_spreads_artists_and_genres_deterministically():
+    from app.profile.active import diversify
+
+    # sanatçı 10'un 4 parçası art arda gelirdi; 20/30/40 farklı sanatçı
+    order = [1, 2, 3, 4, 5, 6, 7]
+    artist_of = {1: 10, 2: 10, 3: 10, 4: 10, 5: 20, 6: 30, 7: 40}
+    genre_of = {10: "rock", 20: "rock", 30: "jazz", 40: "pop"}
+    cfg = ProfileSettings(_env_file=None, queue_explore_every=0, queue_artist_gap=1,
+                          queue_genre_gap=1)
+    out = diversify(order, artist_of, genre_of, set(), 0, cfg, 7)
+    assert sorted(out) == order
+    assert all(artist_of[a] != artist_of[b] for a, b in zip(out, out[1:], strict=False))
+    assert all(genre_of[artist_of[a]] != genre_of[artist_of[b]]
+               for a, b in zip(out[:4], out[1:4], strict=False))
+    assert out == diversify(order, artist_of, genre_of, set(), 0, cfg, 7)
+
+
+def test_diversify_relaxes_when_one_artist_only_and_respects_limit():
+    from app.profile.active import diversify
+
+    out = diversify([1, 2, 3], {1: 10, 2: 10, 3: 10}, {}, set(), 0, CFG, 2)
+    assert len(out) == 2 and set(out) <= {1, 2, 3}
+
+
+def test_diversify_explore_slots_are_seeded_random_and_prefer_pool():
+    from app.profile.active import diversify
+
+    order = list(range(1, 13))
+    artist_of = {t: t for t in order}
+    cfg = ProfileSettings(_env_file=None, queue_explore_every=3, queue_artist_gap=1,
+                          queue_genre_gap=0)
+    a = diversify(order, artist_of, {}, {9}, 0, cfg, 6)
+    assert a[2] == 9  # ilk keşif yuvası havuzdaki parçayı alır
+    assert a != order[:6]
+    assert a == diversify(order, artist_of, {}, {9}, 0, cfg, 6)
+    assert any(diversify(order, artist_of, {}, set(), s, cfg, 6) != a for s in range(1, 10))

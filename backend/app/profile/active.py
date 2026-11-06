@@ -31,6 +31,56 @@ def order_unresolved(tracks: Sequence[int], pool: set[int], seed: int) -> list[i
     return sorted(tracks, key=lambda t: (t not in pool, _key(seed, t)))
 
 
+def diversify(
+    order: Sequence[int],
+    artist_of: Mapping[int, int],
+    genre_of: Mapping[int, str],
+    pool: set[int],
+    seed: int,
+    cfg: ProfileSettings,
+    limit: int,
+) -> list[int]:
+    """Öncelik sırasını (`order`) bozmadan yan yana benzerliği azaltır; ilk `limit` parçayı döner.
+
+    Kural: bir parça, son `queue_artist_gap` parçadakilerden farklı sanatçıdan ve son
+    `queue_genre_gap` parçadakilerden farklı türden olmalı (türü bilinmeyen kısıtlanmaz).
+    Her `queue_explore_every`'inci yuva keşif yuvasıdır: tohumlu rastgele sıradan (havuzdaki
+    parçalar önce) seçilir. Uygun parça yoksa önce tür, sonra sanatçı kuralı gevşer.
+    Aynı girdi ve tohum, aynı sıra."""
+    random_order = sorted(order, key=lambda t: (t not in pool, _key(seed + 7919, t)))
+    used: set[int] = set()
+    out: list[int] = []
+
+    def pick(candidates: Sequence[int], artists: set[int], genres: set[str]) -> int | None:
+        for strict in (True, False):  # önce sanatçı+tür, sonra yalnız sanatçı
+            for t in candidates:
+                if t in used:
+                    continue
+                if artist_of.get(t) in artists:
+                    continue
+                if strict and genre_of.get(artist_of.get(t, -1)) in genres:
+                    continue
+                return t
+        return next((t for t in candidates if t not in used), None)
+
+    for i in range(min(limit, len(order))):
+        artists = (
+            {artist_of[t] for t in out[-cfg.queue_artist_gap:]} if cfg.queue_artist_gap > 0
+            else set()
+        )
+        genres = (
+            {genre_of[artist_of[t]] for t in out[-cfg.queue_genre_gap:]
+             if artist_of[t] in genre_of} if cfg.queue_genre_gap > 0 else set()
+        )
+        explore = cfg.queue_explore_every > 0 and (i + 1) % cfg.queue_explore_every == 0
+        chosen = pick(random_order if explore else order, artists, genres)
+        if chosen is None:
+            break
+        used.add(chosen)
+        out.append(chosen)
+    return out
+
+
 def order_active(
     cands: list[tuple[int, int]],
     unc: Mapping[int, float],

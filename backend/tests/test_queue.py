@@ -94,7 +94,7 @@ def test_queue_skips_voted_and_stale_and_lists_unresolved_last(client, db):
     assert [i["track"] for i in body["items"]] == [t2.id, t3.id]
     assert body["items"][0]["title"] == "Iki" and body["remaining"] == 2 and body["stale"] == 1
     assert body["items"][0]["image"] is None
-    assert body["algo_version"] == "queue-6"
+    assert body["algo_version"] == "queue-7"
 
 
 def test_unresolved_order_is_seeded_pool_first():
@@ -163,7 +163,7 @@ def test_queue_pool_bonus_awaiting_and_expired(client, db):
 
     body = client.get("/votes/queue", headers=h).json()
     ids = [i["track"] for i in body["items"]]
-    assert body["algo_version"] == "queue-6"
+    assert body["algo_version"] == "queue-7"
     assert gone.id not in ids and ids[0] == pooled.id and set(ids) == {pooled.id, other.id}
     assert body["stale"] == 0  # havuzda süresi dolan parça kütüphane yenilemesiyle düzelmez
     states = [

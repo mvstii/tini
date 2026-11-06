@@ -8,6 +8,7 @@ from sqlalchemy import func, select
 from sqlalchemy.dialects.postgresql import distinct_on
 from sqlalchemy.orm import Session
 
+from app.catalog.tags import load_genres
 from app.config import (
     GraphSettings,
     ProfileSettings,
@@ -32,7 +33,7 @@ from app.models import (
     UserTrackMeta,
     VoteEvent,
 )
-from app.profile.active import order_active, order_unresolved
+from app.profile.active import diversify, order_active, order_unresolved
 from app.profile.active_service import artist_uncertainties, mark_awaiting
 from app.profile.queue import pick_versions
 from app.profile.scoring import VoteEvt, score_votes
@@ -197,6 +198,11 @@ def queue(
     unresolved = [t for t, r in fresh.items() if r[1] is None]
     unc = artist_uncertainties(db, user.id, {a for _, a in cands}, cfg, rcfg, gcfg)
     order = order_active(cands, unc, pool & set(fresh), voted_artists, seed, cfg)
+    artist_of = dict(cands)
+    order = diversify(
+        order, artist_of, load_genres(db, set(artist_of.values())), pool & set(fresh), seed, cfg,
+        size,
+    )
     order = (order + order_unresolved(unresolved, pool, seed))[:size]
     items = [
         {"track": t, "title": fresh[t][2], "artists": fresh[t][3], "image": fresh[t][5]}

@@ -13,7 +13,7 @@ Durum: onay bekliyor. İstemci (APK) değişmez; yalnızca backend.
 3. **Gerekçe:** öğenin `reasons` alanı kuyruk öğesine eklenir (değişmez karar 7). Eski istemci bilinmeyen alanı yok sayar.
 4. **Sıralama:** öneri öğeleri liste sırasıyla; kütüphane öğeleri varsa onlar önce.
 5. **Sınır:** istek başına en çok `queue_suggest_batch` (10) `find_card` çağrısı; 429/hata olursa o öğe atlanır, kuyruk yine döner. Servis bağlı değilse öneri eklenmez.
-6. **Yapılandırma:** `ProfileSettings`: `queue_suggest_threshold`, `queue_suggest_batch`; `queue_algo_version` `queue-6`.
+6. **Yapılandırma:** `ProfileSettings`: `queue_suggest_threshold`, `queue_suggest_batch`; `queue_algo_version` `queue-7`.
 7. **Test:** boş kuyrukta öneri gelir; oylanmış parça gelmez; servis yokken kuyruk bozulmaz; `find_card` kısmi başarısızlığı; gerekçe alanı; stale sayacı değişmez.
 
 ## Sürekli akış (revizyon, geliştirici isteği: her oylamadan sonra yeni öneri)
