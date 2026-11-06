@@ -56,6 +56,7 @@ String relativeDate(String iso, [DateTime? now]) {
 class _DiscoverScreenState extends State<DiscoverScreen> {
   DailySong? _daily;
   bool _dailyLoaded = false;
+  String? _dailyNote; // yükleme hatasında profil mesajı yerine gösterilir
   List<NewRelease>? _releases;
   String? _releaseError;
   List<NewTrack> _tracks = const [];
@@ -83,11 +84,18 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
   Future<void> _loadDaily() async {
     try {
       final d = await widget.api.dailySong();
-      if (mounted) setState(() => _daily = d);
+      if (mounted) {
+        setState(() {
+          _daily = d;
+          _dailyNote = null;
+        });
+      }
     } on ApiException catch (e) {
       if (e.status == 401) widget.onLogout();
+      _dailyNote = 'Günün şarkısı şu an yüklenemedi. Biraz sonra tekrar dene.';
     } catch (_) {
-      // Yardımcı özellik: hata ekranı bozmaz, kart boş duruma düşer.
+      // Yardımcı özellik: hata ekranı bozmaz; profil yokmuş gibi yanıltmayız.
+      _dailyNote = 'Günün şarkısı şu an yüklenemedi. Biraz sonra tekrar dene.';
     } finally {
       if (mounted) setState(() => _dailyLoaded = true);
     }
@@ -288,9 +296,9 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(
-                      _dailyLoaded
-                          ? 'Günün şarkısı için önce oylayıp profilini kur.'
-                          : 'Günün şarkısı hazırlanıyor…',
+                      !_dailyLoaded
+                          ? 'Günün şarkısı hazırlanıyor…'
+                          : (_dailyNote ?? 'Günün şarkısı için önce oylayıp profilini kur.'),
                       style: theme.textTheme.bodyMedium,
                     ),
                   ),
