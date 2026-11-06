@@ -92,6 +92,7 @@ class _RatingScreenState extends State<RatingScreen> {
   // Her açılışta farklı tohum: sabit 0 olunca aynı şarkı hep ilk sırada çıkıyordu.
   int _seed = DateTime.now().millisecondsSinceEpoch % 100000;
   int _stale = 0;
+  DateTime? _lastAutoRefresh;
   bool _loading = true;
   bool _filling = false;
   bool _busy = false;
@@ -145,7 +146,21 @@ class _RatingScreenState extends State<RatingScreen> {
   }
 
   Future<void> _fill() async {
-    final q = await widget.api.voteQueue(seed: _seed);
+    var q = await widget.api.voteQueue(seed: _seed);
+    // Önbellek TTL'i dolan parçalar kuyruktan düşer; kuyruk kuruyorsa kullanıcıyı uyarmadan
+    // kütüphaneyi sessizce yenile (10 dk'da en çok bir kez; başarısızsa elle düğme kalır).
+    final last = _lastAutoRefresh;
+    if (q.stale > 0 &&
+        _cards.length + q.items.length < prefetchBelow &&
+        (last == null || DateTime.now().difference(last) > const Duration(minutes: 10))) {
+      _lastAutoRefresh = DateTime.now();
+      try {
+        await widget.api.importLibrary();
+        q = await widget.api.voteQueue(seed: _seed);
+      } on ApiException catch (e) {
+        if (e.status == 401) rethrow;
+      } catch (_) {}
+    }
     _stale = q.stale;
     final seen = _cards.map((c) => c.track).toSet();
     // Sunucu, oy kaydedilmeden önce başlayan bir istekte az önce oylanan parçayı da dönebilir.

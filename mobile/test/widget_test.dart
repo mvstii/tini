@@ -290,6 +290,9 @@ void main() {
     testWidgets('empty queue with stale metadata offers a library refresh', (tester) async {
       final f = fake(items: [], stale: 3);
       await open(tester, f.api);
+      // Kuyruk eskiyen önbellek yüzünden kuruyunca kütüphane kullanıcı dokunmadan yenilenir.
+      expect(f.calls.where((c) => c == 'POST /library/import').length, 1);
+      // Yenileme sonrası hâlâ eskiyse elle düğme yedek olarak kalır (tekrar denemez).
       expect(find.textContaining('3 şarkının bilgisi eskidi'), findsOneWidget);
 
       await tester.tap(find.text('Kütüphaneyi yenile'));
