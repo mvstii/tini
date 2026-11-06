@@ -6,7 +6,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.config import Settings
+from app.config import RecommendSettings, Settings, get_recommend_settings
 from app.db import make_engine
 from app.deps import get_db
 from app.graph.service import clear_cache
@@ -95,7 +95,7 @@ def test_generate_persists_list_with_reasons_and_track(client, db):
     r = client.post("/lists/generate", headers=h)
     assert r.status_code == 201
     body = r.json()
-    assert body["algo_version"] == "list-3" and body["profile_version"] == 1
+    assert body["algo_version"] == "list-4" and body["profile_version"] == 1
     items = {i["artist_id"]: i for i in body["items"]}
     assert set(items) == {c1.id, c2.id}
     assert [i["position"] for i in body["items"]] == [1, 2]
@@ -288,6 +288,8 @@ def test_export_maps_scope_error_and_checks_access(client, db, monkeypatch):
 
 
 def test_generate_assigns_slots_and_unheard_uses_pooled_track(client, db):
+    # Küçük yapay grafikte uzak yuva her şeyi alır; bu test bandit yuvalarını sınar.
+    app.dependency_overrides[get_recommend_settings] = lambda: RecommendSettings(far_share=0.0)
     h, seed, c1, c2 = setup_user(client, db, "l5@example.com", "LS")
     pooled = library_track(db, "l5@example.com", "ZZLS00000050", c2)
     assert client.post("/votes/unheard", json={"track": pooled.id}, headers=h).status_code == 201

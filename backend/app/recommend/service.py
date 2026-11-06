@@ -23,6 +23,7 @@ from app.models import (
 )
 from app.profile.service import load_profile_votes, unheard_statuses
 from app.recommend.bandit import SLOTS, allocate, slot_shares
+from app.recommend.diverse import cached_labels, cap_share, home_weights, pick_far
 from app.recommend.fresh import FreshRelease, rank_fresh
 from app.recommend.outcomes import ArtistVote, ItemRef, derive_outcomes
 from app.recommend.ppr import Candidate, Propagated, explain, propagate, score_candidates
@@ -49,6 +50,7 @@ class Scored:
     gm: GraphMatrix
     cands: list[Candidate]
     prop: Propagated | None = None  # aynı yayılım Taze yuvasının gerekçelerinde yeniden kullanılır
+    known: frozenset[int] = frozenset()
 
 
 def latest_profile_graph(db: Session, user_id, gcfg: GraphSettings):
@@ -77,7 +79,10 @@ def compute_candidates(
     # işbirliği düğümleri ("A & B") kendi başına önerilmez; üyeleri zaten ayrı skorlanır
     known |= set(db.scalars(select(ArtistMember.collab_id)))
     prop = propagate(gm, row.body, cfg)
-    return Scored(row, graph_version, gm, score_candidates(gm, row.body, known, cfg, prop), prop)
+    return Scored(
+        row, graph_version, gm, score_candidates(gm, row.body, known, cfg, prop), prop,
+        frozenset(known),
+    )
 
 
 def _pick_tracks(db: Session, user_id, artist_ids: list[int]) -> dict[int, int]:
@@ -179,19 +184,41 @@ def generate_list(
     fresh = fresh[: round(cfg.list_size * cfg.fresh_share)]
     fresh_artists = {i.artist_id for i in fresh}
     pool = _pool_tracks(db, user_id, pcfg)
+    labels = cached_labels(sc.gm, sc.graph_version, cfg.community_count, cfg.community_seed)
+    seeds = (
+        list(zip(map(int, sc.prop.seed_ids), map(float, sc.prop.w), strict=True))
+        if sc.prop is not None else []
+    )
+    home = home_weights(seeds, labels)
+    wide_cfg = cfg.model_copy(update={"candidate_top_n": cfg.far_pool_size})
+    wide = score_candidates(sc.gm, sc.profile.body, set(sc.known), wide_cfg, sc.prop)
+    far = [
+        c for c in pick_far(
+            [c for c in wide if c.artist_id not in fresh_artists], labels, home,
+            round(cfg.list_size * cfg.far_share), cfg.far_home_exclude,
+        )
+    ]
+    far_ids = {c.artist_id for c in far}
     pools = split_slots(
-        [c for c in sc.cands if c.artist_id not in fresh_artists], pool, cfg.familiar_fraction
+        [c for c in sc.cands if c.artist_id not in fresh_artists | far_ids], pool,
+        cfg.familiar_fraction,
     )
     outcomes = slot_outcomes(db, user_id)
     shares = slot_shares(outcomes, cfg, sc.profile.version)
-    counts = allocate(cfg.list_size - len(fresh), shares, {s: len(pools[s]) for s in SLOTS})
-    slot_of: dict[int, str] = {}
-    chosen = []
+    room = cfg.list_size - len(fresh) - len(far)
+    counts = allocate(room, shares, {s: len(pools[s]) for s in SLOTS})
+    slot_of: dict[int, str] = {c.artist_id: "far" for c in far}
+    chosen = list(far)
     for slot in SLOTS:
         for c in select_mmr(pools[slot], sc.gm, counts[slot], cfg.mmr_lambda):
             slot_of[c.artist_id] = slot
             chosen.append(c)
     chosen.sort(key=lambda c: (-c.score, c.artist_id))
+    spare = [c for c in sc.cands if c.artist_id not in fresh_artists]
+    kept = cap_share(chosen, spare, labels, cfg.list_size, cfg.max_cluster_share)
+    for c in kept:
+        slot_of.setdefault(c.artist_id, "explore")  # tavan sonrası dolgu adayları
+    chosen = kept
     tracks = _pick_tracks(db, user_id, [c.artist_id for c in chosen]) if chosen else {}
     tracks.update({a: t for a, t in pool.items() if slot_of.get(a) == "unheard"})
     lst = GeneratedList(
@@ -207,6 +234,8 @@ def generate_list(
             "novelty_gamma": cfg.novelty_gamma, "candidate_top_n": cfg.candidate_top_n,
             "slot_shares": {k: round(v, 6) for k, v in shares.items()},
             "slot_counts": counts,
+            "far_count": len(far), "far_share": cfg.far_share,
+            "max_cluster_share": cfg.max_cluster_share, "community_count": cfg.community_count,
             "fresh_share": cfg.fresh_share, "fresh_count": len(fresh),
             "slot_outcomes": {k: list(v) for k, v in outcomes.items()},
         },

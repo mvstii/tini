@@ -165,7 +165,7 @@ def format_report(rep: Report, min_sample: int) -> list[str]:
         f"Sunulan öğe: {o.presented}, liste sonrası oylanan: {o.voted}",
         f"Önerilenin Good+ oranı: {rate(o)}",
     ]
-    for name in ("familiar", "unheard", "explore", "fresh"):
+    for name in ("familiar", "unheard", "explore", "far", "fresh"):
         s = rep.slots.get(name)
         if s is None:
             continue
