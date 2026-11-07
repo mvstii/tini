@@ -193,3 +193,5 @@ Betik: `spikes/lb_genre_probe.py` (salt okunur, token'sız). 20 alt tür × 3 po
 - Türkçe etiket takma adları sınırlı denendi (arabesk/arabesque, anatolian/turkish rock, turkish pop, turkish hip hop/rap, turkish folk).
 
 **Sonuç:** plana göre kapı tutmadı; B planı (MusicBrainz etiket araması + Last.fm `tag.getTopArtists`) geliştiriciye sunulur, PR-4 başlamaz. Uygulama kodu ve veri değişmedi.
+
+**Ek doğrulama (token ile, 7 Kasım 2026):** `GET /1/popularity/top-recordings-for-artist/{mbid}` token ile 200 döner (3 sanatçıda 0,4–1,0 sn; hız sınırı 30 istek / ~10 sn). Yanıt düz liste; kayıt başına `recording_mbid`, `recording_name`, `artist_mbids`, `artists`, `release_mbid`, `length`, `tags`, `total_listen_count`, `total_user_count` (ISRC yok). Sanatçı başına kayıt sayısı 221–2323 arası. Token'sız 401.
