@@ -1,6 +1,6 @@
 # Tını — Keşif Evreni ve Kuyruk Güvenilirliği Planı
 
-7 Kasım 2026 · Onaylı plan. Ana kopya Claude Docs'ta: https://claude.ai/artifact/Pz3kKb3X45cdHmHx5eJ9KT — bu dosya Claude Code'un okuduğu repo kopyasıdır; ilerleme burada da güncellenir.
+7 Kasım 2026 · Onaylı plan. **Tek doğruluk kaynağı bu dosyadır**; ilerleme burada güncellenir. Claude Docs kopyası (https://claude.ai/artifact/Pz3kKb3X45cdHmHx5eJ9KT) PR sonlarında buradan senkronlanır, çakışmada bu dosya geçerlidir.
 
 ## Özet ve hedef
 
@@ -44,10 +44,12 @@ Takılmanın kökü, kuyruğun her isteği o an senkron hesaplaması; darlığı
 | # | Kök neden | Kanıt | Güven |
 | --- | --- | --- | --- |
 | G1 | İstemcide kaybolan doldurma: `_filling` sürerken verilen oylar yeni istek tetiklemiyor, bitince yeniden kontrol yok; sunucu bekleyen kartları geri döndürüyor, filtrelenince 0 yeni kart → "Oylanacak şarkı yok" çıkmazı | `mobile/lib/screens/rating_screen.dart` (`_topUp`, `_fill`) | Kesin |
-| G2 | `GET /votes/queue` istek yolunda profil yenileme, liste üretimi ve 10–20 sıralı Spotify çağrısı; DB oturumu boyunca açık | `profile/api.py`, `profile/suggest.py` | Kesin (süre: hipotez) |
+| G2 | `GET /votes/queue` istek yolunda profil yenileme, liste üretimi ve 10–20 sıralı Spotify çağrısı; DB oturumu boyunca açık | `profile/api.py`, `profile/suggest.py` | Kesin (kod); canlıda yavaşlık **gözlenmedi** (bkz. temel çizgi) |
 | G3 | `after_vote` her oyda yeni engine açıyor (`make_engine`); MusicBrainz sınırlayıcısı nesne başına; uyanıştan 120 sn sonra graf turu ve yeni snapshot → matris + SVD/KMeans istek içinde | `graph/auto.py`, `db.py`, `sources/http.py`, `graph/scheduler.py` | Kesin (çakışma: hipotez) |
 | G4 | Render soğuk açılışı (~1 dk) istemci zaman aşımından (45 sn) uzun | `mobile/lib/api.dart`, `docs/DAGITIM.md` | Kesin |
 | G5 | İstek günlüğünde yalnızca toplam süre var | `requestlog.py` | Kesin |
+| G6 | **Spotify bağımlılığı:** kütüphane parçalarının meta önbelleği 24 saatte dolunca parçalar kuyruktan düşer; otomatik kütüphane yenilemesi Spotify 503/429 dönerse yakalanmayan `httpx.HTTPStatusError` ile 500 verir; öneri kartları da `find_card` için Spotify'a muhtaç → kuyruk kurur | `library.py`, `adapters/spotify/client.py`, `profile/suggest.py`; canlı log 7 Kasım 02:57/02:58 ve 5 Kasım 02:42 (`/library/import` 500, Spotify `GET /me/tracks` 503) | Kesin (canlıda gözlendi) |
+| G7 | Last.fm JSON olmayan yanıt dönünce `sources/http.get_json` `JSONDecodeError`'u kaynak hatasına çevirmiyor; graf turunun tamamı ilk kötü yanıtta iptal olur | `sources/http.py`, `graph/expand.py`; canlı log 7 Kasım 19:40 | Kesin (canlıda gözlendi) |
 
 **Kapsam ve çeşitlilik**
 
@@ -65,6 +67,20 @@ Takılmanın kökü, kuyruğun her isteği o an senkron hesaplaması; darlığı
 | K10 | Sıralamalar deterministik argmax; tohum yalnızca eşitlik bozar, sürpriz yok | `profile/active.py`, `recommend/select.py` |
 | K11 | 14 kovalık tek etiketli taksonomi; alt tür bilgisi veride var ama kullanılmıyor | `recommend/genres.py` |
 | K12 | Profil sanatçı düzeyinde; tür maruziyeti ve tür eğilimi öğrenilmiyor | `profile/build.py` |
+
+**Temel çizgi (7 Kasım 2026, canlı Render/Neon panellerinden, salt okunur)**
+
+| Ölçüt | Değer | Sonuç |
+| --- | --- | --- |
+| Neon CU (1–7 Kasım) | production 3,02 + staging 0,04 CU-saat (≈ 13–14/ay) | Kota riski (C1) şu an düşük |
+| Neon hesaplama | 0,25 CU sabit, iki dalda; staging Expires: Never | Hazır |
+| Neon depolama | 48,7 MB | 1 GB sınırının çok altında |
+| Render OOM (7 gün) | Yok | Bellek (C3) şu an sorun değil |
+| `/votes/queue` süreleri (7 Kasım 02:54–02:57 oturumu) | Hepsi 200; 337–1655 ms | G2 yavaşlığı desteklenmedi |
+| Takılma anı | `seed` 41173 dört kez tekrarlandı (istemci "Yeniden dene" döngüsü); aynı anda `/library/import` iki kez 500 (Spotify 503) | Kök neden G1 + G6 |
+| Diğer 5xx | 3 Kasım `/auth/login` 500'leri (o günkü geçiş, kapalı) | — |
+
+Sonuç: Takılmanın ağırlık merkezi sunucu yavaşlığı değil, **Spotify'a bağımlılık (G6) ve istemcinin boş yanıtı yönetememesi (G1)**. PR-1, PR-2 ve PR-3 buna göre genişletildi.
 
 ## Hedef mimari
 
@@ -145,8 +161,10 @@ Amaç: takılmanın aşama sürelerini görünür kılmak ve doğrulanmış sız
 - [ ] **Bayrak altyapısı:** her yeni davranış için `Settings` alanı, canlı varsayılanı kapalı.
 - [ ] **Yerel yeniden üretim:** `docker-compose.limits.yml` (`cpus: 0.1`, `mem_limit: 512m`) + `app/jobs/rapid_vote_bench.py` (100 oy, kart başına ~1 sn; p50/p95/maks, boş yanıt, 5xx, RSS).
 - [ ] **Doküman:** `docs/DAGITIM.md`'deki "açılışta alembic çalışmaz" ifadesi düzeltilir (`Dockerfile` her açılışta `alembic upgrade head` çalıştırıyor).
+- [ ] **Dış servis hatalarına dayanıklılık (G6):** Spotify 5xx/429 yanıtları (`library.py` içe aktarma, `adapters/spotify`) yakalanır ve istemciye 500 yerine `Retry-After` başlıklı **503** olarak, anlaşılır Türkçe mesajla döner; mevcut `_service_error` kalıbı kullanılır.
+- [ ] **Kaynak istemcisi sağlamlığı (G7):** `sources/http.get_json` JSON olmayan/boş yanıtı `SourceError` sayar; `graph/expand` tek sanatçının hatasında `error` sayıp tura devam eder (mevcut `fetch_log` hata TTL'i kullanılır).
 
-**Testler:** sınırlayıcının eşzamanlılık testi (iki thread aynı aralığı paylaşır), birleştiricinin tekilliği, matris değiştirme sırasında eski sürümün korunması, engine tekilliği. Mevcut 322 backend testi geçmeli.
+**Testler:** sınırlayıcının eşzamanlılık testi (iki thread aynı aralığı paylaşır), birleştiricinin tekilliği, matris değiştirme sırasında eski sürümün korunması, engine tekilliği; sahte Spotify 503 → `/library/import` 503 + `Retry-After`; sahte Last.fm HTML yanıtı → tur devam eder. Mevcut 322 backend testi geçmeli.
 
 **Bitti tanımı:** bench raporunda önce/sonra p95, RSS ve Neon bağlantı sayısı; DURUM.md kaydı.
 
@@ -168,12 +186,13 @@ Amaç: `GET /votes/queue` yalnızca hazır olanı okusun ve sıralasın (hedef p
 - [ ] `profile/refill.py` (yeni): advisory lock, 429/ağ hatasında sessiz kesme, günlük; PR-1 yürütücüsünden çalışır.
 - [ ] `profile/api.py` `queue()`: istek yolunda Spotify çağrısı, `ensure_fresh_list` ve `rebuild_profile` yok; yalnızca kütüphane + hazır öneriler. Su seviyesi altındaysa doldurucu tetiklenir.
 - [ ] `cast_vote`: oy sonrası tampon kontrolü ve tetik.
-- [ ] `config.py` `ProfileSettings`: `buffer_low_watermark`, `buffer_target`, `refill_batch`.
+- [ ] `config.py` `ProfileSettings`: `buffer_low_watermark`, `buffer_target`, `refill_batch`, `meta_refresh_at`, `meta_refresh_batch`.
+- [ ] **Meta önbelleğinin önceden tazelenmesi (G6):** kullanıcının oylanmamış kütüphane parçalarının `UserTrackMeta` kayıtları TTL'in `meta_refresh_at` oranına (başlangıç 0,8) ulaşınca doldurucu tarafından arka planda Spotify'dan tazelenir; parti başına sınırlı (`meta_refresh_batch`), 429/5xx'te sessizce bırakılır. Spotify verisinin 24 saat kuralı değişmez; yalnızca süresi dolmadan yenilenir. Böylece kısa bir Spotify kesintisinde kuyruk kurumaz.
 - [ ] Yanıt sözleşmesi değişmez (eski APK çalışır); `algo_version` `queue-7` kalır.
 
-**Testler:** tampon boşken kuyruğun kütüphaneden anında dönmesi; iki eşzamanlı tetik → tek iş; Spotify hatasında tamponun bozulmaması; mevcut kuyruk testlerinin geçmesi.
+**Testler:** tampon boşken kuyruğun kütüphaneden anında dönmesi; iki eşzamanlı tetik → tek iş; Spotify hatasında tamponun bozulmaması; TTL'in %80'ini geçen meta kaydının tazelenmesi, sahte Spotify 503'te kaydın dokunulmadan kalması; mevcut kuyruk testlerinin geçmesi.
 
-**Bitti tanımı:** `rapid_vote_bench`'te tampon boşken bile p95 < 800 ms, boş yanıt 0.
+**Bitti tanımı:** `rapid_vote_bench`'te tampon boşken bile p95 < 800 ms, boş yanıt 0; Spotify'ın 10 dakika 503 döndüğü sahte senaryoda kuyruk kurumaz.
 
 **Öğrenilen kavramlar:** hızlı yol / yavaş yol ayrımı, üretici-tüketici ve tampon, dağıtık kilit.
 
@@ -365,6 +384,7 @@ En yüksek iki risk Neon kotasının dolması ve keşfin kullanıcıyı sıkmas�
 
 | Risk | Etki | Önlem |
 | --- | --- | --- |
+| Spotify kesintisi / 503 (canlıda gözlendi) | Yüksek: kuyruk kurur, "Yeniden dene" döngüsü | PR-1 503 + `Retry-After`; PR-2 meta önceden tazeleme ve tampon; PR-3 istemci geri çekilmesi ve anlaşılır durum |
 | Neon CU kotası dolar | Yüksek: uygulama dönem sonuna kadar durur | Azami CU 0,25; engine sızıntısı kapanır; arka plan işleri toplu; haftalık CU kontrolü |
 | 0,1 CPU'da arka plan/istek yarışı | Yüksek: takılma sürer | Tek iş parçacıklı yürütücü; istek yolu Spotify ve liste üretiminden bağımsız |
 | 512 MB'da OOM | Orta | Bench'te RSS ölçümü; gerekirse KMeans `n_init` düşürülür (onayla) veya etiketler bilgisayarda hesaplanır |
@@ -386,13 +406,15 @@ Bu işler geliştiricinin hesaplarında ve elindedir; Claude Code bunları yapam
 
 **Başlamadan önce**
 
-- [ ] Neon panelinde azami CU'yu 0,25'e sabitle (otomatik ölçeklemeyi kapat).
-- [ ] Neon'da `staging` dalı aç (canlı verinin kopyası); bağlantı dizesini yerel `.env.staging`'e koy.
-- [ ] Güncel `pg_dump` yedeği al (`backups/`).
-- [ ] Neon panelinde bu ayki CU kullanımını ve Render Events'te OOM/yeniden başlatma kaydı olup olmadığını not et (PR-1 için temel çizgi).
+- [x] Neon panelinde azami CU'yu 0,25'e sabitle (otomatik ölçeklemeyi kapat). — 7 Kasım 2026
+- [x] Neon'da `staging` dalı aç (canlı verinin kopyası, Expires: Never). — 7 Kasım 2026
+- [x] Güncel `pg_dump` yedeği al: `backups/tini-2026-11-07.dump` (1,3 MB). — 7 Kasım 2026
+- [x] Temel çizgi (Neon CU, Render Events/Logs) — bkz. Teşhis → Temel çizgi. — 7 Kasım 2026
+- [x] Sızan production parolası sıfırlandı, Render `DATABASE_URL` güncellendi, PowerShell geçmişi temizlendi. — 7 Kasım 2026
 
 **Program sırasında**
 
+- [ ] **PR-4'ten önce:** `staging` dalının `neondb_owner` parolasını sıfırla (dal, sızan eski parolayla kopyalandı) ve `backend/.env.staging` dosyasını `DATABASE_URL=postgresql+psycopg://...?sslmode=require` ile oluştur.
 - [ ] PR-0 için gerekirse ücretsiz ListenBrainz hesabı aç ve token'ı `.env`'e `LISTENBRAINZ_TOKEN` olarak ekle.
 - [ ] Her PR sonunda Render ortam değişkenleriyle bayrakları aç ve sonucu gözle.
 - [ ] PR-3 sonrası yeni APK'yı testçilere dağıt.
@@ -406,8 +428,7 @@ Bu işler geliştiricinin hesaplarında ve elindedir; Claude Code bunları yapam
 
 **Açık sorular**
 
-- Takılma kendiliğinden ne kadar sürede düzeliyor: yaklaşık 1 dakika mı, yoksa ancak uygulama yeniden açılınca mı?
-- Render günlüklerinde OOM ya da yeniden başlatma var mı?
+- Yanıtlandı (7 Kasım 2026): OOM yok; takılma sunucu yavaşlığından değil Spotify 503 + istemci boş yanıt döngüsünden (Teşhis → Temel çizgi).
 
 ## Claude Code çalışma kuralları ve ilerleme takibi
 
