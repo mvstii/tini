@@ -135,7 +135,7 @@ Amaç: omurganın dayandığı ListenBrainz verisinin gerçekte yeterli olup olm
 - [x] Yanıt alanlarını kaydet: kayıt MBID, sanatçı MBID, başlık, popülerlik; yanıt süresi, hız sınırı başlıkları, token gerekip gerekmediği.
 - [x] `GET /1/popularity/top-recordings-for-artist/{mbid}` için token ihtiyacını ve yanıt biçimini doğrula. — Token zorunlu (401); biçim ARCHITECTURE.md'de.
 - [x] Örnek kayıtları MusicBrainz `recording/{mbid}?inc=isrcs` ile ISRC'ye çevir (1 istek/sn); çözülme oranını ölç.
-- [ ] Düşük popülerlik bandında etiket tutarlılığını elle örnekle (konu dışı kayıt oranı). — **Yapılmadı:** kayıtlar `spikes/out/lb_genre_probe.json` içinde, elle okuma geliştiriciye kaldı.
+- [x] Düşük popülerlik bandında etiket tutarlılığını elle örnekle (konu dışı kayıt oranı). — Kısmen: 2 tür işaretlendi (Türkçe rap 8/8, shoegaze 6/8 konu dışı, tek sanatçı baskın); sanatçı çeşitliliği kapıya eklendi.
 - [x] Sonucu `docs/ARCHITECTURE.md`'ye "Faz 0 tipi doğrulama" olarak yaz.
 
 **Kapı**

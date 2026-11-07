@@ -195,3 +195,9 @@ Betik: `spikes/lb_genre_probe.py` (salt okunur, token'sız). 20 alt tür × 3 po
 **Sonuç:** plana göre kapı tutmadı; B planı (MusicBrainz etiket araması + Last.fm `tag.getTopArtists`) geliştiriciye sunulur, PR-4 başlamaz. Uygulama kodu ve veri değişmedi.
 
 **Ek doğrulama (token ile, 7 Kasım 2026):** `GET /1/popularity/top-recordings-for-artist/{mbid}` token ile 200 döner (3 sanatçıda 0,4–1,0 sn; hız sınırı 30 istek / ~10 sn). Yanıt düz liste; kayıt başına `recording_mbid`, `recording_name`, `artist_mbids`, `artists`, `release_mbid`, `length`, `tags`, `total_listen_count`, `total_user_count` (ISRC yok). Sanatçı başına kayıt sayısı 221–2323 arası. Token'sız 401.
+
+**Çeşitlilik ve etiket tutarlılığı (7 Kasım 2026, 160 kayıtlık örnek; bant başına ilk 8 kayıt)**
+- Sanatçı tekrarı yüksek: 3 bantta 24 kayıttaki benzersiz sanatçı sayısı Türkçe rap 2, Anadolu rock 4, Türk halk 4, Türkçe pop 6, arabesk 11, drill 7; Türkçe olmayan türlerin çoğunda 15–23. Ölçüm ISRC sorgulanan ilk 8 kayıttan; `lb-radio` sırasının sanatçıya göre öbeklenip öbeklenmediği ve 25 kaydın tamamı ölçülmedi.
+- Kuyruk bandı elle örneklemesi (geliştirici): yalnızca Türkçe rap (8/8 konu dışı, hepsi Grup Ses, çoğu enstrümantal) ve shoegaze (6/8 konu dışı, hepsi The Smashing Pumpkins) işaretlendi; diğer 18 tür için işaretleme bilgisi yok, oran yazılmadı.
+- Yorum: tek bir sanatçının kataloğu etiketi alıp kuyruk bandını doldurabiliyor; yanlış etiket ile tekrar aynı kaynaktan geliyor.
+- Kapı tanımına eklenecek: alt tür başına ≥ 15 benzersiz sanatçı. Önlem adayları: sanatçı başına üst sınır, `tag_count` eşiği, çok sayıda istekle havuz genişletme.
