@@ -131,12 +131,12 @@ Amaç: omurganın dayandığı ListenBrainz verisinin gerçekte yeterli olup olm
 
 **Yapılacaklar**
 
-- [ ] `spikes/lb_genre_probe.py` (salt okunur betik): seçilmiş ~20 alt tür (en az 5'i Türkçe: arabesk, Anadolu rock, Türkçe pop, Türkçe rap, Türk halk) için `GET /1/lb-radio/tags` çağrısı, 3 popülerlik bandıyla (`pop_begin`/`pop_end`).
-- [ ] Yanıt alanlarını kaydet: kayıt MBID, sanatçı MBID, başlık, popülerlik; yanıt süresi, hız sınırı başlıkları, token gerekip gerekmediği.
-- [ ] `GET /1/popularity/top-recordings-for-artist/{mbid}` için token ihtiyacını ve yanıt biçimini doğrula.
-- [ ] Örnek kayıtları MusicBrainz `recording/{mbid}?inc=isrcs` ile ISRC'ye çevir (1 istek/sn); çözülme oranını ölç.
-- [ ] Düşük popülerlik bandında etiket tutarlılığını elle örnekle (konu dışı kayıt oranı).
-- [ ] Sonucu `docs/ARCHITECTURE.md`'ye "Faz 0 tipi doğrulama" olarak yaz.
+- [x] `spikes/lb_genre_probe.py` (salt okunur betik): seçilmiş ~20 alt tür (en az 5'i Türkçe: arabesk, Anadolu rock, Türkçe pop, Türkçe rap, Türk halk) için `GET /1/lb-radio/tags` çağrısı, 3 popülerlik bandıyla (`pop_begin`/`pop_end`).
+- [x] Yanıt alanlarını kaydet: kayıt MBID, sanatçı MBID, başlık, popülerlik; yanıt süresi, hız sınırı başlıkları, token gerekip gerekmediği.
+- [ ] `GET /1/popularity/top-recordings-for-artist/{mbid}` için token ihtiyacını ve yanıt biçimini doğrula. — **Kısmen:** token'sız 401 doğrulandı; yanıt biçimi için geliştiricinin `LISTENBRAINZ_TOKEN`'ı gerekli.
+- [x] Örnek kayıtları MusicBrainz `recording/{mbid}?inc=isrcs` ile ISRC'ye çevir (1 istek/sn); çözülme oranını ölç.
+- [ ] Düşük popülerlik bandında etiket tutarlılığını elle örnekle (konu dışı kayıt oranı). — **Yapılmadı:** kayıtlar `spikes/out/lb_genre_probe.json` içinde, elle okuma geliştiriciye kaldı.
+- [x] Sonucu `docs/ARCHITECTURE.md`'ye "Faz 0 tipi doğrulama" olarak yaz.
 
 **Kapı**
 
@@ -467,7 +467,7 @@ python -m app.jobs.queue_sim --email <e-posta>   # PR-6 sonrası
 
 | PR | Başlık | Durum | Dal / PR | Not |
 | --- | --- | --- | --- | --- |
-| PR-0 | Doğrulama spike'ı | Başlamadı | | |
+| PR-0 | Doğrulama spike'ı | Analiz/onay bekliyor | `feat/pr0-lb-spike` | Kapı **tutmadı**: 20 alt türden 8'i geçti, 5 Türkçe türün hiçbiri; B planı kararı bekliyor (ARCHITECTURE.md) |
 | PR-1 | Ölçüm ve arka plan hijyeni | Başlamadı | | |
 | PR-2 | Hızlı yol ve tampon | Başlamadı | | |
 | PR-3 | İstemci kuyruk denetleyicisi | Başlamadı | | |

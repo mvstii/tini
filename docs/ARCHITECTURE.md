@@ -165,3 +165,31 @@ Yorum:
 - **ListenBrainz `explore/fresh-releases`** (global, `days=30`): 9897 yayın döndü, bunlardan yalnızca 5'i bizim 40 sanatçıdan (MusicBrainz aramasının yakaladığı 17'nin alt kümesi). Tek istekle tüm sanatçılar için bakılabilir ama kapsamı düşük (yalnızca ListenBrainz'e giren yayınlar). Kullanılmaz; ikincil/yedek olarak ertelenir.
 - **Çalışma notları:** işbirliği yayınları ("X feat. Y") ana sanatçı MBID'sine ait görünür; aynı release-group birden çok sanatçıda çıkabilir (VULTURES: Ye ve ¥$) → `release` tablosu release-group MBID'sine göre tekilleştirilir. Eski albümlerin yeniden yayını (Donda, VULTURES 2026-08-28 tarihli) `first-release-date` değerine yansıyabilir; "yeni" sayılırken tür ve tarih penceresi birlikte kullanılır.
 - **MBID'siz sanatçılar** (~%26): Last.fm'de yayın tarihi veren uç yok (`artist.getTopAlbums` tarihsiz). Bu sanatçılar için yayın tespiti kapsam dışı; takip listesi yalnızca MBID'li sanatçılarla çalışır.
+
+## Faz 0 tipi doğrulama: ListenBrainz tür omurgası (KESIF_PLANI PR-0, 7 Kasım 2026, gerçek istekler)
+
+Betik: `spikes/lb_genre_probe.py` (salt okunur, token'sız). 20 alt tür × 3 popülerlik bandı × 25 kayıt; her istekte kayıtların ilk 8'i MusicBrainz `recording/{mbid}?inc=isrcs+artist-credits` ile ISRC'ye çevrildi (bant başına 8, toplam 480 örnek).
+
+**Uç davranışı**
+- `GET /1/lb-radio/tags` **token'sız çalışır** (anonim). Hız sınırı 30 istek / ~10 sn (`X-RateLimit-*` başlıkları). Yanıt süresi tipik 0,2–1,5 sn, en fazla 3,5 sn. `count=25` istenen kadar kayıt döndü (üst sınır denenmedi).
+- Yanıt **yalnızca** `recording_mbid`, `percent`, `source` (ör. `release-group`), `tag_count` taşır; başlık, sanatçı ve popülerlik alanı yok. Başlık/sanatçı/ISRC için MusicBrainz çağrısı şart (plan bunu varsaymıyordu).
+- `pop_begin/pop_end` yönü **ters**: 0–33 en çok dinlenenler, 66–100 uzun kuyruk. Doğrulama: `POST /1/popularity/recording` ile bant başına dinlenme medyanı (ör. house 93.764 → 11.654 → 6). Plandaki `known/mid/niche` adları `top/mid/tail` olarak okunmalı.
+- `GET /1/popularity/top-recordings-for-artist/{mbid}` **token'sız 401** verir; yanıt biçimi doğrulanamadı (kullanıcı token'ı gerekli).
+
+**MBID → ISRC çözülme (MusicBrainz, örnek 480 kayıt)**
+
+| Grup | top | mid | tail |
+| --- | --- | --- | --- |
+| Türkçe dışı 15 tür | 110/120 (%92) | 85/120 (%71) | 40/120 (%33) |
+| Türkçe 5 tür | 14/40 (%35) | 7/40 (%18) | 8/40 (%20) |
+| Tümü | 124/160 (%78) | 92/160 (%58) | 48/160 (%30) |
+
+**Kapı (alt tür başına ≥ 20 ISRC'li kayıt tahmini ve ≥ %60 çözülme, 3 bant birlikte):** 20 türden **8'i geçti** (trap, drill, jazz fusion, house, synthpop, reggae, soul, k-pop), 12'si kaldı. **Beş Türkçe türün hiçbiri geçmedi** (çözülme: arabesk %33, Anadolu rock %21, Türkçe pop %50, Türkçe rap %4, Türk halk %12). Türkçe rap'te üç bandın de dinlenme medyanı 5–6: etiket adı ("turkish hip hop") büyük olasılıkla yanlış ya da çok seyrek.
+
+**Sınırlar (ölçülmedi, yorum katılmadı)**
+- Kapı ölçümü 8'erli örnekle yapıldı; `--full` koşulmadı. Küçük örnekte (8) güven aralığı geniş.
+- Dönen kayıt sayısı istek başına 25 ile sınırlı tutuldu; daha büyük `count` ile ISRC'li kayıt sayısı artabilir, denenmedi.
+- Düşük (tail) bantta etiket tutarlılığı (konu dışı kayıt oranı) **elle örneklenmedi**; kayıtlar `spikes/out/lb_genre_probe.json` içinde (git dışı).
+- Türkçe etiket takma adları sınırlı denendi (arabesk/arabesque, anatolian/turkish rock, turkish pop, turkish hip hop/rap, turkish folk).
+
+**Sonuç:** plana göre kapı tutmadı; B planı (MusicBrainz etiket araması + Last.fm `tag.getTopArtists`) geliştiriciye sunulur, PR-4 başlamaz. Uygulama kodu ve veri değişmedi.
