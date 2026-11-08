@@ -33,7 +33,7 @@ def make_musicbrainz(client: httpx.Client) -> MusicBrainzClient:
     cfg = get_graph_settings()
     http = SourceClient.from_settings(
         client, cfg, user_agent=f"Tini/0.1 ( {contact} )",
-        min_interval=cfg.musicbrainz_min_interval_seconds,
+        min_interval=cfg.musicbrainz_min_interval_seconds, source="musicbrainz",
     )
     return MusicBrainzClient(http, cfg.musicbrainz_base_url)
 
@@ -45,7 +45,7 @@ def make_lastfm(client: httpx.Client) -> LastfmClient | None:
     cfg = get_graph_settings()
     http = SourceClient.from_settings(
         client, cfg, user_agent=f"Tini/0.1 ( {settings.musicbrainz_contact} )",
-        min_interval=cfg.lastfm_min_interval_seconds,
+        min_interval=cfg.lastfm_min_interval_seconds, source="lastfm",
     )
     return LastfmClient(http, cfg.lastfm_base_url, settings.lastfm_api_key)
 

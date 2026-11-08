@@ -6,6 +6,7 @@ import httpx
 
 from app.adapters.base import Library, LibraryTrack, SearchTrack, TrackCard
 from app.catalog.names import normalize_name
+from app.upstream import parse_retry_after
 
 API = "https://api.spotify.com/v1"
 MAX_RETRIES = 4
@@ -42,7 +43,7 @@ class SpotifyAdapter:
         for attempt in range(MAX_RETRIES + 1):
             r = self._http.request(method, API + path, headers=self._auth, **kw)
             if r.status_code == 429 and attempt < MAX_RETRIES:
-                self._sleep(min(int(r.headers.get("Retry-After", "1")), 30))
+                self._sleep(min(parse_retry_after(r.headers.get("Retry-After"), 1.0), 30))
                 continue
             r.raise_for_status()
             return r.json() if r.content else {}

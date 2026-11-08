@@ -2,7 +2,7 @@
 from datetime import UTC, datetime
 
 import httpx
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 from sqlalchemy import func, select
 from sqlalchemy.dialects.postgresql import distinct_on
@@ -20,6 +20,7 @@ from app.config import (
 from app.connect import get_http
 from app.deps import current_user, get_db
 from app.graph.auto import after_vote
+from app.jobs.worker import get_worker
 from app.models import (
     GeneratedList,
     ListenLater,
@@ -40,6 +41,7 @@ from app.profile.scoring import VoteEvt, score_votes
 from app.profile.service import rebuild_profile, unheard_statuses
 from app.profile.suggest import connected_adapter, suggest_items
 from app.profile.unheard import next_state
+from app.timing import Stages
 
 router = APIRouter(prefix="/votes")
 profile_router = APIRouter(prefix="/profile")
@@ -66,7 +68,6 @@ def _events(db: Session, user_id) -> list[VoteEvt]:
 @router.post("", status_code=201)
 def cast_vote(
     body: VoteIn,
-    background: BackgroundTasks,
     user: User = Depends(current_user),
     db: Session = Depends(get_db),
     gcfg: GraphSettings = Depends(get_graph_settings),
@@ -90,7 +91,8 @@ def cast_vote(
     db.add(ev)
     db.commit()
     if gcfg.auto_expand:
-        background.add_task(after_vote, body.track)
+        artist_id = db.scalar(select(Track.artist_id).where(Track.id == body.track))
+        get_worker().submit(("after_vote", artist_id), after_vote, body.track)
     return {"id": ev.id, "track": ev.track_id, "vote": ev.vote}
 
 
@@ -137,6 +139,7 @@ def mark_unheard(
 
 @router.get("/queue")
 def queue(
+    request: Request,
     seed: int = 0,
     limit: int | None = None,
     user: User = Depends(current_user),
@@ -148,6 +151,7 @@ def queue(
 ) -> dict:
     """Oylanacak parçalar. Başlık/sanatçı kullanıcıya özel önbellekten gelir; süresi dolmuş
     önbellekli parçalar atlanır ve `stale` ile sayılır (istemci kütüphaneyi yeniden aktarır)."""
+    st = request.state.stages = Stages()
     size = min(limit or cfg.queue_size, cfg.queue_max_size)
     voted = select(VoteEvent.track_id).where(VoteEvent.user_id == user.id)
     later_ids = select(ListenLater.track_id).where(ListenLater.user_id == user.id)
@@ -196,7 +200,9 @@ def queue(
     fresh = {t: r for t, r in fresh.items() if t in keep}
     cands = [(r[0], r[1]) for r in fresh.values() if r[1] is not None]
     unresolved = [t for t, r in fresh.items() if r[1] is None]
+    st.lap("candidates")
     unc = artist_uncertainties(db, user.id, {a for _, a in cands}, cfg, rcfg, gcfg)
+    st.lap("uncertainty")
     order = order_active(cands, unc, pool & set(fresh), voted_artists, seed, cfg)
     artist_of = dict(cands)
     order = diversify(
@@ -204,6 +210,7 @@ def queue(
         size,
     )
     order = (order + order_unresolved(unresolved, pool, seed))[:size]
+    st.lap("rank")
     items = [
         {"track": t, "title": fresh[t][2], "artists": fresh[t][3], "image": fresh[t][5]}
         for t in order
@@ -214,6 +221,7 @@ def queue(
             db, user, lambda: connected_adapter(db, user, http), now, size - len(items),
             set(fresh) | expired | set(db.scalars(later_ids)), cfg, rcfg, gcfg,
         )
+    st.lap("suggest")
     mark_awaiting(db, user.id, pool & {i["track"] for i in items}, statuses)
     shown = [i["track"] for i in items]
     liked = set(

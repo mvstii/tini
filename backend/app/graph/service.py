@@ -16,6 +16,17 @@ _lock = threading.Lock()
 _cached: tuple[int, GraphMatrix] | None = None
 
 
+def _refresh(version: int, cfg: GraphSettings) -> None:
+    from app.db import get_session_factory
+
+    with get_session_factory()() as db:
+        gm = build_matrix(*load_edge_arrays(db, cfg), cfg)
+    global _cached
+    with _lock:
+        if _cached is None or _cached[0] < version:
+            _cached = (version, gm)
+
+
 def clear_cache() -> None:
     global _cached
     with _lock:
@@ -44,6 +55,11 @@ def get_matrix(db: Session, cfg: GraphSettings) -> tuple[int, GraphMatrix] | Non
     cached = _cached
     if cached is not None and cached[0] == version:
         return cached
+    if cached is not None and cfg.swr_enabled:
+        from app.jobs.worker import get_worker
+
+        get_worker().submit(("matrix", version), _refresh, version, cfg)
+        return cached  # eski sürüm sunulur; yenisi arka planda kurulur, atomik değişir
     with _lock:
         if _cached is not None and _cached[0] == version:
             return _cached

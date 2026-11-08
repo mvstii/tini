@@ -4,18 +4,13 @@ from datetime import UTC, datetime
 from fastapi import Depends, Header, HTTPException, Request
 from sqlalchemy.orm import Session
 
-from app.db import make_session_factory
+from app.db import get_session_factory
 from app.models import User, UserSession
 from app.security import hash_token
 
-_factory = None
-
 
 def get_db() -> Iterator[Session]:
-    global _factory
-    if _factory is None:
-        _factory = make_session_factory()
-    with _factory() as s:
+    with get_session_factory()() as s:
         yield s
 
 

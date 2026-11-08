@@ -151,20 +151,20 @@ Amaç: takılmanın aşama sürelerini görünür kılmak ve doğrulanmış sız
 
 **Yapılacaklar**
 
-- [ ] **Ölçüm:** `/votes/queue` içinde aşama süreleri (aday, belirsizlik, sıralama, öneri) → `Server-Timing` başlığı + `requestlog` JSON alanları.
-- [ ] **Tek engine:** `db.py`'ye süreç geneli `get_engine()` / ortak session factory; `deps.get_db`, `graph/auto.after_vote`, `run_round` bunu kullanır (her oyda yeni engine açılması biter).
-- [ ] **Süreç geneli hız sınırlayıcı:** `sources/http.py`'de kaynak adına göre paylaşılan, kilitli `min_interval` (MusicBrainz 1 istek/sn gerçekten korunur).
-- [ ] **Ağır iş yürütücüsü:** `app/jobs/worker.py` — tek iş parçacıklı kuyruk, anahtara göre birleştirme (debounce), kuyruk derinliği sınırı (`GraphSettings.worker_queue_max`), günlük.
-- [ ] **Birleştirme:** `cast_vote` artık `after_vote`'u doğrudan çağırmaz; sanatçıyı yürütücüye bırakır, toplu işlenir.
-- [ ] **Stale-while-revalidate:** `graph/service.get_matrix` ve `recommend/diverse.cached_labels` — önbellek varken yeni snapshot arka planda kurulur, atomik değiştirilir; yalnızca soğuk açılışta senkron.
-- [ ] **Turun ertelenmesi:** `graph/scheduler` turu yürütücüye gönderir; son kullanıcı isteğinden `auto_expand_idle_seconds` sonra çalışır.
-- [ ] **Bayrak altyapısı:** her yeni davranış için `Settings` alanı, canlı varsayılanı kapalı.
+- [x] **Ölçüm:** `/votes/queue` içinde aşama süreleri (aday, belirsizlik, sıralama, öneri) → `Server-Timing` başlığı + `requestlog` JSON alanları.
+- [x] **Tek engine:** `db.py`'ye süreç geneli `get_engine()` / ortak session factory; `deps.get_db`, `graph/auto.after_vote`, `run_round` bunu kullanır (her oyda yeni engine açılması biter).
+- [x] **Süreç geneli hız sınırlayıcı:** `sources/http.py`'de kaynak adına göre paylaşılan, kilitli `min_interval` (MusicBrainz 1 istek/sn gerçekten korunur).
+- [x] **Ağır iş yürütücüsü:** `app/jobs/worker.py` — tek iş parçacıklı kuyruk, anahtara göre birleştirme (debounce), kuyruk derinliği sınırı (`GraphSettings.worker_queue_max`), günlük.
+- [x] **Birleştirme:** `cast_vote` artık `after_vote`'u doğrudan çağırmaz; sanatçıyı yürütücüye bırakır, toplu işlenir.
+- [x] **Stale-while-revalidate:** `graph/service.get_matrix` ve `recommend/diverse.cached_labels` — önbellek varken yeni snapshot arka planda kurulur, atomik değiştirilir; yalnızca soğuk açılışta senkron.
+- [x] **Turun ertelenmesi:** `graph/scheduler` turu yürütücüye gönderir; son kullanıcı isteğinden `auto_expand_idle_seconds` sonra çalışır.
+- [x] **Bayrak altyapısı:** her yeni davranış için `Settings` alanı, canlı varsayılanı kapalı.
 - [ ] **Yerel yeniden üretim:** `docker-compose.limits.yml` (`cpus: 0.1`, `mem_limit: 512m`) + `app/jobs/rapid_vote_bench.py` (100 oy, kart başına ~1 sn; p50/p95/maks, boş yanıt, 5xx, RSS).
-- [ ] **Doküman:** `docs/DAGITIM.md`'deki "açılışta alembic çalışmaz" ifadesi düzeltilir (`Dockerfile` her açılışta `alembic upgrade head` çalıştırıyor).
-- [ ] **Dış servis hatalarına dayanıklılık (G6):** Spotify 5xx/429 yanıtları (`library.py` içe aktarma, `adapters/spotify`) yakalanır ve istemciye 500 yerine `Retry-After` başlıklı **503** olarak, anlaşılır Türkçe mesajla döner; mevcut `_service_error` kalıbı kullanılır.
-- [ ] **Kaynak istemcisi sağlamlığı (G7):** `sources/http.get_json` JSON olmayan/boş yanıtı `SourceError` sayar; `graph/expand` tek sanatçının hatasında `error` sayıp tura devam eder (mevcut `fetch_log` hata TTL'i kullanılır).
+- [x] **Doküman:** `docs/DAGITIM.md`'deki "açılışta alembic çalışmaz" ifadesi düzeltilir (`Dockerfile` her açılışta `alembic upgrade head` çalıştırıyor).
+- [x] **Dış servis hatalarına dayanıklılık (G6):** Spotify 5xx/429 yanıtları (`library.py` içe aktarma, `adapters/spotify`) yakalanır ve istemciye 500 yerine `Retry-After` başlıklı **503** olarak, anlaşılır Türkçe mesajla döner; mevcut `_service_error` kalıbı kullanılır.
+- [x] **Kaynak istemcisi sağlamlığı (G7):** `sources/http.get_json` JSON olmayan/boş yanıtı `SourceError` sayar; `graph/expand` tek sanatçının hatasında `error` sayıp tura devam eder (mevcut `fetch_log` hata TTL'i kullanılır).
 
-**Testler:** sınırlayıcının eşzamanlılık testi (iki thread aynı aralığı paylaşır), birleştiricinin tekilliği, matris değiştirme sırasında eski sürümün korunması, engine tekilliği; sahte Spotify 503 → `/library/import` 503 + `Retry-After`; sahte Last.fm HTML yanıtı → tur devam eder. Mevcut 322 backend testi geçmeli.
+**Testler:** sınırlayıcının eşzamanlılık testi (iki thread aynı aralığı paylaşır), birleştiricinin tekilliği, matris değiştirme sırasında eski sürümün korunması, engine tekilliği; sahte Spotify 503 → `/library/import` 503 + `Retry-After`; sahte Last.fm HTML yanıtı → tur devam eder. Mevcut 324 backend testi geçmeli.
 
 **Bitti tanımı:** bench raporunda önce/sonra p95, RSS ve Neon bağlantı sayısı; DURUM.md kaydı.
 

@@ -12,7 +12,7 @@ from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
 from app.config import GraphSettings, get_graph_settings
-from app.db import make_engine
+from app.db import get_session_factory
 from app.graph.expand import expand, fetch_one
 from app.models import Artist, ArtistEdge, FetchLog, ListItem, Track
 from app.sources.http import SourceError
@@ -119,7 +119,7 @@ def run_round(cfg: GraphSettings | None = None) -> dict:
     cfg = cfg or get_graph_settings()
     now = datetime.now(UTC)
     result: dict = {}
-    with httpx.Client(timeout=20) as client, Session(make_engine()) as db:
+    with httpx.Client(timeout=20) as client, get_session_factory()() as db:
         lfm = make_lastfm(client)
         if lfm is not None:
             result["expand"] = expand(db, lfm, cfg, limit=cfg.auto_expand_limit)
@@ -140,7 +140,7 @@ def after_vote(track_id: int) -> None:
         _quiet_http_logs()
         cfg = get_graph_settings()
         now = datetime.now(UTC)
-        with httpx.Client(timeout=20) as client, Session(make_engine()) as db:
+        with httpx.Client(timeout=20) as client, get_session_factory()() as db:
             artist_id = db.scalar(select(Track.artist_id).where(Track.id == track_id))
             if artist_id is None:
                 return

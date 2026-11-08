@@ -1,0 +1,7 @@
+# Yerel yeniden üretim: Render ücretsiz katmanına yakın kaynak sınırı.
+# Kullanım: docker compose -f docker-compose.yml -f docker-compose.limits.yml up --build
+# Sonra: python -m app.jobs.rapid_vote_bench (backend dizininde)
+services:
+  backend:
+    cpus: 0.1
+    mem_limit: 512m

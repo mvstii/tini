@@ -94,9 +94,21 @@ _cache: dict[tuple[int, int, int], dict[int, int]] = {}
 def cached_labels(gm: GraphMatrix, graph_version: int, k: int, seed: int) -> dict[int, int]:
     key = (graph_version, k, seed)
     if key not in _cache:
-        _cache.clear()  # yalnız güncel sürüm tutulur
-        _cache[key] = community_labels(gm, k, seed)
+        from app.config import get_graph_settings
+
+        if _cache and get_graph_settings().swr_enabled:
+            from app.jobs.worker import get_worker
+
+            get_worker().submit(("labels", key), _compute_labels, gm, key)
+            return next(iter(_cache.values()))  # etiketler artist_id anahtarlı: eski sürüm güvenli
+        _compute_labels(gm, key)
     return _cache[key]
+
+
+def _compute_labels(gm: GraphMatrix, key: tuple[int, int, int]) -> None:
+    labels = community_labels(gm, key[1], key[2])
+    _cache.clear()  # yalnız güncel sürüm tutulur
+    _cache[key] = labels
 
 
 

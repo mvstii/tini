@@ -9,7 +9,7 @@ Adres: `https://tini-74he.onrender.com`. Uygulama GitHub `mvstii/tini` `main` da
 - **Veritabanı:** Neon (Frankfurt, PG16, pgvector 0.8.0). `DATABASE_URL` biçimi: `postgresql+psycopg://...?sslmode=require` (direct bağlantı).
 - **Render ortam değişkenleri:** `PORT=8000`, `APP_ENV=prod`, `DATABASE_URL`, `CREDENTIAL_KEY` (eski yığınla aynı olmalı), `SPOTIFY_CLIENT_ID`, `SPOTIFY_REDIRECT_URI=https://tini-74he.onrender.com/connect/spotify/callback` (Spotify panelinde de ekli), `MUSICBRAINZ_CONTACT`, `LASTFM_API_KEY`, `OPENBLAS_NUM_THREADS=1`, `FORWARDED_ALLOW_IPS=*`.
 - **Docker Command alanı boş bırakılır.** Orada `sh -c "..."` kullanmak açılışta `Exited with status 127` hatası verdi; Dockerfile `CMD`'si yeterli.
-- **Göç:** açılışta alembic çalışmaz. Şema değişince bilgisayardan, `DATABASE_URL` Neon'a çevrilerek `alembic upgrade head` çalıştırılır. Ücretsiz planda SSH ve one-off job yoktur; `app.jobs.*` betikleri de aynı şekilde bilgisayardan Neon'a bağlanarak çalışır.
+- **Göç:** `Dockerfile` `CMD`'si her açılışta `alembic upgrade head` çalıştırır; şema değişikliği deploy ile uygulanır. Elle gerekirse bilgisayardan `DATABASE_URL` Neon'a çevrilerek aynı komut çalıştırılır. Ücretsiz planda SSH ve one-off job yoktur; `app.jobs.*` betikleri de aynı şekilde bilgisayardan Neon'a bağlanarak çalışır.
 - **Güncelleme:** `main`'e push Render'da otomatik deploy tetikler.
 - **Sınırlar:** 15 dk boşta kalınca servis uyur, ilk istek ~1 dk sürer. 512 MB RAM'de SciPy/scikit-learn işleri OOM riski taşır. Neon verisi `backups/tini.sql` olarak yedeklendi (git'e girmez); düzenli yedek için `pg_dump` bilgisayardan Neon'a çalıştırılır.
 - **Doğrulama:** `curl https://tini-74he.onrender.com/health` → `{"status":"ok"}`.

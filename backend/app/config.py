@@ -28,6 +28,10 @@ class Settings(BaseSettings):
     musicbrainz_contact: str = ""
     # Last.fm API anahtarı; yalnızca .env'den gelir, loglanmaz.
     lastfm_api_key: str = ""
+    # Aşama süreleri: Server-Timing başlığı + istek günlüğünde `stages` (salt ölçüm).
+    server_timing_enabled: bool = True
+    # Dış servis 429/5xx iken istemciye 503 ile döndürülen varsayılan Retry-After (saniye).
+    upstream_retry_after_seconds: int = 30
 
     @field_validator("spotify_redirect_uri", "spotify_scopes", mode="before")
     @classmethod
@@ -61,6 +65,10 @@ class GraphSettings(BaseSettings):
     http_backoff_max_seconds: float = 60.0
     lastfm_base_url: str = "https://ws.audioscrobbler.com/2.0/"
     lastfm_min_interval_seconds: float = 0.25
+    # Ağır iş yürütücüsü (jobs/worker.py)
+    worker_queue_max: int = 50
+    # Stale-while-revalidate: eski matris/etiket sunulur, yenisi arka planda kurulur
+    swr_enabled: bool = False
     # Tür etiketleri (catalog/tags.py)
     tag_max_per_artist: int = 8
     tag_min_weight: int = 20  # 0–100; altı gürültü sayılır
@@ -85,6 +93,8 @@ class GraphSettings(BaseSettings):
     auto_expand: bool = True
     auto_expand_hours: int = 6  # turlar arası süre
     auto_expand_delay_seconds: int = 120  # açılıştan ilk tura kadar bekleme
+    auto_expand_idle_seconds: int = 30  # son kullanıcı isteğinden sonra tur için sessizlik
+    auto_expand_idle_max_wait: int = 900  # sessizlik gelmezse en çok bu kadar bekle, sonra çalıştır
     auto_expand_limit: int = 60  # tur başına Last.fm sanatçı çekimi
     auto_tracks_limit: int = 15  # tur başına parça aranacak sanatçı (MusicBrainz, ~1 istek/sn)
     tracks_per_artist: int = 5  # sanatçı başına katalogla eklenen ISRC'li parça üst sınırı

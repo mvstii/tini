@@ -330,3 +330,21 @@ def test_ensure_fresh_list_rebuilds_profile_after_new_votes(db, monkeypatch):
     suggest.ensure_fresh_list(db, u, datetime.now(UTC), set(), cfg, RecommendSettings(),
                               GraphSettings())
     assert "p" in seen and "l" in seen
+
+
+def test_queue_sends_server_timing_and_logs_stages(client, db, caplog):
+    import json
+    import logging
+
+    h = register(client, "timing@example.com")
+    a = mk_artist(db, "Zzz Timing")
+    lib_track(db, "timing@example.com", "ZZTIM0000001", a, "Bir")
+    with caplog.at_level(logging.INFO, logger="tini.request"):
+        r = client.get("/votes/queue", headers=h)
+    assert r.status_code == 200
+    names = [p.split(";")[0] for p in r.headers["Server-Timing"].split(", ")]
+    assert names == ["candidates", "uncertainty", "rank", "suggest"]
+    assert set(r.json()) == {"algo_version", "remaining", "stale", "items"}
+    entry = json.loads(caplog.records[-1].getMessage())
+    assert list(entry["stages"]) == ["candidates", "uncertainty", "rank", "suggest"]
+    assert all(isinstance(v, float) for v in entry["stages"].values())

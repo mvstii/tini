@@ -36,6 +36,7 @@ def get_fetcher(
         gcfg,
         user_agent=f"Tini/0.1 ( {contact} )",
         min_interval=cfg.deezer_min_interval_seconds,
+        source="deezer",
     )
     return DeezerClient(src, cfg.deezer_base_url).artist_picture
 

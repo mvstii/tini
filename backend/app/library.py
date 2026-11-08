@@ -20,6 +20,7 @@ from app.connections import valid_access_value
 from app.deps import current_user, get_db
 from app.jobs.enrich import run_background
 from app.models import ServiceConnection, Track, User, UserTrackLink, UserTrackMeta
+from app.upstream import upstream_unavailable
 
 router = APIRouter()
 
@@ -100,7 +101,10 @@ def import_library(
         value = valid_access_value(db, conn, http)
     except PermissionError as e:
         raise HTTPException(409, str(e)) from e
-    lib = adapter_cls(http, value).read_library()
+    try:
+        lib = adapter_cls(http, value).read_library()
+    except httpx.HTTPError as e:
+        raise upstream_unavailable(e, "Kütüphane içe aktarılamadı") from e
     ttl = timedelta(seconds=get_settings().spotify_cache_ttl_seconds)
     stored = store_library(db, user.id, service, lib, ttl)
     if get_settings().musicbrainz_contact:

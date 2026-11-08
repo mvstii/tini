@@ -1,4 +1,5 @@
 """Kaynak istemcileri için ortak HTTP katmanı: hız sınırı, 429/5xx geri çekilme, User-Agent."""
+import threading
 import time
 from collections.abc import Callable
 
@@ -9,6 +10,42 @@ from app.config import GraphSettings
 
 class SourceError(Exception):
     """Kaynak yanıt vermedi veya deneme sınırı aşıldı."""
+
+
+class RateLimiter:
+    """Slot ayıran hız sınırlayıcı: kilit altında sıradaki izinli zaman ilerletilir, bekleme
+    kilit dışında yapılır; böylece eşzamanlı çağıranlar aynı aralığı paylaşır."""
+
+    def __init__(self) -> None:
+        self._lock = threading.Lock()
+        self._next: float | None = None
+
+    def acquire(
+        self, interval: float, clock: Callable[[], float], sleep: Callable[[float], None]
+    ) -> None:
+        with self._lock:
+            now = clock()
+            start = now if self._next is None else max(now, self._next)
+            self._next = start + interval
+        wait = start - now
+        if wait > 0:
+            sleep(wait)
+
+
+_limiters: dict[str, RateLimiter] = {}
+_limiters_lock = threading.Lock()
+
+
+def get_limiter(source: str) -> RateLimiter:
+    """Kaynak adına göre süreç geneli paylaşılan sınırlayıcı."""
+    with _limiters_lock:
+        return _limiters.setdefault(source, RateLimiter())
+
+
+def reset_limiters() -> None:
+    """Test izolasyonu: paylaşılan sınırlayıcıları sıfırlar."""
+    with _limiters_lock:
+        _limiters.clear()
 
 
 class SourceClient:
@@ -23,6 +60,7 @@ class SourceClient:
         backoff_max: float,
         sleep: Callable[[float], None] = time.sleep,
         clock: Callable[[], float] = time.monotonic,
+        source: str | None = None,
     ) -> None:
         if not user_agent:
             raise ValueError("User-Agent zorunlu")
@@ -34,24 +72,22 @@ class SourceClient:
         self._backoff_max = backoff_max
         self._sleep = sleep
         self._clock = clock
-        self._last: float | None = None
+        # Kaynak adı verilirse süreç geneli paylaşılır; yoksa örneğe özel sınırlayıcı.
+        self._limiter = get_limiter(source) if source else RateLimiter()
 
     @classmethod
     def from_settings(
-        cls, client: httpx.Client, cfg: GraphSettings, *, user_agent: str, min_interval: float
+        cls, client: httpx.Client, cfg: GraphSettings, *, user_agent: str, min_interval: float,
+        source: str | None = None,
     ) -> "SourceClient":
         return cls(
-            client, user_agent=user_agent, min_interval=min_interval,
+            client, user_agent=user_agent, min_interval=min_interval, source=source,
             max_retries=cfg.http_max_retries, backoff_base=cfg.http_backoff_base_seconds,
             backoff_max=cfg.http_backoff_max_seconds,
         )
 
     def _throttle(self) -> None:
-        if self._last is not None:
-            wait = self._min_interval - (self._clock() - self._last)
-            if wait > 0:
-                self._sleep(wait)
-        self._last = self._clock()
+        self._limiter.acquire(self._min_interval, self._clock, self._sleep)
 
     def _retry_delay(self, resp: httpx.Response, attempt: int) -> float:
         ra = resp.headers.get("Retry-After")
@@ -84,5 +120,8 @@ class SourceClient:
                 continue
             if resp.status_code >= 400:
                 raise SourceError(f"HTTP {resp.status_code}")
-            return resp.json()
+            try:
+                return resp.json()
+            except ValueError as e:  # JSON olmayan / boş gövde (ör. HTML hata sayfası)
+                raise SourceError("JSON olmayan yanıt") from e
         raise SourceError(f"deneme sınırı aşıldı ({last_err})")

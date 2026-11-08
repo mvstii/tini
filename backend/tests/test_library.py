@@ -204,3 +204,27 @@ def test_import_with_undecryptable_token_is_409_not_500(client, db):
     db.flush()
     r = client.post("/library/import", headers=h)
     assert r.status_code == 409 and "yeniden bağla" in r.json()["detail"]
+
+
+def test_import_spotify_503_maps_to_503_with_retry_after(client, db):
+    from app.models import User
+
+    h, _ = _login(client)
+    uid = db.scalars(select(User.id).where(User.email == "ep@example.com")).one()
+    db.add(
+        ServiceConnection(
+            user_id=uid, service="spotify", external_user_id="u",
+            access_token_enc=encrypt_value(KEY, "AT"),
+            expires_at=datetime.now(UTC) + timedelta(hours=1),
+        )
+    )
+    db.flush()
+    app.dependency_overrides[get_http] = lambda: httpx.Client(
+        transport=httpx.MockTransport(
+            lambda r: httpx.Response(503, headers={"Retry-After": "17"})
+        )
+    )
+    r = client.post("/library/import", headers=h)
+    assert r.status_code == 503
+    assert r.headers["Retry-After"] == "17"
+    assert "tekrar dene" in r.json()["detail"]
