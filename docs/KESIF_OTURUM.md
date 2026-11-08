@@ -6,8 +6,8 @@ Son güncelleme: 2026-11-09 (PR-1 doğrulaması tamamlandı)
 
 ## Aktif durum
 
-- **Aktif PR:** PR-1 — Ölçüm ve arka plan hijyeni (doğrulandı, birleştirme bekliyor)
-- **Dal:** `feat/pr1-measure-hygiene` (origin'e itilmemiş doküman commit'i hariç `c42d999` itildi). `main`'e birleşmedi.
+- **Aktif PR:** PR-1 — Ölçüm ve arka plan hijyeni (doğrulandı; PR-0 `main`'de, PR-1 `main`'e yerelde birleştirildi, push bekliyor)
+- **Dal:** `feat/pr1-measure-hygiene` (main'i içeriyor, birleştirme commit'i `4e65fc4`). Yerel `main`'e birleştirildi; hiçbir şey origin'e itilmedi (push için ayrı izin gerekir).
 - **Aşama:** 4 tamam. Sıradaki PR'a geçmeden birleştirme kararı bekleniyor.
 - **Onay kaydı:** 8 Kasım 2026 — geliştirici "önerilerin üzerinden ilerleyelim" dedi: (A) PR-1'i yerelde doğrula (test, `ruff`, bench), (B) PR-0'ı `main`'e birleştir, PR-1'i üstüne rebase et (birleştirmeyi geliştirici yapar), (C) PR-2 Aşama 1–2 PR-1 birleşince. Bench için production dump'ı yerele alındı (onaylı).
 - **Biten adımlar:**
@@ -15,7 +15,7 @@ Son güncelleme: 2026-11-09 (PR-1 doğrulaması tamamlandı)
   - `rapid_vote_bench` önce/sonra (100 oy, 0,1 CPU / 512 MB): `main` p50 4349 / p95 12298 / maks 104539 ms, boş 76; PR-1 p50 3519 / p95 18401 / maks 84911 ms, boş 76; 5xx 0; RSS ~149 → 175–178 MB. Ayrıntı ve yorum DURUM.md'de.
   - Teşhis: yavaşlığın %81'i `suggest` aşamasında (istek yolundaki Spotify/profil işi) → PR-2 hedefi.
 - **Kalan adımlar:**
-  1. Geliştirici: PR-0 → `main`, PR-1'i rebase et ve birleştir (bkz. "Dal durumu").
+  1. Geliştirici izniyle `main` ve `feat/pr1-measure-hygiene` push (main push'u Render otomatik dağıtımı tetikleyebilir; PR-0/PR-1 değişiklikleri bayrak arkasında/kapalı).
   2. Neon bağlantı sayısını staging'den ölç (yerelde ölçülemedi); `swr_enabled` açık koşusu yapılmadı.
   3. 5 atlanan testin nedenini incele (zorunlu değil).
   4. PR-1 birleşince: PR-2 Aşama 1–2 (keşif + analiz raporu).
@@ -30,8 +30,8 @@ Son güncelleme: 2026-11-09 (PR-1 doğrulaması tamamlandı)
 
 | PR | Dal | Durum | `main`'de mi |
 | --- | --- | --- | --- |
-| PR-0 | `feat/pr0-lb-spike` (4 commit, `784ba6a`) | Tamamlandı — kapı genişletilmiş probla GEÇTİ | Hayır |
-| PR-1 | `feat/pr1-measure-hygiene` | Doğrulandı (test + bench), birleştirme bekliyor | Hayır |
+| PR-0 | `feat/pr0-lb-spike` (4 commit, `784ba6a`) | Tamamlandı — kapı GEÇTİ | Evet (yerel, `7e5fc64`) |
+| PR-1 | `feat/pr1-measure-hygiene` | Doğrulandı (test + bench) | Evet (yerel; push bekliyor) |
 
 ## PR-0'dan PR-4'e taşınacak bulgular (ayrıntı: PR-0 dalındaki `docs/ARCHITECTURE.md`)
 
