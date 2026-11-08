@@ -137,11 +137,16 @@ Amaç: omurganın dayandığı ListenBrainz verisinin gerçekte yeterli olup olm
 - [x] Örnek kayıtları MusicBrainz `recording/{mbid}?inc=isrcs` ile ISRC'ye çevir (1 istek/sn); çözülme oranını ölç.
 - [x] Düşük popülerlik bandında etiket tutarlılığını elle örnekle (konu dışı kayıt oranı). — Kısmen: 2 tür işaretlendi (Türkçe rap 8/8, shoegaze 6/8 konu dışı, tek sanatçı baskın); sanatçı çeşitliliği kapıya eklendi.
 - [x] Sonucu `docs/ARCHITECTURE.md`'ye "Faz 0 tipi doğrulama" olarak yaz.
+- [x] Genişletilmiş prob (`spikes/lb_genre_probe2.py`): toplu ISRC çözümü (LB `metadata/recording`), `lb-radio` count=1000, sanatçı yolu (D) ve kardeş ISRC (E); 20 tür için kapı raporu. — Sonuç ARCHITECTURE.md "Genişletilmiş PR-0 probu"; yaklaşık 1340 istek (LB ≈ 890, MB ≈ 450, Deezer 0, Last.fm 0).
+- [x] Kapıya ≥ 15 benzersiz sanatçı ve en büyük sanatçı payı ≤ %30 eklendi ve ölçüldü.
+- [x] Türkçe 5 tür için elle işaretleme turları (halk, rap, arabesk, rock, pop), ülke/işaret dışlaması, dil düzeltmesi, havuz genişletme ve A_düz (sanatçı oranı x havuz) ile kapı yeniden okundu.
+- [x] Kısmi tekrarlanabilirlik: ikinci tohum (kapı kararı değişmedi; Jaccard halk 1,00 bilgisiz, rap 0,92, rock 0,84, arabesk 0,54).
 
 **Kapı**
 
 - Alt tür başına ≥ 20 ISRC'li kayıt ve ≥ %60 MBID→ISRC çözümü → PR-4 planı geçerli.
 - Tutmazsa B planı (MusicBrainz etiket araması + Last.fm `tag.getTopArtists`, izin koşuluyla) geliştiriciye sunulur; PR-4 başlamaz.
+- **Sonuç (8 Kasım 2026, genişletilmiş prob):** kapı **geçti (nokta ve alt uç, tek tohum + kısmi tekrar), riskler belgede**: Türkçe 5/5, toplam 20/20 (C ≥ 20, A ≥ 15, pay ≤ %30); A_düz halk 21,8 [17,0–24,3], rap 37,0, arabesk 37,7, rock 45,9, pop 25,2. Riskler: seed2'de halk alt ucu 13,6, arabesk Jaccard 0,54, büyük arabesk isimleri ISRC'siz (PR-4b), pop tek örnek. PR-1 geliştirici onayı bekliyor.
 
 **Öğrenilen kavram:** spike / fizibilite kapısı — belirsiz dış bağımlılığa mimari kurmadan önce en ucuz test.
 
@@ -415,7 +420,7 @@ Bu işler geliştiricinin hesaplarında ve elindedir; Claude Code bunları yapam
 **Program sırasında**
 
 - [ ] **PR-4'ten önce:** `staging` dalının `neondb_owner` parolasını sıfırla (dal, sızan eski parolayla kopyalandı) ve `backend/.env.staging` dosyasını `DATABASE_URL=postgresql+psycopg://...?sslmode=require` ile oluştur.
-- [ ] PR-0 için gerekirse ücretsiz ListenBrainz hesabı aç ve token'ı `.env`'e `LISTENBRAINZ_TOKEN` olarak ekle.
+- [x] PR-0 için gerekirse ücretsiz ListenBrainz hesabı aç ve token'ı `.env`'e `LISTENBRAINZ_TOKEN` olarak ekle.
 - [ ] Her PR sonunda Render ortam değişkenleriyle bayrakları aç ve sonucu gözle.
 - [ ] PR-3 sonrası yeni APK'yı testçilere dağıt.
 - [ ] Omurga işini (PR-4) staging'de, ardından canlı Neon'a bilgisayardan koştur; CU kullanımını izle.
@@ -467,7 +472,7 @@ python -m app.jobs.queue_sim --email <e-posta>   # PR-6 sonrası
 
 | PR | Başlık | Durum | Dal / PR | Not |
 | --- | --- | --- | --- | --- |
-| PR-0 | Doğrulama spike'ı | Analiz/onay bekliyor | `feat/pr0-lb-spike` | Kapı **tutmadı**: 20 alt türden 8'i geçti, 5 Türkçe türün hiçbiri; B planı kararı bekliyor (ARCHITECTURE.md) |
+| PR-0 | Doğrulama spike'ı | Tamamlandı, onay bekliyor | `feat/pr0-lb-spike` | İlk ölçüm kapıyı geçmedi (8/20); genişletilmiş probda **geçti** (A_düz nokta ve alt uç; tek tohum + kısmi tekrar): Türkçe 5/5, toplam 20/20, ≈ 1340 istek; riskler ARCHITECTURE.md'de; commit/PR-1 onayı bekliyor |
 | PR-1 | Ölçüm ve arka plan hijyeni | Başlamadı | | |
 | PR-2 | Hızlı yol ve tampon | Başlamadı | | |
 | PR-3 | İstemci kuyruk denetleyicisi | Başlamadı | | |

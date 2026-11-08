@@ -192,7 +192,7 @@ Betik: `spikes/lb_genre_probe.py` (salt okunur, token'sız). 20 alt tür × 3 po
 - Düşük (tail) bantta etiket tutarlılığı (konu dışı kayıt oranı) **elle örneklenmedi**; kayıtlar `spikes/out/lb_genre_probe.json` içinde (git dışı).
 - Türkçe etiket takma adları sınırlı denendi (arabesk/arabesque, anatolian/turkish rock, turkish pop, turkish hip hop/rap, turkish folk).
 
-**Sonuç:** plana göre kapı tutmadı; B planı (MusicBrainz etiket araması + Last.fm `tag.getTopArtists`) geliştiriciye sunulur, PR-4 başlamaz. Uygulama kodu ve veri değişmedi.
+**Sonuç:** plana göre kapı tutmadı; B planı (MusicBrainz etiket araması + Last.fm `tag.getTopArtists`) geliştiriciye sunulur, PR-4 başlamaz. Uygulama kodu ve veri değişmedi. **Güncelleme (8 Kasım 2026):** genişletilmiş prob bu sonucu değiştirdi, aşağıdaki "Genişletilmiş PR-0 probu" bölümüne bakın (kapı GEÇTİ).
 
 **Ek doğrulama (token ile, 7 Kasım 2026):** `GET /1/popularity/top-recordings-for-artist/{mbid}` token ile 200 döner (3 sanatçıda 0,4–1,0 sn; hız sınırı 30 istek / ~10 sn). Yanıt düz liste; kayıt başına `recording_mbid`, `recording_name`, `artist_mbids`, `artists`, `release_mbid`, `length`, `tags`, `total_listen_count`, `total_user_count` (ISRC yok). Sanatçı başına kayıt sayısı 221–2323 arası. Token'sız 401.
 
@@ -201,3 +201,96 @@ Betik: `spikes/lb_genre_probe.py` (salt okunur, token'sız). 20 alt tür × 3 po
 - Kuyruk bandı elle örneklemesi (geliştirici): yalnızca Türkçe rap (8/8 konu dışı, hepsi Grup Ses, çoğu enstrümantal) ve shoegaze (6/8 konu dışı, hepsi The Smashing Pumpkins) işaretlendi; diğer 18 tür için işaretleme bilgisi yok, oran yazılmadı.
 - Yorum: tek bir sanatçının kataloğu etiketi alıp kuyruk bandını doldurabiliyor; yanlış etiket ile tekrar aynı kaynaktan geliyor.
 - Kapı tanımına eklenecek: alt tür başına ≥ 15 benzersiz sanatçı. Önlem adayları: sanatçı başına üst sınır, `tag_count` eşiği, çok sayıda istekle havuz genişletme.
+
+## Genişletilmiş PR-0 probu: kapı yeniden ölçüldü (KESIF_PLANI PR-0, 8 Kasım 2026, gerçek istekler)
+
+Betik: `spikes/lb_genre_probe2.py` (+ `spikes/test_lb_genre_probe2.py`, 60 çevrimdışı test; git dışı çıktılar `spikes/out/lb_probe2_*`). Yukarıdaki ilk ölçüm (8'erli örnek, MusicBrainz tekli ISRC) Türkçe 5 türde kapıyı geçirmemişti; bu prob daha büyük havuz (count=1000), toplu ISRC çözümü ve sanatçı yolu ile aynı kapıyı yeniden ölçer. Kapı bu probda şöyle okunur: alt tür başına **≥ 20 ISRC'li benzersiz kayıt (C)**, **≥ 15 ISRC'li benzersiz sanatçı (A)** ve **en büyük sanatçı payı ≤ %30**; program kapısı Türkçe 5/5 ve toplam ≥ 16/20. ISRC çözülme oranı artık bilgi amaçlıdır (kapıda değil).
+
+**P0 bulguları (20 istek)**
+- `POST /1/metadata/recording/` (token) tek istekte 200 MBID için başlık, sanatçı MBID ve **ISRC** döndürür; MusicBrainz'e göre yaklaşık 40 kat hızlıdır. Önceki varsayım (V5a: ISRC yalnızca MusicBrainz'den gelir) **çürüdü**; ISRC için birincil kaynak ListenBrainz'dir.
+- `GET /1/lb-radio/tags` `count=1000` ile çalışır. Küçük havuzlu türlerde (Türkçe rap, Türk halk) üst/orta bant deterministiktir; kuyruk bandı rastgeledir.
+- MusicBrainz `recording?query=rid:(...)` toplu aramasıyla ISRC çözümü 49/50 ve 96/100; MusicBrainz sanatçı `browse` ile ISRC verimi düşüktür (4/100), bu yüzden kullanılmadı.
+- `GET /1/popularity/top-recordings-for-artist/{mbid}` token ister; `POST /1/popularity/artist` (100/çağrı) ve `/popularity/recording` (500/çağrı) çalışır. LB hız sınırı 30 istek/10 sn; MusicBrainz aralığı 1,1 sn, ara sıra 503 "server busy" (yeniden denemeler bütçeye sayıldı).
+- Eski önbellekteki başlıklar bozuktu (U+FFFD); eşleştirme yalnızca taze API adlarıyla yapıldı.
+
+**T1/D/E bulguları (Türkçe 5 tür)**
+- T1 (lb-radio count=1000, 3 bant, en çok 3 çekim, kabul edilen takma adlar OR): kayıt başına ISRC oranı yalnızca %4–18. Darboğaz oran değil, **ISRC'li sanatçı çeşitliliği**: T1'de A arabesk 14, Anadolu rock 15, Türkçe pop 13, Türkçe rap 5, Türk halk 1.
+- D (sanatçı yolu: `popularity/artist` ile K4 tertili, sanatçı başına en çok dinlenen 30 kayıt, ISRC LB metadata'dan): C ve A'yı büyüttü (ör. Türkçe pop 286/13 → 599/39, Anadolu rock 299/15 → 481/32).
+- E (aynı sanatçı + normalize başlık + aynı sürüm işaretçisi): yalnızca kayıt başına oranı artırdı (pop 0,27 → 0,40, Anadolu rock 0,16 → 0,21); benzersiz ISRC sayısı hiçbir türde artmadı (kardeşin ISRC'si zaten havuzdaydı). `sibling_closes` hiçbir türde 0,60'a ulaşmadı.
+- Türk halk için ilk D denemesi A=8–9'da kaldı (MusicBrainz etiketli TR sanatçı yalnızca ~20). Çözüm: `lb-radio/tags` **AND** kombinasyonları (turkish+folk, anatolian+folk, turkish+traditional, turkish+saz, turkish+türkü, turkish+alevi) + ülke filtresiz ve sayfalı MusicBrainz etiket araması (saz, halk ozanı, uzun hava, bozlak, zeybek, alevi deyiş…) → 88/9 yerine 357/34.
+- Arabesk ilk D'de pay 0,31 ile düşmüştü; seçim üst sınırı 40 → 80 sanatçı ile pay 0,20'ye indi (cap = 5 sürdü).
+
+**20 türlük kapı tablosu** (gate raporu, N = 20, m = 5; `*` = Türkçe dışı türlerde T1 havuzundan seed'li ~1000 kayıt çözüldü, C alt sınırdır)
+
+| Tür | Varyant | C | A | En büyük pay | Kayıt ISRC oranı | D(g) | Karar |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| arabesk | T1+D+arabeskx | 316 | 30 | 0,14 | 0,071 | 9 | GEÇTİ (ham) |
+| Anadolu rock | T1+D+rockx | 729 | 46 | 0,07 | 0,198 | 8 | GEÇTİ (ham) |
+| Türkçe pop | T1+D | 599 | 30 | 0,25 | 0,270 | 9 | GEÇTİ (ham) |
+| Türkçe rap | T1+D+rapx | 651 | 66 | 0,06 | 0,439 | 4 | GEÇTİ (ham) |
+| Türk halk | T1+D+halkx | 206 | 26 | 0,14 | 0,116 | 8 | GEÇTİ (ham; dil düzeltmeli C=189, A=25) |
+| trap* | T1 | 509 | 232 | 0,09 | 0,489 | 25 | GEÇTİ |
+| drill* | T1 | 510 | 132 | 0,16 | 0,514 | 25 | GEÇTİ |
+| boom bap* | T1 | 543 | 308 | 0,05 | 0,540 | 27 | GEÇTİ |
+| shoegaze* | T1 | 363 | 134 | 0,07 | 0,360 | 18 | GEÇTİ |
+| jazz fusion* | T1 | 446 | 143 | 0,09 | 0,462 | 22 | GEÇTİ |
+| house* | T1 | 794 | 450 | 0,06 | 0,683 | 39 | GEÇTİ |
+| techno* | T1 | 536 | 290 | 0,07 | 0,489 | 26 | GEÇTİ |
+| synthpop* | T1 | 786 | 426 | 0,06 | 0,701 | 39 | GEÇTİ |
+| black metal* | T1 | 436 | 161 | 0,05 | 0,437 | 21 | GEÇTİ |
+| bossa nova* | T1 | 391 | 161 | 0,08 | 0,389 | 19 | GEÇTİ |
+| reggae* | T1 | 557 | 317 | 0,06 | 0,539 | 27 | GEÇTİ |
+| punk rock* | T1 | 569 | 198 | 0,05 | 0,562 | 28 | GEÇTİ |
+| soul* | T1 | 702 | 415 | 0,03 | 0,664 | 35 | GEÇTİ |
+| country* | T1 | 651 | 278 | 0,07 | 0,660 | 32 | GEÇTİ |
+| k-pop* | T1 | 665 | 165 | 0,09 | 0,688 | 33 | GEÇTİ |
+
+**Not:** Türkçe 5 satır, işaretleme ve dışlama turlarından sonraki son ham değerlerdir; ilk turdaki değerler (ör. halk 357/34, rap 80/19) örnek içi sızıntı ve konu dışı kayıtlarla şişkindi. Türkçe dışı 15 tür değişmedi.
+
+**Program kapısı: GEÇTİ** (ham: Türkçe 5/5, Türkçe dışı 15/15, toplam 20/20). A_düz (aşağıda) ile de nokta ve alt uçta Türkçe 5/5, toplam 20/20. Türkçe dışı türlerde D, T1 açıkça geçtiği için (C ≥ 40 ve A ≥ 25) atlandı (E2). Strateji sırası (K3): T1+D > D > T1; Türkçe için sanatçı yolu (D) şart, Türkçe dışı için T1 yeterli.
+
+**Kapı yolculuğu (Türkçe 5 tür).** Ham kapı ilk turda geçti, ama geliştirici elle işaretleyince havuzların bir kısmının konu dışı ya da yabancı olduğu görüldü. Bu yüzden kapı, işaretlenmiş uygun orana göre düzeltilmiş sayı (A_düz) ile yeniden okundu. Kapı gevşetilmedi: eşikler (C ≥ 20, A ≥ 15, pay ≤ 0,30) aynı kaldı, yalnızca A düzeltildi ve alt uç ayrıca sınandı. Ara turlarda rock ve arabesk alt uçta kalmıştı; havuz genişletmesinden sonra geçti.
+
+**İşaretleme turları** (geliştirici `[x]` = uygun değil işaretledi; örnek dosyaları git dışı `spikes/out/lb_sample_*`)
+- Halk: v1, v2. Kayıt düzeyi uygun oranı 24/40 = 0,60; ardından Türkçe izin listesi ile dil düzeltmesi.
+- Rap: v1, v2. Sanatçı uygun oranı 0,56 (A = 66).
+- Arabesk: v1 (oran 0,60, A_düz 15,6 [10,6–19,9]) -> yabancı/uygunsuz sanatçı dışlaması -> v3 (A = 18) -> arabeskx havuz genişletmesi -> v4 (A = 31 -> 30).
+- Rock: v1 (A_düz 17,0 [12,1–20,7]) -> v2 (A = 15; 13,0 [9,3–14,4]) -> rockx genişletmesi -> v3 (A = 46; işaret öncesi havuz 54).
+- Pop: yalnızca v1 (tek ve eski örnek).
+
+**Son A_düz tablosu** (A_düz = sanatçı düzeyi uygun oranı x ISRC'li sanatçı havuzu; oran için Wilson %95; köşeli parantez = alt–üst uç)
+
+| Tür | Havuz (A) | Sanatçı uygun oranı | A_düz [95% aralık] | Kapı (A ≥ 15) |
+| --- | --- | --- | --- | --- |
+| Türk halk | 26 | 0,84 | 21,8 [17,0–24,3] | geçti (nokta ve alt uç) |
+| Türkçe rap | 66 | 0,56 | 37,0 [24,5–48,4] | geçti |
+| arabesk | 39 (ön havuz) | 28/29 = 0,97 (v3+v4) | 37,7 [32,3–38,8] | geçti |
+| Anadolu rock | 54 (ön havuz) | 34/40 = 0,85 (v2+v3) | 45,9 [38,3–50,2] | geçti |
+| Türkçe pop | 30 | 0,84 | 25,2 [19,6–28,1] | geçti |
+
+Halk dil düzeltmeli: C = 189, A = 25, en büyük pay 0,148; dil uyuşmazlığı 0,0825 (206 kayıttan 15 Kürtçe + 2 Slovence). Daha sıkı alternatif okumalar: arabesk yalnız v4 ile 28,2 [19,3–30,5]; rock yalnız v3 ile 38,6 [30,1–43,1]. Kayıt düzeyi uygun oranlar: halk 0,60, arabesk 39/40, rock 35/40, pop 19/25.
+
+**Yöntem notları**
+- A_düz = sanatçı oranı x havuz; oran kayıt değil sanatçı düzeyinde alınır (bir sanatçının [x] sayısı uygun sayısından büyükse "uygunsuz"; eşitlikte tutulur).
+- Ülke dışlaması: MusicBrainz ülkesi dolu ve TR değilse sanatçı havuzdan çıkarılır; ayrıca işaret çoğunluğu dışlaması uygulanır. Halkta ek olarak tür dışı etiketler (derlenmiş sanatçılar muaf). Rock ve arabeskte A_düz tabanı işaret çoğunluğu dışlamasından önceki havuzdur (A_pre); temiz havuz daha küçüktür (arabesk 30, rock 46).
+- Feat. credit düzeltmesi: ortak sanatçı kredisi tek sanatçıya yazılmaz; havuz ve pay buna göre sayılır.
+- Kayıt dili: MusicBrainz recording kaydında dil alanı **yoktur**; dil, ilk 3 sürümün `text-representation.language` değerinden çıkarılır ('tur' varsa Türkçe, yoksa en sık tanımlı dil; mul/zxx/und/boş nötr). Sınıflar: tur / yabancı / izin / belirsiz; izin listesi halk v1/v2 işaretlerinden gelir.
+- Ölçüt tek ve geneldir: **"Türkçe şarkı"**, tüm Türkçe türlerde aynı. Etnik ya da dile özel kara liste yoktur; halktaki dil düzeltmesi bu genel ölçütün sonucudur.
+- Havuz genişletme (`rockx`, `arabeskx`): MusicBrainz etiket araması (country:TR) + lb-radio AND çiftleri + popularity -> sanatçı seçimi -> top-recordings -> LB metadata ISRC; hata/429'da durur.
+
+**Tekrarlanabilirlik (tohum 2, kısmi).** İkinci tohumla (`--out-dir spikes/out/seed2`; radio/tags verisi kopyalandı, yeniden çekilmedi) kapı kararı değişmedi. Ortak sanatçı kümelerinde Jaccard: halk 1,00 (aday sayısı sınırın altında kaldığı için bilgisiz), rap 0,92, rock 0,84, arabesk 0,54. Tam bağımsız tekrar değildir. Seed2 A_düz'de halk alt ucu 13,6 çıktı (kayıt işaretlerinden türetilen farklı etiket tanımıyla); 15'in altında olduğu için risk olarak tutulur.
+
+**Veri sınırı.** Büyük arabesk isimleri (Orhan Gencebay, Şevval Sam, Gülben Ergen, Cengiz Kurtoğlu, Kibariye) hem LB'de hem MusicBrainz'de ISRC'siz; `isrcfill` (MB rid ile doldurma) az fayda sağladı. Çözüm PR-4b'de (Deezer ISRC doldurma).
+
+**Harcanan istek (loglu):** toplam yaklaşık **1340** (ListenBrainz ≈ 890, MusicBrainz ≈ 450): ana koşu 776 LB + 436 MB = 1212; tohum 2 kendi 128 (LB 114, MB 14); Deezer 0, Last.fm 0; loglanmamış elle sorgu ≈ 6.
+
+**Riskler ve sınırlar**
+- Tek tohum + kısmi tekrar; radio/tags ikinci kez çekilmedi. Türkçe dışı türlerde C, örnekten gelen alt sınırdır (havuz 5000+, çözülen ~1000).
+- Seed2'de halk A_düz alt ucu 13,6 (< 15); arabesk Jaccard 0,54 (küçük, tohuma duyarlı havuz); halk Jaccard 1,00 tavan nedeniyle bilgisiz.
+- Rock ve arabesk A_düz tabanı işaret öncesi havuz; temiz havuzlar daha küçük (46 / 30), yine de ≥ 15.
+- Pop yalnızca tek ve eski örnekle işaretlendi. Rap sanatçı uygun oranı 0,56.
+- Büyük arabesk sanatçıları ISRC'siz (PR-4b); arabeskte kayıt ISRC oranı 0,071.
+- A_niş (K4) Türkçe dışı türlerde hesaplanmadı (D atlandı).
+- MusicBrainz kullanıcı etiketleri (user tag) CC BY-NC-SA: yalnızca spike'ta kullanıldı, ticari omurgada uygun değil (PR-4'te yeniden değerlendirilmeli).
+- Last.fm ticari izni ve Deezer lisansı bu probda kullanılmadı; borç olarak duruyor.
+- Betik riski: `request_totals`, `spikes/out` altındaki liste tipli `lb_probe2_repro_*.json` dosyalarında çökebilir (gate yeniden üretilirse); kod bu görevde değiştirilmedi.
