@@ -19,6 +19,14 @@ Spotify dashboard'da redirect URI: `http://127.0.0.1:8888/callback`
 ```bash
 python spikes/spotify_probe.py     # tarayıcıda izin ver; uç nokta durumları + sample.json
 python spikes/coverage_probe.py    # ISRC/MBID/benzerlik/etiket kapsamı + kapı sonucu
+python spikes/lb_genre_probe2.py --phase offline     # PR-0 ek prob A0: eski json/önbellekten çevrimdışı analiz, 0 istek
+python spikes/lb_genre_probe2.py --phase p0 --dry-run  # faz bütçelerini basar, istek atmaz (ağ fazları G4+)
+python spikes/lb_genre_probe2.py --phase excl|lang      # ülke/işaret dışlaması ve kayıt dili düzeltmesi, 0 istek (işaretli örnek dosyalarından)
+python spikes/lb_genre_probe2.py --phase rockx|arabeskx # havuz genişletme (istek atar; bütçe ve 429'da durma)
+python spikes/lb_genre_probe2.py --phase isrcfill       # MusicBrainz rid ile ISRC doldurma (az fayda; asıl çözüm PR-4b)
+python spikes/lb_genre_probe2.py --phase repro [--repro-dir spikes/out/seed2]  # ana koşu ile ikinci tohum karşılaştırması (C/A/pay, Jaccard, A_düz); ikinci koşu --out-dir ile ayrı dizine yazılır
+# bayraklar: --out-dir (çıktı dizini), --suffix (dosya soneki), --only-new (yalnız yeni sanatçılar), --n-rec, --max-per-art
+python -m unittest discover -s spikes -p "test_lb_genre_probe2.py"
 ```
 
 Niş kapsamı için `spikes/out/sample_niche.json` dosyasını elle oluştur (~50 az bilinen şarkı, kendi dinlediklerinden):
