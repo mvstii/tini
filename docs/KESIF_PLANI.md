@@ -187,13 +187,13 @@ Amaç: `GET /votes/queue` yalnızca hazır olanı okusun ve sıralasın (hedef p
 
 **Yapılacaklar**
 
-- [ ] `profile/suggest.py` ikiye ayrılır: `ready_suggestions` (salt okuma) ve `refill_buffer` (arka plan: profil/liste yenileme + sıradaki `refill_batch` kart için `find_card`).
-- [ ] `profile/refill.py` (yeni): advisory lock, 429/ağ hatasında sessiz kesme, günlük; PR-1 yürütücüsünden çalışır.
-- [ ] `profile/api.py` `queue()`: istek yolunda Spotify çağrısı, `ensure_fresh_list` ve `rebuild_profile` yok; yalnızca kütüphane + hazır öneriler. Su seviyesi altındaysa doldurucu tetiklenir.
-- [ ] `cast_vote`: oy sonrası tampon kontrolü ve tetik.
-- [ ] `config.py` `ProfileSettings`: `buffer_low_watermark`, `buffer_target`, `refill_batch`, `meta_refresh_at`, `meta_refresh_batch`.
-- [ ] **Meta önbelleğinin önceden tazelenmesi (G6):** kullanıcının oylanmamış kütüphane parçalarının `UserTrackMeta` kayıtları TTL'in `meta_refresh_at` oranına (başlangıç 0,8) ulaşınca doldurucu tarafından arka planda Spotify'dan tazelenir; parti başına sınırlı (`meta_refresh_batch`), 429/5xx'te sessizce bırakılır. Spotify verisinin 24 saat kuralı değişmez; yalnızca süresi dolmadan yenilenir. Böylece kısa bir Spotify kesintisinde kuyruk kurumaz.
-- [ ] Yanıt sözleşmesi değişmez (eski APK çalışır); `algo_version` `queue-7` kalır.
+- [x] `profile/suggest.py` ikiye ayrılır: `ready_suggestions` (salt okuma) ve `refill_buffer` (arka plan: profil/liste yenileme + sıradaki `refill_batch` kart için `find_card`).
+- [x] `profile/refill.py` (yeni): advisory lock, 429/ağ hatasında sessiz kesme, günlük; PR-1 yürütücüsünden çalışır.
+- [x] `profile/api.py` `queue()`: istek yolunda Spotify çağrısı, `ensure_fresh_list` ve `rebuild_profile` yok; yalnızca kütüphane + hazır öneriler. Su seviyesi altındaysa doldurucu tetiklenir.
+- [x] `cast_vote`: oy sonrası tampon kontrolü ve tetik.
+- [x] `config.py` `ProfileSettings`: `buffer_low_watermark`, `buffer_target`, `refill_batch`, `meta_refresh_at`, `meta_refresh_batch`.
+- [x] **Meta önbelleğinin önceden tazelenmesi (G6):** kullanıcının oylanmamış kütüphane parçalarının `UserTrackMeta` kayıtları TTL'in `meta_refresh_at` oranına (başlangıç 0,8) ulaşınca doldurucu tarafından arka planda Spotify'dan tazelenir; parti başına sınırlı (`meta_refresh_batch`), 429/5xx'te sessizce bırakılır. Spotify verisinin 24 saat kuralı değişmez; yalnızca süresi dolmadan yenilenir. Böylece kısa bir Spotify kesintisinde kuyruk kurumaz.
+- [x] Yanıt sözleşmesi değişmez (eski APK çalışır); `algo_version` `queue-7` kalır.
 
 **Testler:** tampon boşken kuyruğun kütüphaneden anında dönmesi; iki eşzamanlı tetik → tek iş; Spotify hatasında tamponun bozulmaması; TTL'in %80'ini geçen meta kaydının tazelenmesi, sahte Spotify 503'te kaydın dokunulmadan kalması; mevcut kuyruk testlerinin geçmesi.
 
@@ -475,7 +475,7 @@ python -m app.jobs.queue_sim --email <e-posta>   # PR-6 sonrası
 | --- | --- | --- | --- | --- |
 | PR-0 | Doğrulama spike'ı | Tamamlandı (kapı geçti, 8 Kasım) | `feat/pr0-lb-spike` — `main`'e birleşti (`7e5fc64`) | İlk ölçüm 8/20 (geçmedi); genişletilmiş probda geçti: Türkçe 5/5, toplam 20/20, ≈ 1340 istek; bulgular ARCHITECTURE.md'de, PR-4'e etkisi KESIF_OTURUM.md'de |
 | PR-1 | Ölçüm ve arka plan hijyeni | Doğrulandı, birleştirme bekliyor | `feat/pr1-measure-hygiene` | Test 339/5 atlandı/0 hata; bench önce/sonra DURUM.md'de; Neon bağlantı sayısı ölçülmedi |
-| PR-2 | Hızlı yol ve tampon | Başlamadı | | |
+| PR-2 | Hızlı yol ve tampon | Uygulandı, hedef kısmen (birleştirme bekliyor) | `feat/pr2-fast-queue` | Test 346/8 atlandı/0 hata; bench p50 1331, p95 2613 ms, boş 83; p95<800 ve boş 0 **tutmadı** (`uncertainty` aşaması + Spotify 429); borçlar DURUM.md'de |
 | PR-3 | İstemci kuyruk denetleyicisi | Başlamadı | | |
 | PR-4 | Evren: tür omurgası | Başlamadı | | |
 | PR-5 | Kullanıcı modeli | Başlamadı | | |

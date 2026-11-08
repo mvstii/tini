@@ -37,9 +37,10 @@ from app.models import (
 from app.profile.active import diversify, order_active, order_unresolved
 from app.profile.active_service import artist_uncertainties, mark_awaiting
 from app.profile.queue import pick_versions
+from app.profile.refill import maybe_refill
 from app.profile.scoring import VoteEvt, score_votes
 from app.profile.service import rebuild_profile, unheard_statuses
-from app.profile.suggest import connected_adapter, suggest_items
+from app.profile.suggest import connected_adapter, ready_suggestions, suggest_items
 from app.profile.unheard import next_state
 from app.timing import Stages
 
@@ -71,6 +72,7 @@ def cast_vote(
     user: User = Depends(current_user),
     db: Session = Depends(get_db),
     gcfg: GraphSettings = Depends(get_graph_settings),
+    cfg: ProfileSettings = Depends(get_profile_settings),
 ) -> dict:
     owned = db.scalar(
         select(UserTrackLink.id)
@@ -93,6 +95,7 @@ def cast_vote(
     if gcfg.auto_expand:
         artist_id = db.scalar(select(Track.artist_id).where(Track.id == body.track))
         get_worker().submit(("after_vote", artist_id), after_vote, body.track)
+    maybe_refill(db, user, datetime.now(UTC), cfg)
     return {"id": ev.id, "track": ev.track_id, "vote": ev.vote}
 
 
@@ -215,13 +218,22 @@ def queue(
         {"track": t, "title": fresh[t][2], "artists": fresh[t][3], "image": fresh[t][5]}
         for t in order
     ]
-    if len(fresh) < cfg.queue_suggest_threshold:
+    ready_total = None
+    if len(fresh) < cfg.queue_suggest_threshold and cfg.fast_queue_enabled:
+        # Hızlı yol: yalnızca hazır öneriler okunur; eksik tampon arka planda doldurulur.
+        extra, ready_total = ready_suggestions(
+            db, user, now, size - len(items),
+            set(fresh) | expired | set(db.scalars(later_ids)),
+        )
+        items += extra
+    elif len(fresh) < cfg.queue_suggest_threshold:
         # Kütüphane tükeniyor: öneri motorundan sürekli yeni parça karışır.
         items += suggest_items(
             db, user, lambda: connected_adapter(db, user, http), now, size - len(items),
             set(fresh) | expired | set(db.scalars(later_ids)), cfg, rcfg, gcfg,
         )
     st.lap("suggest")
+    maybe_refill(db, user, now, cfg, ready_total)
     mark_awaiting(db, user.id, pool & {i["track"] for i in items}, statuses)
     shown = [i["track"] for i in items]
     liked = set(

@@ -151,6 +151,17 @@ class ProfileSettings(BaseSettings):
     queue_suggest_threshold: int = 20
     queue_suggest_batch: int = 10
     queue_rebuild_after_votes: int = 5
+    # Hızlı yol (PR-2): queue() yalnızca hazır olanı okur; pahalı işler arka planda tek uçuşla.
+    # Hazır öneri sayısı `buffer_low_watermark` altına inince doldurucu `buffer_target`'a kadar
+    # doldurur (partide en çok `refill_batch` servis çağrısı). Meta kaydı TTL'inin
+    # `meta_refresh_at` oranına ulaşınca önceden tazelenir (partide en çok `meta_refresh_batch`).
+    fast_queue_enabled: bool = False
+    buffer_low_watermark: int = 8
+    buffer_target: int = 20
+    refill_batch: int = 10
+    meta_refresh_at: float = 0.8
+    meta_refresh_batch: int = 10
+    refill_error_backoff_seconds: int = 60  # servis hatasından sonra bu kullanıcı için bekleme
     # Aynı şarkının sürümleri (remaster vb.) kuyrukta tek sayılır; bu sözcükleri içeren
     # parantez/tire eki başlıktan atılır. Canlı/remix/akustik ayrı şarkıdır.
     queue_version_markers: tuple[str, ...] = (
