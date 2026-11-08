@@ -11,6 +11,7 @@ from app.db import make_engine
 from app.graph import scheduler
 from app.graph.auto import TRACKS_SOURCE, artists_needing_tracks, fill_tracks
 from app.graph.expand import load_anchors
+from app.jobs.worker import Worker
 from app.models import (
     Artist,
     ArtistEdge,
@@ -158,6 +159,9 @@ def test_loop_survives_errors(monkeypatch):
             raise RuntimeError("boom")
 
     monkeypatch.setattr(scheduler, "run_round", fake)
+    monkeypatch.setattr(scheduler, "idle_seconds", lambda: 1e9)  # boşta: beklemeden çalış
+    w = Worker(5)
+    monkeypatch.setattr(scheduler, "get_worker", lambda: w)
 
     async def go():
         task = asyncio.create_task(scheduler._loop(0, 0.01))
