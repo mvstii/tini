@@ -159,7 +159,7 @@ Amaç: takılmanın aşama sürelerini görünür kılmak ve doğrulanmış sız
 - [x] **Stale-while-revalidate:** `graph/service.get_matrix` ve `recommend/diverse.cached_labels` — önbellek varken yeni snapshot arka planda kurulur, atomik değiştirilir; yalnızca soğuk açılışta senkron.
 - [x] **Turun ertelenmesi:** `graph/scheduler` turu yürütücüye gönderir; son kullanıcı isteğinden `auto_expand_idle_seconds` sonra çalışır.
 - [x] **Bayrak altyapısı:** her yeni davranış için `Settings` alanı, canlı varsayılanı kapalı.
-- [ ] **Yerel yeniden üretim:** `docker-compose.limits.yml` (`cpus: 0.1`, `mem_limit: 512m`) + `app/jobs/rapid_vote_bench.py` (100 oy, kart başına ~1 sn; p50/p95/maks, boş yanıt, 5xx, RSS).
+- [x] **Yerel yeniden üretim:** (sonuç DURUM.md'de; Neon bağlantı sayısı hariç) `docker-compose.limits.yml` (`cpus: 0.1`, `mem_limit: 512m`) + `app/jobs/rapid_vote_bench.py` (100 oy, kart başına ~1 sn; p50/p95/maks, boş yanıt, 5xx, RSS).
 - [x] **Doküman:** `docs/DAGITIM.md`'deki "açılışta alembic çalışmaz" ifadesi düzeltilir (`Dockerfile` her açılışta `alembic upgrade head` çalıştırıyor).
 - [x] **Dış servis hatalarına dayanıklılık (G6):** Spotify 5xx/429 yanıtları (`library.py` içe aktarma, `adapters/spotify`) yakalanır ve istemciye 500 yerine `Retry-After` başlıklı **503** olarak, anlaşılır Türkçe mesajla döner; mevcut `_service_error` kalıbı kullanılır.
 - [x] **Kaynak istemcisi sağlamlığı (G7):** `sources/http.get_json` JSON olmayan/boş yanıtı `SourceError` sayar; `graph/expand` tek sanatçının hatasında `error` sayıp tura devam eder (mevcut `fetch_log` hata TTL'i kullanılır).
@@ -436,6 +436,7 @@ Claude Code her PR'ı aynı dört aşamayla yürütür ve geliştiricinin açık
 
 **Her PR için akış**
 
+0. **Oturum başı:** `docs/KESIF_OTURUM.md`'yi oku, git durumuyla karşılaştır, kaldığın yeri özetle ve devam için onay iste. Aşama bitiminde ve oturum sonunda bu dosyayı güncelle.
 1. **Keşif (salt okuma):** ilgili dosyaları oku, varsayım yapma; planın o PR bölümünü kod tabanıyla karşılaştır.
 2. **Analiz:** teşhis, en fazla 2 yaklaşım, etki haritası (dosya/fonksiyon), riskler; plandan sapma varsa gerekçesiyle belirt.
 3. **Onay kapısı:** dur, onay iste.
@@ -467,8 +468,8 @@ python -m app.jobs.queue_sim --email <e-posta>   # PR-6 sonrası
 
 | PR | Başlık | Durum | Dal / PR | Not |
 | --- | --- | --- | --- | --- |
-| PR-0 | Doğrulama spike'ı | Başlamadı | | |
-| PR-1 | Ölçüm ve arka plan hijyeni | Başlamadı | | |
+| PR-0 | Doğrulama spike'ı | Tamamlandı (kapı geçti, 8 Kasım) | `feat/pr0-lb-spike` — main'e birleşmedi | Bulgular PR-0 dalındaki ARCHITECTURE.md'de; PR-4'e etkisi KESIF_OTURUM.md'de |
+| PR-1 | Ölçüm ve arka plan hijyeni | Doğrulandı, birleştirme bekliyor | `feat/pr1-measure-hygiene` | Test 339/5 atlandı/0 hata; bench önce/sonra DURUM.md'de; Neon bağlantı sayısı ölçülmedi |
 | PR-2 | Hızlı yol ve tampon | Başlamadı | | |
 | PR-3 | İstemci kuyruk denetleyicisi | Başlamadı | | |
 | PR-4 | Evren: tür omurgası | Başlamadı | | |

@@ -70,3 +70,9 @@ Bu kararları geliştiriciye sormadan değiştirme:
 
 - Güncel durum belgesi: `docs/DURUM.md`. **Her aşama (PR) sonrasında güncellenir.**
 - Faz 0–4 tamamlandı; güncel faz Faz 5'tir (ayrıntı DURUM.md ve ROADMAP.md). Faz 5'e başlamadan önce `docs/FAZ5_PLAN.md` sunulup onay alınır.
+
+## Aktif program: Keşif Evreni ve Kuyruk Güvenilirliği
+
+- Plan (tek doğruluk kaynağı): `docs/KESIF_PLANI.md`. Oturum devir notu: `docs/KESIF_OTURUM.md`.
+- **Her oturumun başında** önce `docs/KESIF_OTURUM.md`'yi oku, durumu kısaca özetle ve devam için geliştiriciden onay iste. Tam iş akışı için geliştirici `/kesif` komutunu kullanır.
+- **Her aşama bitiminde ve oturum kapanmadan önce** `docs/KESIF_OTURUM.md`'nin "Aktif durum" bölümünü güncelle; yarım kalan işi WIP commit'iyle dala kaydet.
