@@ -4,6 +4,7 @@ from datetime import datetime
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.catalog.tags import load_genre_pairs
 from app.config import GraphSettings, ProfileSettings
 from app.graph.service import get_matrix
 from app.models import TasteProfile, Track, TrackLike, UnheardEvent, UserTrackArtist, VoteEvent
@@ -70,7 +71,8 @@ def rebuild_profile(
     votes = load_profile_votes(db, user_id, now, cfg)
     built = get_matrix(db, graph_cfg)
     graph_version, gm = built if built is not None else (None, None)
-    body = build_profile(votes, gm, cfg, graph_version)
+    genre_of = load_genre_pairs(db, {v.artist_id for v in votes if v.artist_id is not None})
+    body = build_profile(votes, gm, cfg, graph_version, genre_of)
     version = (
         db.scalar(select(func.max(TasteProfile.version)).where(TasteProfile.user_id == user_id))
         or 0

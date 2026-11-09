@@ -6,8 +6,10 @@ Son güncelleme: 2026-11-09 (PR-4 Aşama 4 tamam; commitlendi, birleştirme onay
 
 ## Aktif durum
 
-- **Aktif PR:** PR-4 — Evren: tür omurgası (uygulandı, staging raporu ve birleştirme bekliyor)
-- **Dal:** `feat/pr4-genre-spine` (`main` = `33e9d96` üzerinden).
+- **Aktif PR:** PR-4 birleşti (#84, #85); tam omurga koşusu geliştiricinin bilgisayarında sürüyor (10 Kasım 01:20: 77 alt türden 28'i veride, kapı 4 bilinen Türkçe alt tür dışında geçiyor). Rapor için `python -m app.jobs.build_genre_backbone --report`; nihai sayılar gelince DURUM.md güncellenir.
+- **PR-5 uygulandı (10 Kasım 2026), commitlendi, push/birleştirme onayı bekliyor:** onay yaklaşım A + `unknown` bant sapması + varsayılanlar (prior 1/1, floor 0,05, smoothing 1,0) + "uygulamaya geç". Backend 381 geçti/11 atlandı/0 hata, ruff temiz. Kayıt DURUM.md'de.
+- **Dal:** `feat/pr5-user-model` (`fix/pr4-backbone-tags` = `main` içeriği üzerinden; `origin/main` = `40869d3`).
+- **Sıradaki adım:** PR-5 push + birleştirme onayı; ardından PR-6 (Örnekleyici `queue-8`) Aşama 1. Omurga koşusu bitince `--report` ile nihai sayılar DURUM.md'ye.
 - **Onay kaydı:** 9 Kasım 2026 — Aşama 2 raporu sunuldu; geliştirici yaklaşım A'yı (ayrı `genre_seed` + `track_popularity` tabloları, `track` değişmez) seçti ve "Önerilerin üzerinden ilerleyebiliriz" dedi.
 - **Biten adımlar:** 1–7 (kaynak istemcisi, göç 0021, 77 alt tür, omurga işi, temsilci parça, D3, testler, dokümanlar). Backend 370 geçti/11 atlandı/0 hata, ruff temiz.
 - **Geliştiricide kalanlar:** LISTENBRAINZ_TOKEN ve MUSICBRAINZ_CONTACT'ı ortam dosyasına koy; omurga işini Neon staging'e çalıştırıp raporu üret (alt tür başına kayıt, ISRC oranı, graf/DB boyutu, ≥15 benzersiz sanatçı); Neon depolama sınırını panelden teyit et; canlıya bayrak kapalı çık. Önceki borçlar: PR-3 için yeni APK + emülatörde 100 kartlık hızlı oylama, ep-noisy-scene teyidi, staging parolası döndürme, `C:/dev/tini_bench` silme, Last.fm ticari izni.
@@ -23,7 +25,8 @@ Son güncelleme: 2026-11-09 (PR-4 Aşama 4 tamam; commitlendi, birleştirme onay
 | PR-1 | `feat/pr1-measure-hygiene` | Doğrulandı (test + bench) | Evet (`origin/main` `38a36a2`) |
 | PR-2 | `feat/pr2-fast-queue` | Uygulandı, hedef kısmen (borçlar DURUM.md'de) | Evet (`origin/main` `b3a186b`) |
 | PR-3 | `feat/pr3-queue-controller` | Uygulandı, emülatör ölçümü bekliyor | Evet (`origin/main` `33e9d96`) |
-| PR-4 | `feat/pr4-genre-spine` | Uygulandı, staging raporu bekliyor | Hayır |
+| PR-4 | `feat/pr4-genre-spine` | Birleşti (#84, #85); tam omurga koşusu sürüyor | Evet |
+| PR-5 | `feat/pr5-user-model` | Uygulandı, birleştirme bekliyor | Hayır |
 
 ## PR-0'dan PR-4'e taşınacak bulgular (ayrıntı: PR-0 dalındaki `docs/ARCHITECTURE.md`)
 

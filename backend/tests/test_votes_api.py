@@ -69,7 +69,7 @@ def test_revote_appends_event_and_current_is_last(client, db):
     events = db.scalars(select(VoteEvent).where(VoteEvent.user_id == u.id)).all()
     assert len(events) == 2  # silinmez, yeni olay eklenir
     body = client.get("/votes/current", headers=h).json()
-    assert body["algo_version"] == "profile-3"
+    assert body["algo_version"] == "profile-4"
     assert [(v["track"], v["vote"], v["score"]) for v in body["votes"]] == [(t.id, 2, -0.6)]
 
 
@@ -115,7 +115,7 @@ def test_expired_unheard_enters_profile_as_weak_negative(client, db):
         client.post("/votes/unheard", json={"track": t.id}, headers=h)
     # artist çözülmemiş parça profile girmez ama oy sayısına yansır
     body = client.post("/profile/rebuild", headers=h).json()
-    assert body["algo_version"] == "profile-3" and body["vote_count"] == 1
+    assert body["algo_version"] == "profile-4" and body["vote_count"] == 1
 
 
 def test_vote_after_unheard_removes_track_from_pool(client, db):

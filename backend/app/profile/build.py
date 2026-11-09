@@ -5,6 +5,7 @@ göre KMeans ile zevk modlarına ayrılır; Amazing'li pozitif sanatçılar çap
 sanatçılar kaçınma bölgesidir (Awful içerenler "sert").
 """
 from collections import defaultdict
+from collections.abc import Mapping
 from dataclasses import dataclass
 
 from sklearn.cluster import KMeans
@@ -12,6 +13,7 @@ from sklearn.preprocessing import normalize
 
 from app.config import ProfileSettings
 from app.graph.matrix import GraphMatrix
+from app.recommend.genres import GENRES, SUB_GENRES
 
 
 @dataclass(frozen=True)
@@ -44,11 +46,56 @@ def _cluster(
     return {a: int(lab) for a, lab in zip(in_graph, labels, strict=True)}, outside
 
 
+def _genre_block(
+    votes: list[ProfileVote],
+    genre_of: Mapping[int, tuple[str, str | None]],
+    cfg: ProfileSettings,
+) -> dict:
+    """Yumuşatılmış tür eğilimi: pay = (Good+ + s) / (Σ Good+ + s·K); K = olası tür sayısı.
+
+    Yalnızca gerçek oylar (vote > 0) sayılır. Görülmeyen türün payı `smoothing / (Σ + s·K)`.
+    """
+    pos: dict[str, dict[str, int]] = {"main": defaultdict(int), "sub": defaultdict(int)}
+    neg: dict[str, dict[str, int]] = {"main": defaultdict(int), "sub": defaultdict(int)}
+    unlabeled = 0
+    for v in votes:
+        if v.vote <= 0 or v.artist_id is None:
+            continue
+        if v.artist_id not in genre_of:
+            unlabeled += 1
+            continue
+        main, sub = genre_of[v.artist_id]
+        for level, name in (("main", main), ("sub", sub)):
+            if name is None:
+                continue
+            if v.vote >= cfg.genre_good_min_vote:
+                pos[level][name] += 1
+            elif v.vote <= cfg.genre_bad_max_vote:
+                neg[level][name] += 1
+    block: dict = {"smoothing": cfg.genre_smoothing, "unlabeled_votes": unlabeled}
+    for level, universe in (("main", len(GENRES)), ("sub", len(SUB_GENRES))):
+        total = sum(pos[level].values())
+        denom = total + cfg.genre_smoothing * universe
+        names = sorted(set(pos[level]) | set(neg[level]))
+        block[level] = [
+            {
+                "genre": n,
+                "positive": pos[level].get(n, 0),
+                "negative": neg[level].get(n, 0),
+                "share": round((pos[level].get(n, 0) + cfg.genre_smoothing) / denom, 6),
+            }
+            for n in names
+        ]
+        block[f"{level}_positive_total"] = total
+    return block
+
+
 def build_profile(
     votes: list[ProfileVote],
     gm: GraphMatrix | None,
     cfg: ProfileSettings,
     graph_version: int | None,
+    genre_of: Mapping[int, tuple[str, str | None]] | None = None,
 ) -> dict:
     net: dict[int, float] = defaultdict(float)
     anchor_w: dict[int, float] = defaultdict(float)
@@ -87,6 +134,7 @@ def build_profile(
         "vote_count": len(votes),
         "unresolved_votes": unresolved,
         "clusters": clusters,
+        "genres": _genre_block(votes, genre_of or {}, cfg),
         "unclustered": [{"artist_id": a, "affinity": round(net[a], 6)} for a in outside],
         "anchors": [
             {"artist_id": a, "weight": round(w, 6)}

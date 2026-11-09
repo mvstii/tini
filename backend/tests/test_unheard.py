@@ -64,7 +64,7 @@ def test_implicit_negative_is_not_exempt_from_decay_like_awful():
 
 
 def test_algo_version_bumped():
-    assert CFG.profile_algo_version == "profile-3"
+    assert CFG.profile_algo_version == "profile-4"
 
 
 def test_vote_at_same_instant_as_last_event_resolves_track():

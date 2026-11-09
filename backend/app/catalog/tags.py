@@ -42,6 +42,27 @@ def load_genres(db: Session, artist_ids: Iterable[int]) -> dict[int, str]:
     return {aid: g for aid, g in genres.items() if g is not None}
 
 
+def load_genre_pairs(
+    db: Session, artist_ids: Iterable[int]
+) -> dict[int, tuple[str, str | None]]:
+    """artist_id -> (ana tür, alt tür | None); yalnız bir ana türe eşlenebilen sanatçılar."""
+    from app.recommend.genres import main_genre, sub_genre
+
+    by_artist: dict[int, list[tuple[str, int]]] = {}
+    for aid, tag, weight in db.execute(
+        select(ArtistTag.artist_id, ArtistTag.tag, ArtistTag.weight).where(
+            ArtistTag.artist_id.in_(list(artist_ids))
+        )
+    ):
+        by_artist.setdefault(aid, []).append((tag, weight))
+    out: dict[int, tuple[str, str | None]] = {}
+    for aid, tags in by_artist.items():
+        main = main_genre(tags)
+        if main is not None:
+            out[aid] = (main, sub_genre(tags))
+    return out
+
+
 def fetch_artist_tags(
     db: Session, mb: MusicBrainzClient, lfm: LastfmClient | None, cfg: GraphSettings, limit: int
 ) -> dict[str, int]:

@@ -130,7 +130,11 @@ class ProfileSettings(BaseSettings):
 
     model_config = SettingsConfigDict(env_file=".env", env_prefix="PROFILE_", extra="ignore")
 
-    profile_algo_version: str = "profile-3"
+    profile_algo_version: str = "profile-4"
+    # Tür eğilimi (PR-5): Good+/Bad- eşikleri ve Laplace yumuşatma (her türe bu kadar sahte Good).
+    genre_good_min_vote: int = 4
+    genre_bad_max_vote: int = 2
+    genre_smoothing: float = 1.0
     # Soğuk başlangıç skorları (CLAUDE.md oylama ölçeği)
     vote_scores: dict[int, float] = {1: -1.0, 2: -0.6, 3: -0.15, 4: 0.35, 5: 0.7, 6: 1.0}
     # Persentil normalizasyonu: en az bu kadar güncel oydan sonra devreye girer; işaret korunur,
@@ -219,6 +223,11 @@ class RecommendSettings(BaseSettings):
     slot_prior_b: float = 1.0  # Beta öncülü (başarısızlık)
     slot_floor_share: float = 0.1  # her slotun taban payı
     bandit_min_outcomes: int = 10  # bundan az sonuçta pay öncüle eşit
+    # Tür bandit'i (PR-5): her ana tür bir kol, Beta(a0 + Good+, b0 + Bad-);
+    # taban pay türün sıfırlanmasını önler
+    genre_prior_a: float = 1.0
+    genre_prior_b: float = 1.0
+    genre_floor_share: float = 0.05
     familiar_fraction: float = 0.5  # havuzsuz adayların üst kesri = familiar, kalanı explore
     # Çeşitlilik: "uzak" yuva (bandit dışı sabit pay) ve tek topluluk tavanı
     far_share: float = 0.2
