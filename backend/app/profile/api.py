@@ -66,6 +66,17 @@ def _events(db: Session, user_id) -> list[VoteEvt]:
     return [VoteEvt(*r) for r in rows]
 
 
+def _presented(db: Session, user_id, track_id: int, gcfg: GraphSettings) -> bool:
+    """D3: omurga açıkken kullanıcıya sunulmuş (kendi `UserTrackMeta` kaydı olan) parça oylanır."""
+    if not gcfg.backbone_enabled:
+        return False
+    return db.scalar(
+        select(UserTrackMeta.track_id)
+        .where(UserTrackMeta.user_id == user_id, UserTrackMeta.track_id == track_id)
+        .limit(1)
+    ) is not None
+
+
 @router.post("", status_code=201)
 def cast_vote(
     body: VoteIn,
@@ -87,7 +98,7 @@ def cast_vote(
             .where(GeneratedList.user_id == user.id, ListItem.track_id == body.track)
             .limit(1)
         )
-    if owned is None:
+    if owned is None and not _presented(db, user.id, body.track, gcfg):
         raise HTTPException(404, "Parça kütüphanede ya da listelerinde yok")
     ev = VoteEvent(user_id=user.id, track_id=body.track, vote=body.vote)
     db.add(ev)
@@ -105,6 +116,7 @@ def mark_unheard(
     user: User = Depends(current_user),
     db: Session = Depends(get_db),
     cfg: ProfileSettings = Depends(get_profile_settings),
+    gcfg: GraphSettings = Depends(get_graph_settings),
 ) -> dict:
     """Sola kaydırma: "bu parçayı dinlemedim". Yeni bir Unheard olayı yazılır (silinmez)."""
     owned = db.scalar(
@@ -119,7 +131,7 @@ def mark_unheard(
             .where(GeneratedList.user_id == user.id, ListItem.track_id == body.track)
             .limit(1)
         )
-    if owned is None:
+    if owned is None and not _presented(db, user.id, body.track, gcfg):
         raise HTTPException(404, "Parça kütüphanede ya da listelerinde yok")
     prior = db.scalar(
         select(func.count())

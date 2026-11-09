@@ -16,6 +16,7 @@ from app.config import get_graph_settings, get_settings
 from app.db import make_engine
 from app.sources.http import SourceClient
 from app.sources.lastfm import LastfmClient
+from app.sources.listenbrainz import ListenBrainzClient
 from app.sources.musicbrainz import MusicBrainzClient
 
 log = logging.getLogger("tini.enrich")
@@ -36,6 +37,20 @@ def make_musicbrainz(client: httpx.Client) -> MusicBrainzClient:
         min_interval=cfg.musicbrainz_min_interval_seconds, source="musicbrainz",
     )
     return MusicBrainzClient(http, cfg.musicbrainz_base_url)
+
+
+def make_listenbrainz(client: httpx.Client) -> ListenBrainzClient:
+    settings = get_settings()
+    if not settings.listenbrainz_token:
+        raise RuntimeError("LISTENBRAINZ_TOKEN tanımlı değil")
+    if not settings.musicbrainz_contact:
+        raise RuntimeError("MUSICBRAINZ_CONTACT tanımlı değil")
+    cfg = get_graph_settings()
+    http = SourceClient.from_settings(
+        client, cfg, user_agent=f"Tini/0.1 ( {settings.musicbrainz_contact} )",
+        min_interval=cfg.listenbrainz_min_interval_seconds, source="listenbrainz",
+    )
+    return ListenBrainzClient(http, cfg.listenbrainz_base_url, settings.listenbrainz_token)
 
 
 def make_lastfm(client: httpx.Client) -> LastfmClient | None:

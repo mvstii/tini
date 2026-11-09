@@ -28,6 +28,8 @@ class Settings(BaseSettings):
     musicbrainz_contact: str = ""
     # Last.fm API anahtarı; yalnızca .env'den gelir, loglanmaz.
     lastfm_api_key: str = ""
+    # ListenBrainz kullanıcı belirteci (omurga işi); yalnızca ortamdan gelir, loglanmaz.
+    listenbrainz_token: str = ""
     # Aşama süreleri: Server-Timing başlığı + istek günlüğünde `stages` (salt ölçüm).
     server_timing_enabled: bool = True
     # Dış servis 429/5xx iken istemciye 503 ile döndürülen varsayılan Retry-After (saniye).
@@ -65,6 +67,19 @@ class GraphSettings(BaseSettings):
     http_backoff_max_seconds: float = 60.0
     lastfm_base_url: str = "https://ws.audioscrobbler.com/2.0/"
     lastfm_min_interval_seconds: float = 0.25
+    # ListenBrainz (sources/listenbrainz.py): sınır 30 istek/10 sn; 0,34 sn aralık güvenli.
+    listenbrainz_base_url: str = "https://api.listenbrainz.org/1"
+    listenbrainz_min_interval_seconds: float = 0.34
+    # Tür omurgası (PR-4): kullanıcıdan bağımsız alt tür → temsilci parça havuzu. Canlıda kapalı.
+    backbone_enabled: bool = False
+    backbone_top_k: int = 10  # sanatçının en çok dinlenen K kaydından tohumlu örnek
+    backbone_artists_per_sub_genre_cap: int = 60
+    backbone_pool_count: int = 1000  # lb-radio/tags istek başına kayıt (anonim, üst sınır 1000)
+    # Dinlenme yüzdeliği pencereleri (ListenBrainz pop_begin/pop_end; 0 = en çok dinlenen):
+    # top [0, top_end), mid [top_end, mid_end), tail [mid_end, 100].
+    backbone_top_end: int = 33
+    backbone_mid_end: int = 66
+    backbone_meta_batch: int = 200  # LB metadata/recording isteği başına MBID
     # Ağır iş yürütücüsü (jobs/worker.py)
     worker_queue_max: int = 50
     # Stale-while-revalidate: eski matris/etiket sunulur, yenisi arka planda kurulur

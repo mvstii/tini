@@ -242,16 +242,16 @@ Amaç: kullanıcılardan bağımsız, müziğin tamamını alt tür ve popülerl
 
 **Yapılacaklar**
 
-- [ ] `sources/listenbrainz.py` (yeni): `lb_radio_tags`, `top_recordings_for_artist`; ortak `SourceClient`, süreç geneli hız sınırlayıcı, 429 geri çekilme. Token gerekiyorsa `.env`'de `LISTENBRAINZ_TOKEN`.
-- [ ] `sources/musicbrainz.py`: `recording_isrcs(mbid)`.
-- [ ] Göç `0021` (yalnızca ekleme): `genre_seed` (alt tür, ana tür, `artist_id`, `track_id`, bant, kaynak, `fetched_at`) ve parça popülerlik bandı (`track_popularity` veya `track` üstünde nullable sütun — PR başında karar, raporda gerekçe). Kişisel veri yok.
-- [ ] `recommend/genres.py`: iki seviyeli tablo + saf `sub_genre(tags)`; `main_genre` davranışı geriye uyumlu.
-- [ ] `app/jobs/build_genre_backbone.py`: ListenBrainz → MusicBrainz ISRC → `Track` + `genre_seed`; devam ettirilebilir (denenen bir daha sorulmaz, `fetch_tags` kalıbı), `--limit`, `--genre`; **bilgisayardan Neon'a** çalışır, canlı sunucuda koşmaz.
-- [ ] Omurga sanatçıları için Last.fm 1 adım genişleme (mevcut `expand`/`fetch_one`); Last.fm 100 MB sınırı izlenir.
-- [ ] `recommend/service._pick_tracks` → temsil şarkısı (popülerlik + tohum); veri yoksa eski davranış.
-- [ ] D3: `cast_vote` — kütüphane veya liste öğesi değilse, kullanıcıya özel `UserTrackMeta` kaydı varsa kabul.
-- [ ] CLAUDE.md: kural 7 (D4) ve yeni kaynak (D1) notları; `docs/ARCHITECTURE.md` omurga bölümü.
-- [ ] Bayrak: `GRAPH_BACKBONE_ENABLED` (varsayılan kapalı).
+- [x] `sources/listenbrainz.py` (yeni): `lb_radio_tags`, `top_recordings_for_artist`; ortak `SourceClient`, süreç geneli hız sınırlayıcı, 429 geri çekilme. Token gerekiyorsa `.env`'de `LISTENBRAINZ_TOKEN`.
+- [x] `sources/musicbrainz.py`: `recording_isrcs(mbid)`.
+- [x] Göç `0021` (yalnızca ekleme): `genre_seed` (alt tür, ana tür, `artist_id`, `track_id`, bant, kaynak, `fetched_at`) ve parça popülerlik bandı (`track_popularity` veya `track` üstünde nullable sütun — PR başında karar, raporda gerekçe). Kişisel veri yok.
+- [x] `recommend/genres.py`: iki seviyeli tablo + saf `sub_genre(tags)`; `main_genre` davranışı geriye uyumlu.
+- [x] `app/jobs/build_genre_backbone.py`: ListenBrainz → MusicBrainz ISRC → `Track` + `genre_seed`; devam ettirilebilir (denenen bir daha sorulmaz, `fetch_tags` kalıbı), `--limit`, `--genre`; **bilgisayardan Neon'a** çalışır, canlı sunucuda koşmaz.
+- [x] Omurga sanatçıları için Last.fm 1 adım genişleme (mevcut `expand`/`fetch_one`); Last.fm 100 MB sınırı izlenir.
+- [x] `recommend/service._pick_tracks` → temsil şarkısı (popülerlik + tohum); veri yoksa eski davranış.
+- [x] D3: `cast_vote` — kütüphane veya liste öğesi değilse, kullanıcıya özel `UserTrackMeta` kaydı varsa kabul.
+- [x] CLAUDE.md: kural 7 (D4) ve yeni kaynak (D1) notları; `docs/ARCHITECTURE.md` omurga bölümü.
+- [x] Bayrak: `GRAPH_BACKBONE_ENABLED` (varsayılan kapalı).
 
 **Testler:** taksonomi eşlemesi (Türkçe alt türler dahil), bant normalizasyonu, temsil şarkısı determinizmi (aynı tohum → aynı şarkı), `cast_vote` D3 (sunulmamış parça → 404), göç ileri/geri, omurga işinin devam ettirilebilirliği (sahte istemci).
 
@@ -477,7 +477,7 @@ python -m app.jobs.queue_sim --email <e-posta>   # PR-6 sonrası
 | PR-1 | Ölçüm ve arka plan hijyeni | Doğrulandı, birleştirme bekliyor | `feat/pr1-measure-hygiene` | Test 339/5 atlandı/0 hata; bench önce/sonra DURUM.md'de; Neon bağlantı sayısı ölçülmedi |
 | PR-2 | Hızlı yol ve tampon | Uygulandı, hedef kısmen (birleştirme bekliyor) | `feat/pr2-fast-queue` | Test 346/8 atlandı/0 hata; bench p50 1331, p95 2613 ms, boş 83; p95<800 ve boş 0 **tutmadı** (`uncertainty` aşaması + Spotify 429); borçlar DURUM.md'de |
 | PR-3 | İstemci kuyruk denetleyicisi | Uygulandı (emülatör ölçümü geliştiricide) | `feat/pr3-queue-controller` | Flutter 62/62, analyze temiz; backend 348 geçti/10 atlandı/0 hata, ruff temiz; "çıkmaz ekran 0" emülatörde ölçülmedi |
-| PR-4 | Evren: tür omurgası | Başlamadı | | |
+| PR-4 | Evren: tür omurgası | Uygulandı (staging omurga raporu geliştiricide) | `feat/pr4-genre-spine` | Backend 370 geçti/11 atlandı/0 hata, ruff temiz; ayrı `genre_seed` + `track_popularity` (göç 0021), 77 alt tür; bayrak kapalı; omurga raporu ölçülmedi |
 | PR-5 | Kullanıcı modeli | Başlamadı | | |
 | PR-6 | Örnekleyici `queue-8` | Başlamadı | | |
 | PR-7 | Liste tarafı `list-6` | Başlamadı | | |

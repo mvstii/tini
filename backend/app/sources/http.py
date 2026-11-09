@@ -98,14 +98,41 @@ class SourceClient:
                 pass
         return min(self._backoff_base * (2**attempt), self._backoff_max)
 
-    def get_json(self, url: str, params: dict[str, str] | None = None) -> dict | None:
+    def get_json(
+        self,
+        url: str,
+        params: dict[str, str] | None = None,
+        *,
+        headers: dict[str, str] | None = None,
+    ) -> dict | None:
         """GET → JSON. 404 → None. 429/5xx ve ağ hatalarında geri çekilir, sınırda SourceError."""
-        headers = {"User-Agent": self._ua, "Accept": "application/json"}
+        return self._request_json("GET", url, params=params, extra_headers=headers)
+
+    def post_json(
+        self, url: str, body: dict, *, headers: dict[str, str] | None = None
+    ) -> dict | None:
+        """POST (JSON gövde) → JSON. Hata/geri çekilme davranışı get_json ile aynıdır.
+        `headers` (ör. Authorization) günlüğe yazılmaz."""
+        return self._request_json("POST", url, json_body=body, extra_headers=headers)
+
+    def _request_json(
+        self,
+        method: str,
+        url: str,
+        *,
+        params: dict[str, str] | None = None,
+        json_body: dict | None = None,
+        extra_headers: dict[str, str] | None = None,
+    ) -> dict | None:
+        headers = {"User-Agent": self._ua, "Accept": "application/json", **(extra_headers or {})}
         last_err = "bilinmiyor"
         for attempt in range(self._max_retries + 1):
             self._throttle()
             try:
-                resp = self._client.get(url, params=params, headers=headers)
+                if method == "POST":
+                    resp = self._client.post(url, json=json_body, headers=headers)
+                else:
+                    resp = self._client.get(url, params=params, headers=headers)
             except httpx.TransportError as e:
                 last_err = type(e).__name__
                 if attempt < self._max_retries:

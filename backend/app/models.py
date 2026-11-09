@@ -16,6 +16,7 @@ from sqlalchemy import (
     DateTime,
     Float,
     ForeignKey,
+    Index,
     Integer,
     LargeBinary,
     SmallInteger,
@@ -180,6 +181,34 @@ class GraphSnapshot(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=_now)
     edge_count: Mapped[int] = mapped_column(Integer)
     params: Mapped[dict] = mapped_column(JSONB)
+
+
+class TrackPopularity(Base):
+    """Paylaşılan: parçanın ListenBrainz dinlenme bandı (top/mid/tail); kullanıcıdan bağımsız."""
+
+    __tablename__ = "track_popularity"
+
+    track_id: Mapped[int] = mapped_column(ForeignKey("track.id"), primary_key=True)
+    band: Mapped[str] = mapped_column(String(8))
+    listens: Mapped[int] = mapped_column(Integer)
+    fetched_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=_now)
+
+
+class GenreSeed(Base):
+    """Paylaşılan: alt türün kullanıcıdan bağımsız temsilci parçaları (tür omurgası, PR-4)."""
+
+    __tablename__ = "genre_seed"
+    __table_args__ = (
+        Index("ix_genre_seed_sub_genre_band", "sub_genre", "band"),
+    )
+
+    sub_genre: Mapped[str] = mapped_column(String(48), primary_key=True)
+    track_id: Mapped[int] = mapped_column(ForeignKey("track.id"), primary_key=True)
+    main_genre: Mapped[str] = mapped_column(String(32))
+    artist_id: Mapped[int] = mapped_column(ForeignKey("artist.id"), index=True)
+    band: Mapped[str] = mapped_column(String(8))
+    source: Mapped[str] = mapped_column(String(16))
+    fetched_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=_now)
 
 
 class Track(Base):

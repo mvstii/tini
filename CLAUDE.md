@@ -20,7 +20,7 @@ Bu kararları geliştiriciye sormadan değiştirme:
 4. **Kapalı Spotify uç noktalarını kullanma.** `recommendations`, `audio-features`, `audio-analysis`, `related-artists`, `new-releases`, `artist top-tracks` ve `preview_url` yeni uygulamalar için çalışmaz; bunlara dayanan kod yazma. `popularity` alanı da yok.
 5. **Spotify verisiyle ML modeli eğitilmez.** Özellikler Last.fm, ListenBrainz ve MusicBrainz gibi üçüncü taraf kaynaklardan gelir.
 6. **Oylar silinmeyen olay kaydıdır.** Oy değişikliği yeni bir olaydır; güncel oy son olaydır. Profiller bu kayıttan türetilen sürümlü anlık görüntülerdir.
-7. **Her öneri gerekçe taşır.** Gerekçe hesabın kendisinden (PPR'ın çapa bazlı doğrusal ayrışımından) türetilir, sonradan uydurulmaz.
+7. **Her öneri gerekçe taşır.** Gerekçe hesabın kendisinden (PPR'ın çapa bazlı doğrusal ayrışımından) türetilir, sonradan uydurulmaz. Omurgadan gelen sonda/joker önerilerin gerekçesi kapsama hesabından (hangi alt tür/bant yeterince örneklenmedi) türetilir (D4).
 8. **Akustik analiz v1'de yoktur.** v2'de, ölçütleri iyileştirdiği kanıtlanırsa eklenir.
 
 ## Oylama ölçeği
@@ -52,6 +52,7 @@ Bu kararları geliştiriciye sormadan değiştirme:
 - Algoritma değişikliği birim testi olmadan birleştirilmez.
 - Dış API çağrıları yalnızca adaptör veya kaynak istemcisi modüllerinde yapılır; önbellek ve 429 geri çekilme orada ele alınır.
 - **Spotify verisi kalıcı saklanmaz** (Developer Terms v10: yalnızca geçici metadata önbelleği). Parçanın kalıcı kimliği ISRC'dir (MBID isteğe bağlı; niş şarkılarda eşleme yalnızca ~%28). Paylaşılan katalogda yalnızca ISRC ve kendi türettiğimiz veri durur. Spotify'dan gelen başlık, sanatçı ve süre yalnızca kullanıcıya özel, TTL'li önbellekte tutulur (TTL yapılandırmadan gelir, başlangıç 24 saat; dolunca Spotify'dan yenilenir, hesap silinince tamamen silinir). Spotify ID yalnızca kullanıcıya özel eşleme olarak tutulur. (Karar: 29 Ekim 2026, geliştirici onayı.)
+- **ListenBrainz canlı kaynaktır (D1).** Tür omurgası (`catalog/backbone.py`, `jobs/build_genre_backbone.py`) ListenBrainz ile kurulur; ISRC önce ListenBrainz `metadata/recording`, yoksa MusicBrainz'den gelir. `LISTENBRAINZ_TOKEN` yalnızca ortam dosyasında durur; omurga işi bilgisayardan Neon'a çalışır, canlı sunucuda koşmaz. Omurga davranışı `GRAPH_BACKBONE_ENABLED` bayrağı arkasındadır (varsayılan kapalı).
 - **Last.fm verisi 100 MB sınırı altında tutulur** (API ToS "Reasonable Usage Cap"). Ham yanıt saklanmaz; düğüm başına en çok ~20 komşu, tamsayı kimlik ve ağırlıkla kompakt yazılır, boyut izlenir, sınıra yaklaşınca en eskiler atılır. Last.fm zorunlu kaynak değil, ikincil kaynaktır; çekirdek kaynaklar ListenBrainz ve MusicBrainz'dir. Ticari kullanım için Last.fm'in önceden izni gerekir.
 - Gizli bilgiler yalnızca `.env` içindedir (şablon: `.env.example`). Token'lar veritabanında şifreli saklanır.
 - Kişisel veri (oylar, profil, token) ile paylaşılan katalog/grafik verisi ayrı tutulur; hesap silindiğinde kişisel veri tamamen silinir.
