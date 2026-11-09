@@ -39,6 +39,7 @@ def diversify(
     seed: int,
     cfg: ProfileSettings,
     limit: int,
+    prior_artists: Sequence[int] = (),
 ) -> list[int]:
     """Öncelik sırasını (`order`) bozmadan yan yana benzerliği azaltır; ilk `limit` parçayı döner.
 
@@ -46,7 +47,8 @@ def diversify(
     `queue_genre_gap` parçadakilerden farklı türden olmalı (türü bilinmeyen kısıtlanmaz).
     Her `queue_explore_every`'inci yuva keşif yuvasıdır: tohumlu rastgele sıradan (havuzdaki
     parçalar önce) seçilir. Uygun parça yoksa önce tür, sonra sanatçı kuralı gevşer.
-    Aynı girdi ve tohum, aynı sıra."""
+    `prior_artists`: istemcide zaten olan parçaların sanatçıları (eskiden yeniye); aralık
+    pencereleri bunlarla başlar. Aynı girdi ve tohum, aynı sıra."""
     random_order = sorted(order, key=lambda t: (t not in pool, _key(seed + 7919, t)))
     used: set[int] = set()
     out: list[int] = []
@@ -63,14 +65,12 @@ def diversify(
                 return t
         return next((t for t in candidates if t not in used), None)
 
+    seq: list[int] = list(prior_artists)  # sanatçı dizisi: önceki + seçilenler
     for i in range(min(limit, len(order))):
-        artists = (
-            {artist_of[t] for t in out[-cfg.queue_artist_gap:]} if cfg.queue_artist_gap > 0
-            else set()
-        )
+        artists = set(seq[-cfg.queue_artist_gap:]) if cfg.queue_artist_gap > 0 else set()
         genres = (
-            {genre_of[artist_of[t]] for t in out[-cfg.queue_genre_gap:]
-             if artist_of[t] in genre_of} if cfg.queue_genre_gap > 0 else set()
+            {genre_of[a] for a in seq[-cfg.queue_genre_gap:] if a in genre_of}
+            if cfg.queue_genre_gap > 0 else set()
         )
         explore = cfg.queue_explore_every > 0 and (i + 1) % cfg.queue_explore_every == 0
         chosen = pick(random_order if explore else order, artists, genres)
@@ -78,6 +78,7 @@ def diversify(
             break
         used.add(chosen)
         out.append(chosen)
+        seq.append(artist_of[chosen])
     return out
 
 

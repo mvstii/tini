@@ -218,11 +218,11 @@ Amaç: `rating_screen` içine dağılmış bayrakları açık durumları olan, t
 
 **Yapılacaklar**
 
-- [ ] `mobile/lib/queue_controller.dart` (yeni, `ChangeNotifier`): tek uçuş + yeniden kontrol; `recent` üretimi (bekleyen kartlar + son 4 oy, en çok 20); üstel geri çekilme + jitter (1, 2, 4… en çok 30 sn).
-- [ ] `mobile/lib/api.dart`: `voteQueue(..., List<int> recent = const [])`; istek başına zaman aşımı (kuyruk kısa, ısınma uzun); `health()`; `ApiException`'da zaman aşımı/çevrimdışı/5xx ayrımı.
-- [ ] `rating_screen.dart`: doldurma mantığı denetleyiciye taşınır, ekran durumu çizer; "Yeniden dene" yalnızca doldurmayı çalıştırır; `prefetchBelow` 6 → 8; kaynak rozeti (Kütüphanenden / X'i sevdiğin için / Yeni bir tür / Sürpriz).
-- [ ] Sunucu: `queue()` `recent` parametresini kabul eder (en çok `queue_recent_max` kimlik, aksi 422); bu parçalar adaylardan çıkarılır ve aralık geçmişi bunlarla başlatılır. Parametresiz istek bugünkü gibi çalışır.
-- [ ] Oylama akışı ve tasarım dili değişmez.
+- [x] `mobile/lib/queue_controller.dart` (yeni, `ChangeNotifier`): tek uçuş + yeniden kontrol; `recent` üretimi (bekleyen kartlar + son 4 oy, en çok 20); üstel geri çekilme + jitter (1, 2, 4… en çok 30 sn).
+- [x] `mobile/lib/api.dart`: `voteQueue(..., List<int> recent = const [])`; istek başına zaman aşımı (kuyruk kısa, ısınma uzun); `health()`; `ApiException`'da zaman aşımı/çevrimdışı/5xx ayrımı.
+- [x] `rating_screen.dart`: doldurma mantığı denetleyiciye taşınır, ekran durumu çizer; "Yeniden dene" yalnızca doldurmayı çalıştırır; `prefetchBelow` 6 → 8; kaynak rozeti (yalnız `source=suggested` kartlarda: "X'i sevdiğin için" / "Senin için önerildi"; "Kütüphanenden / Yeni bir tür / Sürpriz" sunucu bu bilgiyi göndermediği için yapılmadı — geliştirici kararı, seçenek a).
+- [x] Sunucu: `queue()` `recent` parametresini kabul eder (en çok `queue_recent_max` kimlik, aksi 422); bu parçalar adaylardan çıkarılır ve aralık geçmişi bunlarla başlatılır. Parametresiz istek bugünkü gibi çalışır.
+- [x] Oylama akışı ve tasarım dili değişmez.
 
 **Testler:** `mobile/test/queue_controller_test.dart` — sahte API ile yavaş yanıt sırasında art arda oy (kart bitmez), çakışan yanıt (yinelenen kart yok), zaman aşımında sessiz deneme, soğuk açılış durumu. Backend: `recent` dışlama, geçersiz `recent` → 422, parametresiz uyumluluk. `flutter analyze` temiz.
 
@@ -476,7 +476,7 @@ python -m app.jobs.queue_sim --email <e-posta>   # PR-6 sonrası
 | PR-0 | Doğrulama spike'ı | Tamamlandı (kapı geçti, 8 Kasım) | `feat/pr0-lb-spike` — `main`'e birleşti (`7e5fc64`) | İlk ölçüm 8/20 (geçmedi); genişletilmiş probda geçti: Türkçe 5/5, toplam 20/20, ≈ 1340 istek; bulgular ARCHITECTURE.md'de, PR-4'e etkisi KESIF_OTURUM.md'de |
 | PR-1 | Ölçüm ve arka plan hijyeni | Doğrulandı, birleştirme bekliyor | `feat/pr1-measure-hygiene` | Test 339/5 atlandı/0 hata; bench önce/sonra DURUM.md'de; Neon bağlantı sayısı ölçülmedi |
 | PR-2 | Hızlı yol ve tampon | Uygulandı, hedef kısmen (birleştirme bekliyor) | `feat/pr2-fast-queue` | Test 346/8 atlandı/0 hata; bench p50 1331, p95 2613 ms, boş 83; p95<800 ve boş 0 **tutmadı** (`uncertainty` aşaması + Spotify 429); borçlar DURUM.md'de |
-| PR-3 | İstemci kuyruk denetleyicisi | Başlamadı | | |
+| PR-3 | İstemci kuyruk denetleyicisi | Uygulandı (emülatör ölçümü geliştiricide) | `feat/pr3-queue-controller` | Flutter 62/62, analyze temiz; backend 348 geçti/10 atlandı/0 hata, ruff temiz; "çıkmaz ekran 0" emülatörde ölçülmedi |
 | PR-4 | Evren: tür omurgası | Başlamadı | | |
 | PR-5 | Kullanıcı modeli | Başlamadı | | |
 | PR-6 | Örnekleyici `queue-8` | Başlamadı | | |

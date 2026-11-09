@@ -8,6 +8,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../api.dart';
 import '../app_state.dart';
 import '../preview_player.dart';
+import '../queue_controller.dart';
 import '../theme/cosmic_colors.dart';
 import '../widgets/cover_art.dart';
 import '../widgets/like_button.dart';
@@ -17,9 +18,6 @@ import 'list_screen.dart';
 import 'tracks_screen.dart';
 
 export '../app_state.dart' show tourVotes;
-
-/// Kalan kart sayısı bunun altına düşünce kuyruk arka planda yenilenir.
-const prefetchBelow = 6;
 
 /// Sağa kaydırma parçayı "Sonra dinle" listesine ekler (oy değildir, profili etkilemez); sola
 /// kaydırma "Unheard" olayı yazar. Oy vermek için kartın altındaki kademe düğmeleri kullanılır.
@@ -86,30 +84,34 @@ class _Step {
 
 class _RatingScreenState extends State<RatingScreen> {
   late final AppState _state = widget.state ?? AppState(widget.api);
-  final List<QueueItem> _cards = [];
-  final Set<int> _skipped = {};
-  final Set<int> _voted = {};
+  // Kuyruğun tek sahibi: kartlar, doldurma, geri çekilme (tohum denetleyicide).
+  late final QueueController _queue = QueueController(
+    ApiQueueBackend(widget.api),
+    onUnauthorized: _logout,
+  );
   final List<_Step> _history = [];
-  // Her açılışta farklı tohum: sabit 0 olunca aynı şarkı hep ilk sırada çıkıyordu.
-  int _seed = DateTime.now().millisecondsSinceEpoch % 100000;
-  int _stale = 0;
-  DateTime? _lastAutoRefresh;
-  bool _loading = true;
-  bool _filling = false;
+  bool _loading = true; // oturum durumu (_state.load) yükleniyor
   bool _busy = false;
   bool _peekPending = true;
   String? _error;
   int? _autoplayed; // otomatik çalma en son bu parça için tetiklendi
 
-  QueueItem? get _current => _cards.isEmpty ? null : _cards.first;
+  QueueItem? get _current => _queue.current;
 
   @override
   void initState() {
     super.initState();
     _state.addListener(_onState);
+    _queue.addListener(_onState);
     PreviewController.autoplay.addListener(_onState);
     _loadAutoplay();
     _init();
+  }
+
+  void _logout() {
+    if (!mounted) return;
+    if (Navigator.of(context).canPop()) Navigator.of(context).pop();
+    widget.onLogout?.call();
   }
 
   static const _autoplayKey = 'preview_autoplay';
@@ -146,6 +148,8 @@ class _RatingScreenState extends State<RatingScreen> {
   @override
   void dispose() {
     _state.removeListener(_onState);
+    _queue.removeListener(_onState);
+    _queue.dispose();
     PreviewController.autoplay.removeListener(_onState);
     if (widget.state == null) _state.dispose();
     super.dispose();
@@ -174,62 +178,10 @@ class _RatingScreenState extends State<RatingScreen> {
       _loading = true;
       _error = null;
     });
-    await _guard(() async {
-      await _state.load();
-      await _fill();
-    });
+    await _guard(() => _state.load());
     if (mounted) setState(() => _loading = false);
-  }
-
-  Future<void> _fill() async {
-    var q = await widget.api.voteQueue(seed: _seed);
-    // Önbellek TTL'i dolan parçalar kuyruktan düşer; kuyruk kuruyorsa kullanıcıyı uyarmadan
-    // kütüphaneyi sessizce yenile (10 dk'da en çok bir kez; başarısızsa elle düğme kalır).
-    final last = _lastAutoRefresh;
-    if (q.stale > 0 &&
-        _cards.length + q.items.length < prefetchBelow &&
-        (last == null || DateTime.now().difference(last) > const Duration(minutes: 10))) {
-      _lastAutoRefresh = DateTime.now();
-      try {
-        await widget.api.importLibrary();
-        q = await widget.api.voteQueue(seed: _seed);
-      } on ApiException catch (e) {
-        if (e.status == 401) rethrow;
-      } catch (_) {}
-    }
-    _stale = q.stale;
-    final seen = _cards.map((c) => c.track).toSet();
-    // Sunucu, oy kaydedilmeden önce başlayan bir istekte az önce oylanan parçayı da dönebilir.
-    final fresh = q.items.where(
-        (i) => !_skipped.contains(i.track) && !_voted.contains(i.track) && !seen.contains(i.track));
-    if (mounted) setState(() => _cards.addAll(fresh));
-  }
-
-  /// Kartlar azalınca arka planda doldurur; kullanıcı beklemez. Hızlı oylamada kartlar yine
-  /// tükenirse boş durum yerine yükleme göstergesi çıkar (`_filling`).
-  Future<void> _topUp() async {
-    if (_filling) return;
-    setState(() => _filling = true);
-    _seed++;
-    await _guard(() async {
-      try {
-        await _fill();
-      } on ApiException {
-        rethrow;
-      } catch (_) {
-        await _fill(); // geçici ağ hatasında bir kez daha dene
-      }
-    });
-    if (mounted) setState(() => _filling = false);
-  }
-
-  Future<void> _refreshLibrary() async {
-    setState(() => _loading = true);
-    await _guard(() async {
-      await widget.api.importLibrary();
-      await _fill();
-    });
-    if (mounted) setState(() => _loading = false);
+    // Kuyruk durumu denetleyiciden çizilir; başlatma ekranı bekletmez.
+    unawaited(_queue.start());
   }
 
   Future<void> _answer(int? vote) async {
@@ -239,29 +191,22 @@ class _RatingScreenState extends State<RatingScreen> {
     setState(() {
       _busy = true;
       _error = null;
-      _cards.removeAt(0);
     });
+    _queue.pop();
     var saved = false;
     await _guard(() async {
       if (vote != null) {
         await widget.api.castVote(item.track, vote);
-        _voted.add(item.track);
         _state.recordVote(item, vote);
       } else {
         await widget.api.markUnheard(item.track);
-        _skipped.add(item.track);
         _state.recordUnheard();
       }
       saved = true;
       _history.add(_Step(item, vote));
     });
-    if (mounted) {
-      setState(() {
-        if (!saved) _cards.insert(0, item); // kayıt başarısızsa kart geri gelir
-        _busy = false;
-      });
-      if (saved && _cards.length < prefetchBelow) _topUp();
-    }
+    if (!saved) _queue.putBack(item); // kayıt başarısızsa kart geri gelir
+    if (mounted) setState(() => _busy = false);
   }
 
   /// Sağa kaydırma: parça "Sonra dinle" listesine girer, kuyruktan çıkar.
@@ -271,26 +216,22 @@ class _RatingScreenState extends State<RatingScreen> {
     setState(() {
       _busy = true;
       _error = null;
-      _cards.removeAt(0);
     });
+    _queue.pop();
     var saved = false;
     await _guard(() async {
       await widget.api.addLater(item.track);
-      _skipped.add(item.track);
       saved = true;
       _history.add(_Step(item, null, later: true));
     });
+    if (!saved) _queue.putBack(item);
     if (mounted) {
-      setState(() {
-        if (!saved) _cards.insert(0, item);
-        _busy = false;
-      });
+      setState(() => _busy = false);
       if (saved) {
         ScaffoldMessenger.of(context)
           ..clearSnackBars()
           ..showSnackBar(const SnackBar(
               content: Text('Sonra dinle listesine eklendi'), duration: Duration(seconds: 2)));
-        if (_cards.length < prefetchBelow) _topUp();
       }
     }
   }
@@ -299,11 +240,15 @@ class _RatingScreenState extends State<RatingScreen> {
     if (_history.isEmpty || _busy) return;
     final step = _history.removeLast();
     if (step.later) unawaited(widget.api.removeLater(step.item.track).catchError((_) {}));
-    setState(() {
-      _skipped.remove(step.item.track);
-      _voted.remove(step.item.track);
-      _cards.insert(0, step.item);
-    });
+    _queue.putBack(step.item);
+  }
+
+  /// Keşif listesine geçer (kabukta Öneriler sekmesi; yoksa liste ekranı).
+  void _openDiscover() {
+    final open = widget.onOpenRecommendations;
+    if (open != null) return open();
+    Navigator.of(context).push(MaterialPageRoute<void>(
+        builder: (_) => ListScreen(api: widget.api, onLogout: widget.onLogout)));
   }
 
   Future<void> _buildProfile() async {
@@ -386,11 +331,11 @@ class _RatingScreenState extends State<RatingScreen> {
     final forced = _state.forced;
     final item = _current;
     if (forced == UiState.loading || _loading) return _SkeletonCard(color: c.card);
-    if (forced == UiState.error || (_error != null && item == null && !_filling)) {
+    if (forced == UiState.error) {
       return _MessageCard(
         color: c.card,
         icon: Icons.cloud_off_rounded,
-        text: forced == UiState.error ? 'Bağlantı hatası' : _error!,
+        text: 'Bağlantı hatası',
         action: 'Yeniden dene',
         onAction: () {
           _state.setForced(UiState.normal);
@@ -398,25 +343,59 @@ class _RatingScreenState extends State<RatingScreen> {
         },
       );
     }
-    if (forced == UiState.queueFetching || (item == null && _filling)) {
+    if (forced == UiState.queueFetching) {
       return _MessageCard(
         color: c.card,
         busy: true,
         text: 'Kuyruk bitti, yeni şarkılar taranıyor',
-        action: forced == UiState.queueFetching ? 'Normale dön' : null,
+        action: 'Normale dön',
         onAction: () => _state.setForced(UiState.normal),
       );
     }
     if (item == null) {
-      return _MessageCard(
-        color: c.card,
-        icon: Icons.library_music_rounded,
-        text: _stale > 0
-            ? '$_stale şarkının bilgisi eskidi. Kütüphaneyi yenile.'
-            : 'Oylanacak şarkı yok.',
-        action: _stale > 0 ? 'Kütüphaneyi yenile' : 'Yeniden dene',
-        onAction: _stale > 0 ? _refreshLibrary : _init,
-      );
+      switch (_queue.status) {
+        case QueueStatus.waking:
+          return _MessageCard(
+            color: c.card,
+            busy: true,
+            text: 'Sunucu uyanıyor, birkaç saniye sürebilir',
+          );
+        case QueueStatus.offline:
+          return _MessageCard(
+            color: c.card,
+            icon: Icons.wifi_off_rounded,
+            text: 'İnternet bağlantısı yok. Bağlantı gelince kendiliğinden devam eder.',
+            action: 'Yeniden dene',
+            onAction: _queue.retry,
+          );
+        case QueueStatus.failed:
+          return _MessageCard(
+            color: c.card,
+            icon: Icons.cloud_off_rounded,
+            text: _queue.message ?? 'Sunucuya ulaşılamadı',
+            action: 'Yeniden dene',
+            onAction: _queue.retry,
+          );
+        case QueueStatus.exhausted:
+          return _MessageCard(
+            color: c.card,
+            icon: Icons.library_music_rounded,
+            text: _queue.stale > 0
+                ? '${_queue.stale} şarkının bilgisi eskidi. Kütüphaneyi yenile.'
+                : 'Oylanacak şarkı kalmadı.',
+            action: 'Kütüphaneyi yenile',
+            onAction: _queue.refreshLibrary,
+            secondaryAction: _state.profileBuilt ? 'Keşif listesine git' : null,
+            onSecondary: _openDiscover,
+          );
+        case QueueStatus.ready:
+        case QueueStatus.filling:
+          return _MessageCard(
+            color: c.card,
+            busy: true,
+            text: 'Kuyruk bitti, yeni şarkılar taranıyor',
+          );
+      }
     }
     return _SwipeCard(
       key: ValueKey(item.track),
@@ -809,6 +788,20 @@ class _SwipeCardState extends State<_SwipeCard> with SingleTickerProviderStateMi
                     overflow: TextOverflow.ellipsis,
                     style: theme.textTheme.bodyMedium
                         ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+                if (item.source == 'suggested' && !compact)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4),
+                    child: Text(
+                      item.reasonSeed != null
+                          ? "${item.reasonSeed}'i sevdiğin için"
+                          : 'Senin için önerildi',
+                      key: const ValueKey('source-badge'),
+                      textAlign: TextAlign.center,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.labelMedium?.copyWith(color: c.primary),
+                    ),
+                  ),
                 const SizedBox(height: 8),
                 Row(
                   children: [
@@ -1112,6 +1105,8 @@ class _MessageCard extends StatelessWidget {
     this.busy = false,
     this.action,
     this.onAction,
+    this.secondaryAction,
+    this.onSecondary,
   });
   final Color color;
   final String text;
@@ -1119,6 +1114,8 @@ class _MessageCard extends StatelessWidget {
   final bool busy;
   final String? action;
   final VoidCallback? onAction;
+  final String? secondaryAction;
+  final VoidCallback? onSecondary;
 
   @override
   Widget build(BuildContext context) {
@@ -1141,6 +1138,10 @@ class _MessageCard extends StatelessWidget {
               if (action != null) ...[
                 const SizedBox(height: 16),
                 FilledButton.tonal(onPressed: onAction, child: Text(action!)),
+              ],
+              if (secondaryAction != null) ...[
+                const SizedBox(height: 8),
+                TextButton(onPressed: onSecondary, child: Text(secondaryAction!)),
               ],
             ],
           ),

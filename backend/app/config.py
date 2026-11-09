@@ -172,6 +172,8 @@ class ProfileSettings(BaseSettings):
     active_pool_bonus: float = 0.5  # Unheard havuzundaki parçanın sıralama bonusu
     # Oylama kuyruğu (Faz 4 S1)
     queue_size: int = 20
+    # İstemcinin `recent` parametresi (PR-3): en çok bu kadar parça kimliği, aksi 422.
+    queue_recent_max: int = 20
     queue_max_size: int = 100
 
 

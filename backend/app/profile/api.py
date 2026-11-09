@@ -2,7 +2,7 @@
 from datetime import UTC, datetime
 
 import httpx
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel, Field
 from sqlalchemy import func, select
 from sqlalchemy.dialects.postgresql import distinct_on
@@ -145,6 +145,7 @@ def queue(
     request: Request,
     seed: int = 0,
     limit: int | None = None,
+    recent: list[int] = Query(default=[]),
     user: User = Depends(current_user),
     db: Session = Depends(get_db),
     http: httpx.Client = Depends(get_http),
@@ -155,6 +156,10 @@ def queue(
     """Oylanacak parçalar. Başlık/sanatçı kullanıcıya özel önbellekten gelir; süresi dolmuş
     önbellekli parçalar atlanır ve `stale` ile sayılır (istemci kütüphaneyi yeniden aktarır)."""
     st = request.state.stages = Stages()
+    if len(recent) > cfg.queue_recent_max:
+        raise HTTPException(422, f"recent en çok {cfg.queue_recent_max} kimlik içerebilir")
+    # `recent`: istemcide zaten olan parçalar (son oylar, bekleyen kartlar; eskiden yeniye).
+    recent_set = set(recent)
     size = min(limit or cfg.queue_size, cfg.queue_max_size)
     voted = select(VoteEvent.track_id).where(VoteEvent.user_id == user.id)
     later_ids = select(ListenLater.track_id).where(ListenLater.user_id == user.id)
@@ -191,7 +196,7 @@ def queue(
     # Yalnızca önbelleği dolmuş parçalar "eski" sayılır (yenileme bunları düzeltir); havuzda
     # süresi dolmuş parçalar kütüphane yenilemesiyle geri gelmez, sayılmaz.
     stale = sum(1 for r in rows if r[0] not in fresh and r[0] not in expired)
-    fresh = {t: r for t, r in fresh.items() if t not in expired}
+    fresh = {t: r for t, r in fresh.items() if t not in expired and t not in recent_set}
     voted_meta = db.execute(
         select(UserTrackMeta.title, UserTrackMeta.artist_names).where(
             UserTrackMeta.user_id == user.id, UserTrackMeta.track_id.in_(voted)
@@ -208,9 +213,14 @@ def queue(
     st.lap("uncertainty")
     order = order_active(cands, unc, pool & set(fresh), voted_artists, seed, cfg)
     artist_of = dict(cands)
+    recent_artist = dict(db.execute(
+        select(Track.id, Track.artist_id).where(Track.id.in_(recent_set))
+    ).all()) if recent_set else {}
+    prior = [recent_artist[t] for t in recent if recent_artist.get(t) is not None]
     order = diversify(
-        order, artist_of, load_genres(db, set(artist_of.values())), pool & set(fresh), seed, cfg,
-        size,
+        order, artist_of,
+        load_genres(db, set(artist_of.values()) | set(prior)), pool & set(fresh), seed, cfg,
+        size, prior,
     )
     order = (order + order_unresolved(unresolved, pool, seed))[:size]
     st.lap("rank")
@@ -223,14 +233,14 @@ def queue(
         # Hızlı yol: yalnızca hazır öneriler okunur; eksik tampon arka planda doldurulur.
         extra, ready_total = ready_suggestions(
             db, user, now, size - len(items),
-            set(fresh) | expired | set(db.scalars(later_ids)),
+            set(fresh) | expired | recent_set | set(db.scalars(later_ids)),
         )
         items += extra
     elif len(fresh) < cfg.queue_suggest_threshold:
         # Kütüphane tükeniyor: öneri motorundan sürekli yeni parça karışır.
         items += suggest_items(
             db, user, lambda: connected_adapter(db, user, http), now, size - len(items),
-            set(fresh) | expired | set(db.scalars(later_ids)), cfg, rcfg, gcfg,
+            set(fresh) | expired | recent_set | set(db.scalars(later_ids)), cfg, rcfg, gcfg,
         )
     st.lap("suggest")
     maybe_refill(db, user, now, cfg, ready_total)

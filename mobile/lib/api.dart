@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io' show SocketException;
 
 import 'package:flutter/material.dart' show ThemeMode;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -15,10 +16,18 @@ const appVersion = String.fromEnvironment('APP_VERSION', defaultValue: '1.0.0');
 /// Render ücretsiz katmanı soğuk başlangıçta ~20 sn sürebilir; bundan uzun süren istek hataya çevrilir.
 const requestTimeout = Duration(seconds: 45);
 
+/// Kuyruk isteği kısa sürede dönmeli (hızlı yol); uzun sürerse denetleyici sessizce yeniden dener.
+const queueTimeout = Duration(seconds: 15);
+
+/// Hatanın türü: istemci geri çekilme ve durum kararını buna göre verir.
+enum ApiFailure { timeout, offline, server, client }
+
 class ApiException implements Exception {
-  ApiException(this.status, this.message);
+  ApiException(this.status, this.message, {ApiFailure? kind})
+      : kind = kind ?? (status >= 500 ? ApiFailure.server : ApiFailure.client);
   final int status;
   final String message;
+  final ApiFailure kind;
   @override
   String toString() => message;
 }
@@ -36,10 +45,17 @@ class ImportResult {
 }
 
 class QueueItem {
-  QueueItem(this.track, this.title, this.artists, [this.image, this.liked = false]);
+  QueueItem(this.track, this.title, this.artists,
+      [this.image, this.liked = false, this.source, this.reasonSeed]);
   final int track;
   final String title;
   final List<String> artists;
+
+  /// Sunucu önerisi ise "suggested"; kütüphane parçalarında null (rozet gösterilmez).
+  final String? source;
+
+  /// Öneri gerekçesinin ana çapası (sanatçı adı); yoksa null.
+  final String? reasonSeed;
 
   /// Albüm kapağı URL'si (yoksa null); sunucu kullanıcıya özel önbellekten verir.
   final String? image;
@@ -245,18 +261,38 @@ class Api {
     return ImportResult(body['imported'] as int, body['skipped'] as int);
   }
 
-  Future<VoteQueue> voteQueue({int seed = 0, int? limit}) async {
-    final q = {'seed': '$seed', if (limit != null) 'limit': '$limit'};
-    final body = await _send('GET', '/votes/queue?${Uri(queryParameters: q).query}');
+  /// `recent`: istemcide zaten olan parçalar (son oylar + bekleyen kartlar, eskiden yeniye);
+  /// sunucu bunları tekrar vermez ve çeşitlilik aralığını bunlarla başlatır.
+  Future<VoteQueue> voteQueue({int seed = 0, int? limit, List<int> recent = const []}) async {
+    final q = <String, dynamic>{
+      'seed': '$seed',
+      if (limit != null) 'limit': '$limit',
+      if (recent.isNotEmpty) 'recent': [for (final t in recent) '$t'],
+    };
+    final body = await _send('GET', '/votes/queue?${Uri(queryParameters: q).query}',
+        null, queueTimeout);
     return VoteQueue(
       body['remaining'] as int,
       body['stale'] as int,
       (body['items'] as List)
           .map((e) => QueueItem(
               e['track'] as int, e['title'] as String, (e['artists'] as List).cast<String>(),
-              e['image'] as String?, e['liked'] == true))
+              e['image'] as String?, e['liked'] == true, e['source'] as String?,
+              _reasonSeed(e['reasons'])))
           .toList(),
     );
+  }
+
+  static String? _reasonSeed(Object? reasons) {
+    if (reasons is! List || reasons.isEmpty) return null;
+    final first = reasons.first;
+    return first is Map ? first['seed_name'] as String? : null;
+  }
+
+  /// Sunucu ısınma kontrolü (Render soğuk başlangıcı); başarılıysa true.
+  Future<bool> health() async {
+    await _send('GET', '/health', null, requestTimeout);
+    return true;
   }
 
   /// Oy silinmez; her çağrı yeni bir olaydır.
@@ -478,7 +514,8 @@ class Api {
     );
   }
 
-  Future<Map<String, dynamic>> _send(String method, String path, [Object? json]) async {
+  Future<Map<String, dynamic>> _send(String method, String path,
+      [Object? json, Duration timeout = requestTimeout]) async {
     final req = http.Request(method, Uri.parse('$apiBase$path'));
     if (_session != null) req.headers['Authorization'] = 'Bearer $_session';
     if (json != null) {
@@ -488,9 +525,14 @@ class Api {
     final http.Response res;
     try {
       res = await (() async => http.Response.fromStream(await _http.send(req)))()
-          .timeout(requestTimeout);
+          .timeout(timeout);
     } on TimeoutException {
-      throw ApiException(0, 'Sunucu yanıt vermedi (uyanıyor olabilir), biraz sonra tekrar dene');
+      throw ApiException(0, 'Sunucu yanıt vermedi (uyanıyor olabilir), biraz sonra tekrar dene',
+          kind: ApiFailure.timeout);
+    } on SocketException {
+      throw ApiException(0, 'İnternet bağlantısı yok', kind: ApiFailure.offline);
+    } on http.ClientException {
+      throw ApiException(0, 'İnternet bağlantısı yok', kind: ApiFailure.offline);
     }
     final text = utf8.decode(res.bodyBytes);
     if (res.statusCode >= 400) {
