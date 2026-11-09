@@ -194,6 +194,20 @@ class ProfileSettings(BaseSettings):
     # İstemcinin `recent` parametresi (PR-3): en çok bu kadar parça kimliği, aksi 422.
     queue_recent_max: int = 20
     queue_max_size: int = 100
+    # Örnekleyici (PR-6, `queue-8`): kapalıyken queue-7 davranışı aynen korunur. Karışım sırası:
+    # (kütüphane, mahalle önerisi, tür sondası, joker); olgunluk oy sayısına göre doğrusal geçiş.
+    queue_sampler_enabled: bool = False
+    queue_sampler_algo_version: str = "queue-8"
+    queue_mix_warm: tuple[float, float, float, float] = (0.4, 0.1, 0.4, 0.1)
+    queue_mix_mature: tuple[float, float, float, float] = (0.3, 0.4, 0.2, 0.1)
+    queue_mix_warm_votes: int = 50
+    queue_mix_mature_votes: int = 200
+    queue_genre_epsilon: float = 0.3  # kalibrasyon hedefinde eşit dağılım payı
+    queue_gumbel_tau: float = 0.5  # 0 = deterministik sıra
+    queue_coverage_kappa: float = 1.0  # az gezilmiş hücre iyimserliği
+    queue_sim_window: int = 3  # graf benzerlik penceresi (son N sanatçı)
+    queue_sim_max: float = 0.85  # pencere içinde izin verilen en yüksek kosinüs
+    queue_history_size: int = 200  # örnekleyicinin okuduğu maruziyet olayı üst sınırı
 
 
 class RecommendSettings(BaseSettings):

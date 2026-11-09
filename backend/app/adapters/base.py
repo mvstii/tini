@@ -54,8 +54,12 @@ class MusicServiceAdapter(Protocol):
     def find_artist_track(self, artist_name: str) -> str | None:
         """Sanatçının servisteki bir parçasının kimliği (ISRC'siz öğeler için); bulunamazsa None."""
 
-    def find_card(self, isrc: str | None, artist_name: str) -> TrackCard | None:
-        """Başlık, sanatçılar ve kapak (ISRC'den ya da sanatçı aramasından); bulunamazsa None."""
+    def find_card(
+        self, isrc: str | None, artist_name: str, isrc_only: bool = False
+    ) -> TrackCard | None:
+        """Başlık, sanatçılar ve kapak (ISRC'den ya da sanatçı aramasından); bulunamazsa None.
+
+        `isrc_only`: sanatçı aramasına düşmez; ISRC çözülmezse None (kart parçayla eşleşmeli)."""
 
     def search_tracks(self, query: str, limit: int = 10) -> list[SearchTrack]:
         """Serbest metin parça araması; ISRC'siz sonuçlar atlanır."""

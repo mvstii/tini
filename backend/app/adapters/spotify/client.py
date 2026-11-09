@@ -107,10 +107,14 @@ class SpotifyAdapter:
         item = self._artist_item(artist_name)
         return item["id"] if item else None
 
-    def find_card(self, isrc: str | None, artist_name: str) -> TrackCard | None:
-        """Gösterim için başlık/sanatçı/kapak: ISRC varsa onunla, yoksa sanatçı aramasıyla.
-        Hiçbir şey saklanmaz; çağıran yalnızca isteğe yanıt verir."""
-        item = (self._isrc_item(isrc) if isrc else None) or self._artist_item(artist_name)
+    def find_card(
+        self, isrc: str | None, artist_name: str, isrc_only: bool = False
+    ) -> TrackCard | None:
+        """Gösterim için başlık/sanatçı/kapak: ISRC varsa onunla, yoksa sanatçı aramasıyla
+        (`isrc_only`: aramaya düşmez). Hiçbir şey saklanmaz; çağıran yalnızca isteğe yanıt verir."""
+        item = self._isrc_item(isrc) if isrc else None
+        if item is None and not isrc_only:
+            item = self._artist_item(artist_name)
         if item is None:
             return None
         names = tuple(a["name"] for a in item.get("artists") or [] if a.get("name"))

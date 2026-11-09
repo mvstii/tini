@@ -313,12 +313,12 @@ Kütüphanesiz kullanıcıda kütüphane payı diğerlerine dağıtılır. Kayna
 
 **Yapılacaklar**
 
-- [ ] `profile/sampler.py` (yeni, saf): `source_mix`, `cell_scores`, `gumbel_order`, `rerank`.
-- [ ] `profile/active.py`: `diversify` kaldırılır (rerank devralır); `order_active` korunur.
-- [ ] `profile/api.py` `queue()`: dört kaynak birleşik havuzda; öğeye `source` ve gerekçe (PPR veya kapsama, D4).
-- [ ] `profile/refill.py`: tampon tür açığına ve kaynak payına göre doldurulur (sonda/joker kartları da önceden çözülür).
-- [ ] `config.py`: `queue_mix_warm`, `queue_mix_mature`, `queue_genre_epsilon`, `queue_gumbel_tau`, `queue_coverage_kappa`, `queue_sim_window`, `queue_sim_max`, `queue_history_size`; `queue_algo_version` = `queue-8`; canlıda kapalı/sıfır başlar.
-- [ ] `app/jobs/queue_sim.py` (salt okunur): 100 kartlık simülasyon → en uzun aynı tür serisi, 20'lik pencerede tür sayısı, sanatçı tekrarı, keşif payı, iki oturum örtüşmesi.
+- [x] `profile/sampler.py` (yeni, saf): `source_mix`, `cell_scores`, `gumbel_order`, `rerank`.
+- [x] `profile/active.py`: `diversify` KALDIRILMADI (sapma: bayrak kapalıyken eski yol birebir aynı kalsın; `queue-8` rerank'i kullanır); `order_active` korunur.
+- [x] `profile/api.py` `queue()`: dört kaynak birleşik havuzda; öğeye `source` ve gerekçe (PPR veya kapsama, D4).
+- [x] `profile/suggest.py` `refill_buffer` + `profile/probe.py`: sonda/joker kartları önceden çözülür (`isrc_only`); sapma: tür açığına göre değil hücre skoruna göre, hızlı yol açıkken. Graf benzerlik penceresi `queue()`'e bağlanmadı (kanca hazır).
+- [x] `config.py`: `queue_mix_warm`, `queue_mix_mature`, `queue_genre_epsilon`, `queue_gumbel_tau`, `queue_coverage_kappa`, `queue_sim_window`, `queue_sim_max`, `queue_history_size`; `queue_algo_version` = `queue-8`; canlıda kapalı/sıfır başlar.
+- [x] `app/jobs/queue_sim.py` (salt okunur): 100 kartlık simülasyon → en uzun aynı tür serisi, 20'lik pencerede tür sayısı, sanatçı tekrarı, keşif payı, iki oturum örtüşmesi.
 
 **Testler:** determinizm (aynı tohum → aynı sıra, farklı tohum → farklı sıra), seri üst sınırı, azınlık türün önden tükenmemesi, gevşeme sırası, ε=0 ve τ=0'da eski davranışa yakınsama, kaynak boşken parti boyutu.
 
@@ -478,8 +478,8 @@ python -m app.jobs.queue_sim --email <e-posta>   # PR-6 sonrası
 | PR-2 | Hızlı yol ve tampon | Uygulandı, hedef kısmen (birleştirme bekliyor) | `feat/pr2-fast-queue` | Test 346/8 atlandı/0 hata; bench p50 1331, p95 2613 ms, boş 83; p95<800 ve boş 0 **tutmadı** (`uncertainty` aşaması + Spotify 429); borçlar DURUM.md'de |
 | PR-3 | İstemci kuyruk denetleyicisi | Uygulandı (emülatör ölçümü geliştiricide) | `feat/pr3-queue-controller` | Flutter 62/62, analyze temiz; backend 348 geçti/10 atlandı/0 hata, ruff temiz; "çıkmaz ekran 0" emülatörde ölçülmedi |
 | PR-4 | Evren: tür omurgası | Uygulandı (staging omurga raporu geliştiricide) | `feat/pr4-genre-spine` | Backend 370 geçti/11 atlandı/0 hata, ruff temiz; ayrı `genre_seed` + `track_popularity` (göç 0021), 77 alt tür; bayrak kapalı; omurga raporu ölçülmedi |
-| PR-5 | Kullanıcı modeli | Uygulandı (birleştirme bekliyor) | `feat/pr5-user-model` | Backend 381 geçti/11 atlandı/0 hata, ruff temiz; göç yok, davranış değişmez (bandit PR-6 bağlar) |
-| PR-6 | Örnekleyici `queue-8` | Başlamadı | | |
+| PR-5 | Kullanıcı modeli | Birleşti (#86, `866b9f1`) | `feat/pr5-user-model` | Backend 381 geçti/11 atlandı/0 hata, ruff temiz; göç yok, davranış değişmez (bandit PR-6 bağlar) |
+| PR-6 | Örnekleyici `queue-8` | Uygulandı (birleştirme onayı bekliyor) | `feat/pr6-sampler` | Backend 392 geçti/15 atlandı (geçici DB), ruff temiz; göç yok, bayrak `queue_sampler_enabled` kapalı; `queue_sim` canlı veride koşulacak |
 | PR-7 | Liste tarafı `list-6` | Başlamadı | | |
 
 Durum değerleri: Başlamadı · Analiz/onay bekliyor · Uygulanıyor · Canlıda (bayrak kapalı) · Tamamlandı

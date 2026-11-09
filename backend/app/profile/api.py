@@ -38,6 +38,7 @@ from app.profile.active import diversify, order_active, order_unresolved
 from app.profile.active_service import artist_uncertainties, mark_awaiting
 from app.profile.queue import pick_versions
 from app.profile.refill import maybe_refill
+from app.profile.sampled_queue import sampled_items
 from app.profile.scoring import VoteEvt, score_votes
 from app.profile.service import rebuild_profile, unheard_statuses
 from app.profile.suggest import connected_adapter, ready_suggestions, suggest_items
@@ -229,19 +230,32 @@ def queue(
         select(Track.id, Track.artist_id).where(Track.id.in_(recent_set))
     ).all()) if recent_set else {}
     prior = [recent_artist[t] for t in recent if recent_artist.get(t) is not None]
-    order = diversify(
-        order, artist_of,
-        load_genres(db, set(artist_of.values()) | set(prior)), pool & set(fresh), seed, cfg,
-        size, prior,
-    )
-    order = (order + order_unresolved(unresolved, pool, seed))[:size]
-    st.lap("rank")
-    items = [
-        {"track": t, "title": fresh[t][2], "artists": fresh[t][3], "image": fresh[t][5]}
-        for t in order
-    ]
-    ready_total = None
-    if len(fresh) < cfg.queue_suggest_threshold and cfg.fast_queue_enabled:
+    sampled = cfg.queue_sampler_enabled
+    if sampled:
+        # queue-8: dört kaynaktan birleşik havuz + rerank (profile/sampled_queue.py).
+        items, ready_total = sampled_items(
+            db, user, http, now, size=size, seed=seed, fresh=fresh,
+            library=order + order_unresolved(unresolved, pool, seed), expired=expired,
+            recent_set=recent_set, prior=prior, voted_meta=voted_meta, cfg=cfg, rcfg=rcfg,
+            gcfg=gcfg,
+        )
+        st.lap("rank")
+    else:
+        order = diversify(
+            order, artist_of,
+            load_genres(db, set(artist_of.values()) | set(prior)), pool & set(fresh), seed, cfg,
+            size, prior,
+        )
+        order = (order + order_unresolved(unresolved, pool, seed))[:size]
+        st.lap("rank")
+        items = [
+            {"track": t, "title": fresh[t][2], "artists": fresh[t][3], "image": fresh[t][5]}
+            for t in order
+        ]
+        ready_total = None
+    if sampled:
+        pass  # öneri karışımı sampled_items içinde yapıldı
+    elif len(fresh) < cfg.queue_suggest_threshold and cfg.fast_queue_enabled:
         # Hızlı yol: yalnızca hazır öneriler okunur; eksik tampon arka planda doldurulur.
         extra, ready_total = ready_suggestions(
             db, user, now, size - len(items),
@@ -267,7 +281,7 @@ def queue(
     )
     items = [{**i, "liked": i["track"] in liked} for i in items]
     return {
-        "algo_version": cfg.queue_algo_version,
+        "algo_version": cfg.queue_sampler_algo_version if sampled else cfg.queue_algo_version,
         "remaining": len(fresh),
         "stale": stale,
         "items": items,
