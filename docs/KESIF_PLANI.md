@@ -275,10 +275,10 @@ Amaç: sistemin kullanıcının müzik uzayında nerede gezdiğini ve hangi tür
 
 **Yapılacaklar**
 
-- [ ] `profile/exposure.py` (yeni, saf): `exposure_map(events, genre_of, band_of)`.
-- [ ] `profile/build.py`: profil gövdesine `genres` bloğu (yumuşatılmış eğilim); `profile_algo_version` → `profile-4`.
-- [ ] `recommend/genre_bandit.py` (yeni, saf): `genre_outcomes`, `sample_genre_scores(outcomes, seed, cfg)`.
-- [ ] `config.py`: `genre_prior_a`, `genre_prior_b`, `genre_floor_share`, yumuşatma parametresi.
+- [x] `profile/exposure.py` (yeni, saf): `exposure_map(events, genre_of, band_of)`.
+- [x] `profile/build.py`: profil gövdesine `genres` bloğu (yumuşatılmış eğilim); `profile_algo_version` → `profile-4`.
+- [x] `recommend/genre_bandit.py` (yeni, saf): `genre_outcomes`, `sample_genre_scores(outcomes, seed, cfg)`.
+- [x] `config.py`: `genre_prior_a`, `genre_prior_b`, `genre_floor_share`, yumuşatma parametresi.
 
 **Testler:** sentetik kullanıcılar — cazı sürekli kötü oylayan kullanıcıda caz payı düşer ama sıfır olmaz; hiç denenmemiş tür iyimser puan alır; determinizm (aynı olaylar + tohum → aynı skor).
 
@@ -478,7 +478,7 @@ python -m app.jobs.queue_sim --email <e-posta>   # PR-6 sonrası
 | PR-2 | Hızlı yol ve tampon | Uygulandı, hedef kısmen (birleştirme bekliyor) | `feat/pr2-fast-queue` | Test 346/8 atlandı/0 hata; bench p50 1331, p95 2613 ms, boş 83; p95<800 ve boş 0 **tutmadı** (`uncertainty` aşaması + Spotify 429); borçlar DURUM.md'de |
 | PR-3 | İstemci kuyruk denetleyicisi | Uygulandı (emülatör ölçümü geliştiricide) | `feat/pr3-queue-controller` | Flutter 62/62, analyze temiz; backend 348 geçti/10 atlandı/0 hata, ruff temiz; "çıkmaz ekran 0" emülatörde ölçülmedi |
 | PR-4 | Evren: tür omurgası | Uygulandı (staging omurga raporu geliştiricide) | `feat/pr4-genre-spine` | Backend 370 geçti/11 atlandı/0 hata, ruff temiz; ayrı `genre_seed` + `track_popularity` (göç 0021), 77 alt tür; bayrak kapalı; omurga raporu ölçülmedi |
-| PR-5 | Kullanıcı modeli | Başlamadı | | |
+| PR-5 | Kullanıcı modeli | Uygulandı (birleştirme bekliyor) | `feat/pr5-user-model` | Backend 381 geçti/11 atlandı/0 hata, ruff temiz; göç yok, davranış değişmez (bandit PR-6 bağlar) |
 | PR-6 | Örnekleyici `queue-8` | Başlamadı | | |
 | PR-7 | Liste tarafı `list-6` | Başlamadı | | |
 
