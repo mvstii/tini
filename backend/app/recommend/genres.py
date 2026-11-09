@@ -69,8 +69,8 @@ SUB_GENRES: dict[str, tuple[str, tuple[str, ...]]] = {
     # pop
     "dance_pop": ("pop", ("dance pop", "europop", "teen pop")),
     "synthpop": ("pop", ("synthpop", "synth pop", "electropop")),
-    "k_pop": ("pop", ("k pop", "kpop")),
-    "j_pop": ("pop", ("j pop", "jpop")),
+    "k_pop": ("pop", ("k-pop", "k pop", "kpop")),
+    "j_pop": ("pop", ("j-pop", "j pop", "jpop")),
     "mainstream_pop": ("pop", ("pop", "art pop")),
     # rock
     "classic_rock": ("rock", ("classic rock", "southern rock", "blues rock")),
@@ -140,11 +140,11 @@ SUB_GENRES: dict[str, tuple[str, tuple[str, ...]]] = {
     "ska": ("reggae", ("ska", "rocksteady", "two tone")),
     # turkish (Türkçe alt türler; "turkish" ana etiketi kalıplarda genel yedektir)
     "arabesk": ("turkish", ("arabesk", "arabesk rap", "fantezi")),
-    "anadolu_rock": ("turkish", ("anadolu rock", "anatolian rock", "turkish rock", "turkce rock")),
+    "anadolu_rock": ("turkish", ("anatolian rock", "anadolu rock", "turkish rock", "turkce rock")),
     "turkce_pop": ("turkish", ("turkish pop", "turkce pop", "türkçe pop")),
-    "turk_halk": ("turkish", ("turk halk muzigi", "türk halk müziği", "turkish folk", "halk")),
-    "turk_sanat": ("turkish", ("turk sanat muzigi", "türk sanat müziği", "turkish classical")),
-    "turkce_rap": ("turkish", ("turkish hip hop", "turkish rap", "turkce rap", "türkçe rap")),
+    "turk_halk": ("turkish", ("turkish folk", "turk halk muzigi", "türk halk müziği", "halk")),
+    "turk_sanat": ("turkish", ("turkish classical", "turk sanat muzigi", "türk sanat müziği")),
+    "turkce_rap": ("turkish", ("turkish rap", "turkish hip hop", "turkce rap", "türkçe rap")),
 }
 _SUB_RE = {
     g: re.compile(

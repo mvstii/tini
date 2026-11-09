@@ -63,3 +63,30 @@ def test_sub_genre_is_pure_and_main_genre_unchanged():
     tags = [("trap", 70), ("hip hop", 60)]
     assert sub_genre(tags) == sub_genre(list(reversed(tags)))
     assert main_genre([("arabesk", 80)]) == "turkish"
+
+
+def test_backbone_query_tags_are_verified_listenbrainz_tags():
+    # İlk ifade ListenBrainz sorgu etiketidir; bu altı için canlı denemede (9 Kasım 2026) ilk
+    # ifadeler boş/zayıf havuz verdi, aşağıdakiler ≥ 100 kayıt döndü.
+    from app.recommend.genres import SUB_GENRES
+
+    expected = {
+        "turk_halk": "turkish folk", "turk_sanat": "turkish classical",
+        "turkce_rap": "turkish rap", "anadolu_rock": "anatolian rock",
+        "k_pop": "k-pop", "j_pop": "j-pop",
+    }
+    for sub, tag in expected.items():
+        assert SUB_GENRES[sub][1][0] == tag
+
+
+def test_reordered_phrases_still_classify():
+    from app.recommend.genres import sub_genre
+
+    assert sub_genre([("turkish folk", 5)]) == "turk_halk"
+    assert sub_genre([("türk halk müziği", 5)]) == "turk_halk"
+    assert sub_genre([("turkish classical", 5)]) == "turk_sanat"
+    assert sub_genre([("turkish rap", 5)]) == "turkce_rap"
+    assert sub_genre([("turkish hip hop", 5)]) == "turkce_rap"
+    assert sub_genre([("anatolian rock", 5)]) == "anadolu_rock"
+    assert sub_genre([("k pop", 5)]) == "k_pop"
+    assert sub_genre([("j-pop", 5)]) == "j_pop"
