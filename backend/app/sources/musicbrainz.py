@@ -50,6 +50,13 @@ class MusicBrainzClient:
         )
         return parse_artist_isrcs(data)
 
+    def recording_isrcs(self, recording_mbid: uuid.UUID | str) -> list[str]:
+        """Tek kaydın ISRC'leri (ListenBrainz'de ISRC yoksa yedek yol); kayıt yoksa boş."""
+        data = self._http.get_json(
+            f"{self._base}/recording/{recording_mbid}", {"fmt": "json", "inc": "isrcs"}
+        )
+        return [i for i in (data or {}).get("isrcs") or [] if isinstance(i, str) and len(i) == 12]
+
     def artist_tags(self, artist_mbid: uuid.UUID) -> list[tuple[str, int]]:
         """Sanatçının (etiket, oy) çiftleri; `genres` ve `tags` birleştirilir, oya göre azalan."""
         data = self._http.get_json(

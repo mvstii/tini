@@ -1,5 +1,6 @@
 """Öneri veritabanı katmanı: son profil -> adaylar -> MMR listesi -> kalıcı liste."""
 import math
+import random
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 
@@ -19,6 +20,7 @@ from app.models import (
     ReleaseArtist,
     TasteProfile,
     Track,
+    TrackPopularity,
     UserTrackArtist,
     VoteEvent,
 )
@@ -87,8 +89,23 @@ def compute_candidates(
     )
 
 
-def _pick_tracks(db: Session, user_id, artist_ids: list[int]) -> dict[int, int]:
-    """Sanatçı içi şarkı: katalogdaki, kullanıcının oylamadığı en düşük kimlikli parça."""
+def representative_pick(
+    candidates: list[tuple[int, int]], seed: str, top_k: int
+) -> int | None:
+    """Saf: (parça, dinlenme) adaylarından en çok dinlenen `top_k` içinden tohumlu seçim.
+    Aynı aday kümesi ve tohum her zaman aynı parçayı verir."""
+    if not candidates:
+        return None
+    ranked = sorted(candidates, key=lambda c: (-c[1], c[0]))[: max(top_k, 1)]
+    return random.Random(seed).choice(ranked)[0]
+
+
+def _pick_tracks(
+    db: Session, user_id, artist_ids: list[int], gcfg: GraphSettings | None = None,
+    seed: str = "",
+) -> dict[int, int]:
+    """Sanatçı içi şarkı: kullanıcının oylamadığı parça. Omurga açıksa ve sanatçının dinlenme
+    verisi varsa temsilci parça (en çok dinlenen K'dan tohumlu); yoksa en düşük kimlikli."""
     voted = select(VoteEvent.track_id).where(VoteEvent.user_id == user_id)
     rows = db.execute(
         select(Track.artist_id, Track.id)
@@ -98,6 +115,19 @@ def _pick_tracks(db: Session, user_id, artist_ids: list[int]) -> dict[int, int]:
     picked: dict[int, int] = {}
     for artist_id, track_id in rows:
         picked.setdefault(artist_id, track_id)
+    if gcfg is not None and gcfg.backbone_enabled and picked:
+        pop = db.execute(
+            select(Track.artist_id, Track.id, TrackPopularity.listens)
+            .join(TrackPopularity, TrackPopularity.track_id == Track.id)
+            .where(Track.artist_id.in_(list(picked)), Track.id.not_in(voted))
+        ).all()
+        by_artist: dict[int, list[tuple[int, int]]] = {}
+        for artist_id, track_id, listens in pop:
+            by_artist.setdefault(artist_id, []).append((track_id, listens))
+        for artist_id, cands in by_artist.items():
+            chosen = representative_pick(cands, f"{seed}:{artist_id}", gcfg.backbone_top_k)
+            if chosen is not None:
+                picked[artist_id] = chosen
     return picked
 
 
@@ -223,7 +253,12 @@ def generate_list(
     for c in kept:
         slot_of.setdefault(c.artist_id, "explore")  # tavan sonrası dolgu adayları
     chosen = kept
-    tracks = _pick_tracks(db, user_id, [c.artist_id for c in chosen]) if chosen else {}
+    tracks = (
+        _pick_tracks(
+            db, user_id, [c.artist_id for c in chosen], gcfg, f"{user_id}:{sc.profile.version}"
+        )
+        if chosen else {}
+    )
     tracks.update({a: t for a, t in pool.items() if slot_of.get(a) == "unheard"})
     lst = GeneratedList(
         user_id=user_id,

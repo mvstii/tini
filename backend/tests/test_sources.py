@@ -125,3 +125,29 @@ def test_musicbrainz_unknown_isrc_is_none():
     assert MusicBrainzClient(http, "https://mb/ws/2").lookup_isrc("X") is None
     http, _ = make(lambda r: httpx.Response(200, json={"recordings": []}))
     assert MusicBrainzClient(http, "https://mb/ws/2").lookup_isrc("X") is None
+
+
+def test_post_json_sends_body_and_auth_and_backs_off_on_429():
+    seen = []
+
+    def handler(req):
+        seen.append(req)
+        if len(seen) == 1:
+            return httpx.Response(429, headers={"Retry-After": "3"})
+        return httpx.Response(200, json={"ok": True})
+
+    http, sleeps = make(handler, interval=0.0)
+    out = http.post_json(
+        "https://x.test/p", {"a": [1]}, headers={"Authorization": "Token t"}
+    )
+    assert out == {"ok": True}
+    assert len(seen) == 2
+    assert seen[1].method == "POST"
+    assert seen[1].headers["Authorization"] == "Token t"
+    assert seen[1].headers["User-Agent"].startswith("Tini/test")
+    assert 3.0 in sleeps
+
+
+def test_post_json_404_returns_none():
+    http, _ = make(lambda req: httpx.Response(404), interval=0.0)
+    assert http.post_json("https://x.test/p", {}) is None

@@ -23,3 +23,43 @@ def test_every_genre_phrase_matches_itself():
     for g, phrases in GENRES.items():
         for p in phrases:
             assert main_genre([(p, 10)]) is not None, (g, p)
+
+
+def test_sub_genre_taxonomy_is_consistent():
+    from app.recommend.genres import SUB_GENRES, main_of
+
+    assert 60 <= len(SUB_GENRES) <= 90
+    assert all(main in GENRES for main, _ in SUB_GENRES.values())
+    assert main_of("arabesk") == "turkish"
+
+
+def test_every_sub_genre_phrase_resolves_to_a_sub_of_same_main():
+    from app.recommend.genres import SUB_GENRES, main_of, sub_genre
+
+    for g, (main, phrases) in SUB_GENRES.items():
+        for p in phrases:
+            got = sub_genre([(p, 10)])
+            assert got is not None, (g, p)
+            assert main_of(got) == main, (g, p, got)
+        # alt tür kendi ilk (sorgu) kalıbıyla bulunur
+        assert sub_genre([(phrases[0], 10)]) == g, (g, phrases[0])
+
+
+def test_sub_genre_turkish_and_specificity():
+    from app.recommend.genres import sub_genre
+
+    assert sub_genre([("arabesk", 80), ("turkish", 40)]) == "arabesk"
+    assert sub_genre([("Anadolu Rock", 50), ("rock", 30)]) == "anadolu_rock"
+    assert sub_genre([("turkish hip hop", 70)]) == "turkce_rap"
+    assert sub_genre([("turkish pop", 70)]) == "turkce_pop"
+    assert sub_genre([("death metal", 50), ("metal", 50)]) == "death_metal"  # genel etiket ezmez
+    assert sub_genre([("turkish", 90)]) is None  # genel Türkçe etiketi alt tür vermez
+    assert sub_genre([("female vocals", 90)]) is None and sub_genre([]) is None
+
+
+def test_sub_genre_is_pure_and_main_genre_unchanged():
+    from app.recommend.genres import sub_genre
+
+    tags = [("trap", 70), ("hip hop", 60)]
+    assert sub_genre(tags) == sub_genre(list(reversed(tags)))
+    assert main_genre([("arabesk", 80)]) == "turkish"

@@ -294,3 +294,17 @@ Halk dil düzeltmeli: C = 189, A = 25, en büyük pay 0,148; dil uyuşmazlığı
 - MusicBrainz kullanıcı etiketleri (user tag) CC BY-NC-SA: yalnızca spike'ta kullanıldı, ticari omurgada uygun değil (PR-4'te yeniden değerlendirilmeli).
 - Last.fm ticari izni ve Deezer lisansı bu probda kullanılmadı; borç olarak duruyor.
 - Betik riski: `request_totals`, `spikes/out` altındaki liste tipli `lb_probe2_repro_*.json` dosyalarında çökebilir (gate yeniden üretilirse); kod bu görevde değiştirilmedi.
+
+## Tür omurgası (KESIF_PLANI PR-4, 9 Kasım 2026)
+
+Kullanıcıdan bağımsız, alt tür × popülerlik bandı düzeyinde temsil parçası havuzu.
+
+- **Taksonomi:** `recommend/genres.py` `SUB_GENRES` — 14 ana türün altında 77 alt tür (Türkçe: arabesk, anadolu_rock, turkce_pop, turk_halk, turk_sanat, turkce_rap). Saf `sub_genre(tags)`: her etiket yalnızca en özgül (en uzun kalıplı) alt türe oy verir; eşitlikte özgüllük, sonra sıra. Belirsiz "pop rock"/"folk rock" kalıpları çıkarıldı. `main_genre` geriye uyumlu.
+- **Bantlar:** `top/mid/tail` = ListenBrainz `pop_begin/pop_end` pencereleri [0,33), [33,66), [66,100]; **0 en çok dinlenen uçtur** (yön ters). Sınırlar `GraphSettings` (`backbone_top_end`, `backbone_mid_end`).
+- **Veri modeli (göç 0021, yalnızca ekleme):** `track_popularity(track_id PK, band, listens, fetched_at)` ve `genre_seed(sub_genre, track_id, main_genre, artist_id, band, source, fetched_at)`, PK `(sub_genre, track_id)`. `track` tablosu değişmedi. Kişisel veri yok; Spotify verisi yok.
+- **Akış:** `lb-radio/tags` (anonim) → kayıt MBID havuzu → `metadata/recording` (200/istek, token) → sanatçı → `top-recordings-for-artist` (token) ilk K kayıt → ISRC (LB, yoksa MusicBrainz `recording_isrcs`) → `Track` + `TrackPopularity` + `GenreSeed`. Alt tür başına sanatçı üst sınırı `backbone_artists_per_sub_genre_cap` (60), bantlara bölünür.
+- **Devam ettirilebilir:** genre_seed kaydı olan sanatçı bir daha sorulmaz. **Bilinen sınır (PR-4b):** ISRC'siz sanatçı yazılmaz, her koşuda yeniden denenir.
+- **İş:** `python -m app.jobs.build_genre_backbone [--genre X] [--limit N] [--expand-limit N] [--report]`; bilgisayardan Neon'a. `--expand-limit` mevcut `graph.expand` ile omurga sanatçılarını 1 adım genişletir (Last.fm 100 MB sınırı geçerli).
+- **Temsil parçası:** `service.representative_pick`: sanatçının en çok dinlenen ilk K (`backbone_top_k`) parçasından tohumlu seçim (tohum `user_id:profil_sürümü`); bayrak kapalıysa veya dinlenme verisi yoksa eski "en düşük kimlik" davranışı.
+- **D3:** bayrak açıkken `cast_vote` ve `mark_unheard`, kullanıcının kendi `UserTrackMeta` kaydı olan (sunulmuş) parçayı kabul eder; aksi 404. `mark_unheard` için bu, plan metnini hafifçe aşan bir eklemedir.
+- **Doğrulanmadı:** gerçek ListenBrainz/MusicBrainz ile uçtan uca koşu ve staging raporu geliştiricide.
