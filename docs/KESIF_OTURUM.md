@@ -11,7 +11,7 @@ Son güncelleme: 2026-11-09 (PR-3 uygulandı ve commitlendi; birleştirme/push k
 - **Onay kaydı:** 9 Kasım 2026 — Aşama 2 raporu sunuldu; geliştirici "A" (planın `QueueController`'ı) ve rozet için seçenek (a) (yalnız `source` taşıyan kartta rozet; kütüphane parçaları için sunucu değişikliği yok) dedi, "Onay veriyorum".
 - **Yazılanlar:** backend `profile/api.py` (`queue(recent)`), `profile/active.py` (`diversify(prior_artists)`), `config.py` (`queue_recent_max`), `tests/test_queue_recent.py`; mobil `api.dart`, `queue_controller.dart` (yeni), `screens/rating_screen.dart`, `test/queue_controller_test.dart` (yeni).
 - **Sonuçlar:** Flutter 62/62, analyze temiz; backend 348 geçti / 10 atlandı / 0 hata, ruff temiz. **Ölçülmedi:** "100 kartlık hızlı oylamada çıkmaz ekran 0" (emülatör + sınırlı backend).
-- **Geliştiricide kalanlar:** yeni APK derle; emülatörde 100 kartlık hızlı oylama kontrolü; Neon staging uç noktası (ep-noisy-scene) teyidi ve staging parolası döndürme; işi bitince `C:\dev	ini_bench` (production dump `neon.dump`) sil; mağaza öncesi Last.fm ticari izin borcu.
+- **Geliştiricide kalanlar:** yeni APK derle; emülatörde 100 kartlık hızlı oylama kontrolü; Neon staging uç noktası (ep-noisy-scene) teyidi ve staging parolası döndürme; işi bitince `C:/dev/tini_bench` (production dump `neon.dump`) sil; mağaza öncesi Last.fm ticari izin borcu.
 - **Açık sorular / borçlar:** PR-2 borçları (`uncertainty` maliyeti, Spotify 429 `Retry-After`); rozet etiketlerinden "Kütüphanenden / Yeni bir tür / Sürpriz" yapılmadı.
 - **Sıradaki adım:** geliştirici PR-3 birleştirme/push kararını verir; ardından PR-4 Aşama 1 (yalnızca onayla).
 
