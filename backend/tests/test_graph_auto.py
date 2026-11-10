@@ -108,11 +108,13 @@ def test_fill_tracks_existing_isrc_not_duplicated(db):
 
 
 def test_artists_needing_tracks_lists_then_neighbors(db):
+    # Teste özel kenar kaynağı: paylaşılan veritabanındaki gerçek grafı taramaz (yavaşlık).
+    cfg = CFG.model_copy(update={"edge_source": "test_auto"})
     src, listed, nb, has = _artist(db), _artist(db), _artist(db), _artist(db)
     db.add(Track(isrc="ZZH000000001", artist_id=has.id))
     for dst, w in ((nb, 0.9), (has, 0.8)):
         db.add(ArtistEdge(
-            src=src.id, dst=dst.id, source=CFG.edge_source, weight=w,
+            src=src.id, dst=dst.id, source=cfg.edge_source, weight=w,
             expires_at=datetime(2030, 1, 1, tzinfo=UTC),
         ))
     user = User(email=f"{uuid.uuid4()}@t.io", password_hash="x")
@@ -128,7 +130,7 @@ def test_artists_needing_tracks_lists_then_neighbors(db):
         list_id=lst.id, position=0, artist_id=listed.id, track_id=None, score=1, reasons=[]
     ))
     db.flush()
-    out = artists_needing_tracks(db, CFG, NOW, 100000)
+    out = artists_needing_tracks(db, cfg, NOW, 100000)
     assert out.index(listed.id) < out.index(nb.id)
     assert has.id not in out and src.id not in out
     assert listed.id in load_anchors(db)  # öneri listesindeki sanatçı çapa olur
