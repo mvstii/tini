@@ -318,7 +318,7 @@ Kütüphanesiz kullanıcıda kütüphane payı diğerlerine dağıtılır. Kayna
 - [x] `profile/api.py` `queue()`: dört kaynak birleşik havuzda; öğeye `source` ve gerekçe (PPR veya kapsama, D4).
 - [x] `profile/suggest.py` `refill_buffer` + `profile/probe.py`: sonda/joker kartları önceden çözülür (`isrc_only`); sapma: tür açığına göre değil hücre skoruna göre, hızlı yol açıkken. Graf benzerlik penceresi `queue()`'e bağlanmadı (kanca hazır).
 - [x] `config.py`: `queue_mix_warm`, `queue_mix_mature`, `queue_genre_epsilon`, `queue_gumbel_tau`, `queue_coverage_kappa`, `queue_sim_window`, `queue_sim_max`, `queue_history_size`; `queue_algo_version` = `queue-8`; canlıda kapalı/sıfır başlar.
-- [x] `app/jobs/queue_sim.py` (salt okunur): 100 kartlık simülasyon → en uzun aynı tür serisi, 20'lik pencerede tür sayısı, sanatçı tekrarı, keşif payı, iki oturum örtüşmesi.
+- [x] `app/jobs/queue_sim.py` (salt okunur): 100 kartlık simülasyon → Çeşitlilik ve Tazelik kabul ölçütleri için geçti/kaldı (en kötü 20'lik pencerede ana tür, 20'de aynı sanatçı, son 4 aralığı, aynı şarkı sürümü, alt tür serisi, ilk 20 kart örtüşmesi, aynı tohumla özdeşlik) + keşif payı ve türü bilinmeyen kart payı. Kapsama ölçütü (ilk 50/200 oy) ölçülmez.
 
 **Testler:** determinizm (aynı tohum → aynı sıra, farklı tohum → farklı sıra), seri üst sınırı, azınlık türün önden tükenmemesi, gevşeme sırası, ε=0 ve τ=0'da eski davranışa yakınsama, kaynak boşken parti boyutu.
 

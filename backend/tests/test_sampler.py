@@ -123,7 +123,10 @@ def test_queue_sim_metrics():
     assert longest_run(["a", "a", "b", "a", "a", "a"]) == 3
     assert window_distinct(["a", "b", "a", "b"], 2) == 2.0
     assert overlap([1, 2, 3], [3, 4, 5]) == 1 / 3
-    m = metrics([1, 2, 3], {1: 10, 2: 10, 3: 11}, {10: ("rock", "x"), 11: ("pop", "y")},
-                [None, "probe", "joker"])
-    assert m["artist_repeats"] == 1 and m["longest_same_genre_run"] == 2
+    m = metrics([
+        {"track": 1, "artist": 10, "main": "rock", "sub": "x", "source": None},
+        {"track": 2, "artist": 10, "main": "rock", "sub": "x", "source": "probe"},
+        {"track": 3, "artist": 11, "main": "pop", "sub": "y", "source": "joker"},
+    ])
+    assert m["artist_gap_violations"] == 1 and m["longest_same_genre_run"] == 2
     assert m["discovery_share"] == 0.667
