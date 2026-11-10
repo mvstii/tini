@@ -2,20 +2,18 @@
 
 Bu dosya Claude Code oturumları arasında köprüdür. **Her oturumun başında okunur; her aşama bitiminde ve oturum kapanmadan önce güncellenir.** Program planı ve kapsam: `docs/KESIF_PLANI.md`. Kalıcı proje kayıtları: `docs/DURUM.md`.
 
-Son güncelleme: 2026-11-09 (PR-4 Aşama 4 tamam; commitlendi, birleştirme onayı bekliyor)
+Son güncelleme: 2026-11-10 (PR-6 Aşama 4 tamam; commitlendi, push/birleştirme onayı bekliyor)
 
 ## Aktif durum
 
-- **Aktif PR:** PR-4 birleşti (#84, #85); tam omurga koşusu geliştiricinin bilgisayarında sürüyor (10 Kasım 01:20: 77 alt türden 28'i veride, kapı 4 bilinen Türkçe alt tür dışında geçiyor). Rapor için `python -m app.jobs.build_genre_backbone --report`; nihai sayılar gelince DURUM.md güncellenir.
-- **PR-5 uygulandı (10 Kasım 2026), commitlendi, push/birleştirme onayı bekliyor:** onay yaklaşım A + `unknown` bant sapması + varsayılanlar (prior 1/1, floor 0,05, smoothing 1,0) + "uygulamaya geç". Backend 381 geçti/11 atlandı/0 hata, ruff temiz. Kayıt DURUM.md'de.
-- **Dal:** `feat/pr5-user-model` (`fix/pr4-backbone-tags` = `main` içeriği üzerinden; `origin/main` = `40869d3`).
-- **Sıradaki adım:** PR-5 push + birleştirme onayı; ardından PR-6 (Örnekleyici `queue-8`) Aşama 1. Omurga koşusu bitince `--report` ile nihai sayılar DURUM.md'ye.
-- **Onay kaydı:** 9 Kasım 2026 — Aşama 2 raporu sunuldu; geliştirici yaklaşım A'yı (ayrı `genre_seed` + `track_popularity` tabloları, `track` değişmez) seçti ve "Önerilerin üzerinden ilerleyebiliriz" dedi.
-- **Biten adımlar:** 1–7 (kaynak istemcisi, göç 0021, 77 alt tür, omurga işi, temsilci parça, D3, testler, dokümanlar). Backend 370 geçti/11 atlandı/0 hata, ruff temiz.
-- **Geliştiricide kalanlar:** LISTENBRAINZ_TOKEN ve MUSICBRAINZ_CONTACT'ı ortam dosyasına koy; omurga işini Neon staging'e çalıştırıp raporu üret (alt tür başına kayıt, ISRC oranı, graf/DB boyutu, ≥15 benzersiz sanatçı); Neon depolama sınırını panelden teyit et; canlıya bayrak kapalı çık. Önceki borçlar: PR-3 için yeni APK + emülatörde 100 kartlık hızlı oylama, ep-noisy-scene teyidi, staging parolası döndürme, `C:/dev/tini_bench` silme, Last.fm ticari izni.
-- **Açık sorular / borçlar:** PR-4b (ISRC'siz sanatçı her koşuda yeniden denenir; büyük arabesk boşluğu); PR-2 borçları; `mark_unheard` D3 eklemesi plan metnini hafifçe aşıyor (raporlandı).
-- **Sıradaki adım:** geliştirici onayıyla push/birleştirme; ardından PR-5 Aşama 1 (Keşif).
-
+- **Aktif PR:** PR-6 (Örnekleyici `queue-8`), dal `feat/pr6-sampler`. Kod, testler (392 geçti/15 atlandı/0 hata, ruff temiz) ve dokümanlar bitti; push ve birleştirme geliştirici onayında.
+- **Onay kaydı:** 10 Kasım 2026 — Aşama 2 raporu sunuldu; geliştirici "Onaylıyorum. Önerin üzerinden ilerleyelim" dedi ve find_card riski için "adaptöre `isrc_only`" seçti.
+- **Sapmalar (DURUM.md'de):** `diversify` kaldırılmadı; graf benzerlik penceresi bağlanmadı; sonda/joker hızlı yol bayrağına bağlı; omurga artık 77/77 alt tür (3 Türkçe alt tür < 15 sanatçı: turk_halk 4, turkce_rap 5, turk_sanat 13).
+- **Ölçülmeyenler:** `queue_sim` (yerelde süresi dolmamış kart yok → 0 kart; Neon/canlıda `python -m app.jobs.queue_sim --email <e-posta>`), kalite koruması (`evaluate`), Spotify istemcisinde `isrc_only` için ayrı test.
+- **Canlıya çıkış:** bayrak kapalı gider. Açmak için önce `fast_queue_enabled`; ardından `queue_sampler_enabled` ile %10 keşif (ortamda `queue_mix_*` ayarı), kalite koruması tutarsa artır (sonda/joker Good+ oranı ≥ genel ortalamanın %60'ı, "Dinlemedim" < %50). Göç yok.
+- **Geliştiricide kalanlar:** push/birleştirme onayı; Neon depolama sınırı teyidi; canlıya (Render) bayrak kapalı dağıtım ve göç 0021'in üretim Neon'unda doğrulanması; PR-3 için yeni APK + emülatörde 100 kartlık hızlı oylama; staging parolası döndürme; `C:/dev/tini_bench` silme; Last.fm ticari izni.
+- **Açık sorular / borçlar:** PR-4b (ISRC'siz sanatçı), PR-2 borçları, graf benzerlik penceresinin bağlanması.
+- **Sıradaki adım:** PR-6 birleştirildikten sonra PR-7 (Liste tarafı `list-6`) Aşama 1.
 
 ## Dal durumu
 
@@ -26,7 +24,8 @@ Son güncelleme: 2026-11-09 (PR-4 Aşama 4 tamam; commitlendi, birleştirme onay
 | PR-2 | `feat/pr2-fast-queue` | Uygulandı, hedef kısmen (borçlar DURUM.md'de) | Evet (`origin/main` `b3a186b`) |
 | PR-3 | `feat/pr3-queue-controller` | Uygulandı, emülatör ölçümü bekliyor | Evet (`origin/main` `33e9d96`) |
 | PR-4 | `feat/pr4-genre-spine` | Birleşti (#84, #85); tam omurga koşusu sürüyor | Evet |
-| PR-5 | `feat/pr5-user-model` | Uygulandı, birleştirme bekliyor | Hayır |
+| PR-5 | `feat/pr5-user-model` | Birleşti (#86, `866b9f1`) | Evet |
+| PR-6 | `feat/pr6-sampler` | Uygulandı, birleştirme onayı bekliyor | Hayır |
 
 ## PR-0'dan PR-4'e taşınacak bulgular (ayrıntı: PR-0 dalındaki `docs/ARCHITECTURE.md`)
 

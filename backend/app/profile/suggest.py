@@ -27,6 +27,7 @@ from app.models import (
     UserTrackMeta,
     VoteEvent,
 )
+from app.profile.probe import resolve_seed_cards
 from app.profile.service import rebuild_profile
 from app.recommend.service import NoGraph, NoProfile, generate_list
 
@@ -262,6 +263,11 @@ def refill_buffer(
                     fetched_at=now, expires_at=now + ttl,
                 ))
                 ready += 1
+    if cfg.queue_sampler_enabled and ok:
+        # PR-6: sonda/joker kartları (omurga) önceden çözülür; kuyruk istek anında servis çağırmaz.
+        ok = resolve_seed_cards(
+            db, user.id, service, now, cfg, rcfg, max(cfg.refill_batch // 2, 1), user.id.int % 10007
+        )
     db.commit()
     return ok
 
