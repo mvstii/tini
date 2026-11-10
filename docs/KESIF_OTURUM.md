@@ -8,10 +8,10 @@ Son güncelleme: 2026-11-10 (PR-6 Aşama 4 tamam; commitlendi, push/birleştirme
 
 - **Aktif PR:** PR-6 (Örnekleyici `queue-8`), dal `feat/pr6-sampler`. Kod, testler (392 geçti/15 atlandı/0 hata, ruff temiz) ve dokümanlar bitti; push ve birleştirme geliştirici onayında.
 - **Onay kaydı:** 10 Kasım 2026 — Aşama 2 raporu sunuldu; geliştirici "Onaylıyorum. Önerin üzerinden ilerleyelim" dedi ve find_card riski için "adaptöre `isrc_only`" seçti.
-- **Sapmalar (DURUM.md'de):** `diversify` kaldırılmadı; graf benzerlik penceresi bağlanmadı; sonda/joker hızlı yol bayrağına bağlı; omurga verisi 32/77 alt tür.
+- **Sapmalar (DURUM.md'de):** `diversify` kaldırılmadı; graf benzerlik penceresi bağlanmadı; sonda/joker hızlı yol bayrağına bağlı; omurga artık 77/77 alt tür (3 Türkçe alt tür < 15 sanatçı: turk_halk 4, turkce_rap 5, turk_sanat 13).
 - **Ölçülmeyenler:** `queue_sim` (yerelde süresi dolmamış kart yok → 0 kart; Neon/canlıda `python -m app.jobs.queue_sim --email <e-posta>`), kalite koruması (`evaluate`), Spotify istemcisinde `isrc_only` için ayrı test.
 - **Canlıya çıkış:** bayrak kapalı gider. Açmak için önce `fast_queue_enabled`; ardından `queue_sampler_enabled` ile %10 keşif (ortamda `queue_mix_*` ayarı), kalite koruması tutarsa artır (sonda/joker Good+ oranı ≥ genel ortalamanın %60'ı, "Dinlemedim" < %50). Göç yok.
-- **Geliştiricide kalanlar:** push/birleştirme onayı; omurga koşusu bitince `--report` ve 77 alt tür kapısı; Neon depolama sınırı teyidi; canlıya (Render) bayrak kapalı dağıtım ve göç 0021'in üretim Neon'unda doğrulanması; PR-3 için yeni APK + emülatörde 100 kartlık hızlı oylama; staging parolası döndürme; `C:/dev/tini_bench` silme; Last.fm ticari izni.
+- **Geliştiricide kalanlar:** push/birleştirme onayı; Neon depolama sınırı teyidi; canlıya (Render) bayrak kapalı dağıtım ve göç 0021'in üretim Neon'unda doğrulanması; PR-3 için yeni APK + emülatörde 100 kartlık hızlı oylama; staging parolası döndürme; `C:/dev/tini_bench` silme; Last.fm ticari izni.
 - **Açık sorular / borçlar:** PR-4b (ISRC'siz sanatçı), PR-2 borçları, graf benzerlik penceresinin bağlanması.
 - **Sıradaki adım:** PR-6 birleştirildikten sonra PR-7 (Liste tarafı `list-6`) Aşama 1.
 
