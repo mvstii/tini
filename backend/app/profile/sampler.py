@@ -56,6 +56,30 @@ def source_mix(
     return out
 
 
+def source_quota(mix: Mapping[str, int], have: Mapping[str, int], size: int) -> dict[str, int]:
+    """Kaynak başına kart kotası: karışım payı, havuzda olanla sınırlı; açık kalan yuvalar
+    `SOURCES` sırasıyla fazlası olan kaynaklara verilir. Toplam ≤ `size` (aday yetmezse az)."""
+    out = {s: min(mix.get(s, 0), have.get(s, 0)) for s in SOURCES}
+    left = size - sum(out.values())
+    for s in SOURCES:
+        add = min(left, have.get(s, 0) - out[s])
+        if add > 0:
+            out[s] += add
+            left -= add
+    return out
+
+
+def interleave(pools: Mapping[str, Sequence], quota: Mapping[str, int], oversample: int) -> list:
+    """Kaynak başına en çok kota × `oversample` aday; kaynaklar kotalarıyla orantılı aralıkla
+    harmanlanır (rerank eşitlikte bu sırayı korur, kaynak tek yere yığılmaz)."""
+    keyed = [
+        ((i + 0.5) / quota[s], SOURCES.index(s), i, item)
+        for s in SOURCES if quota.get(s, 0) > 0
+        for i, item in enumerate(pools[s][: quota[s] * max(oversample, 1)])
+    ]
+    return [item for *_, item in sorted(keyed, key=lambda k: k[:3])]
+
+
 def cell_scores(
     shown: Mapping[Hashable, int], theta: Mapping[str, float], kappa: float
 ) -> dict[Hashable, float]:
@@ -96,39 +120,55 @@ def rerank(
     prior_artists: Sequence[int] = (),
     prior_subs: Sequence[str | None] = (),
     sim: Callable[[int, int], float] | None = None,
+    quota: Mapping[str, int] | None = None,
 ) -> list[Cand]:
-    """Aday sırasını (öncelik) koruyup yuva yuva seçer; ilk `limit` aday.
+    """Aday sırasını (öncelik) koruyup yuva yuva seçer; ilk `limit` aday. Havuz `limit`ten
+    büyükse kısıtları bozan adaylar elenir (yalnız sıralama değil, seçim).
 
     Her yuvada en büyük hedef açığı olan ana tür seçilir (açık = hedef·(n+1) − seçilen).
-    Kısıtlar: sanatçı aralığı, art arda aynı alt tür yok, graf benzerlik penceresi, şarkı tekilliği.
-    Uygun aday yoksa kademeli gevşeme: alt tür, benzerlik, ana tür (kalibrasyon), sanatçı."""
+    Türü bilinmeyen aday nötrdür: havuzdaki payı (u) kadar hedef alır, bilinen türlerin hedefi
+    (1 − u) ile ölçeklenir; böylece bilinenler başa yığılmaz.
+    Kısıtlar: sanatçı aralığı, art arda aynı alt tür yok, graf benzerlik penceresi, şarkı
+    tekilliği, kaynak kotası (`quota[kaynak]` dolunca o kaynaktan alınmaz).
+    Uygun aday yoksa kademeli gevşeme: alt tür, benzerlik, ana tür (kalibrasyon), kota, sanatçı."""
     pool = list(cands)
     out: list[Cand] = []
     artists = list(prior_artists)
     subs = list(prior_subs)
     keys: set[str] = set()
-    counts: dict[str, int] = {}
+    counts: dict[str | None, int] = {}
+    used: dict[str, int] = {}
+    unknown = sum(1 for c in pool if not c.genre) / len(pool) if pool else 0.0
     levels = (
-        {"sub", "sim", "main", "artist"},
-        {"sim", "main", "artist"},
-        {"main", "artist"},
+        {"quota", "sub", "sim", "main", "artist"},
+        {"quota", "sim", "main", "artist"},
+        {"quota", "main", "artist"},
+        {"quota", "artist"},
         {"artist"},
         set(),
     )
     gap = cfg.queue_artist_gap
+
+    def full(c: Cand) -> bool:
+        return quota is not None and used.get(c.source, 0) >= quota.get(c.source, 0)
+
     while pool and len(out) < limit:
         pool = [c for c in pool if c.song_key is None or c.song_key not in keys]
         if not pool:
             break
         n = len(out) + 1
-        deficit = {g: target.get(g, 0.0) * n - counts.get(g, 0) for g in target}
+        deficit: dict[str | None, float] = {
+            g: target.get(g, 0.0) * (1 - unknown) * n - counts.get(g, 0) for g in target
+        }
+        deficit[None] = unknown * n - counts.get(None, 0)
         recent_artists = set(artists[-gap:]) if gap > 0 else set()
         window = [a for a in artists[-cfg.queue_sim_window:]] if cfg.queue_sim_window > 0 else []
         chosen: Cand | None = None
         for active in levels:
             ok = [
                 c for c in pool
-                if not ("artist" in active and c.artist is not None and c.artist in recent_artists)
+                if not ("quota" in active and full(c))
+                and not ("artist" in active and c.artist is not None and c.artist in recent_artists)
                 and not ("sub" in active and c.sub is not None and subs and c.sub == subs[-1])
                 and not ("sim" in active and sim is not None and c.artist is not None
                          and any(sim(c.artist, a) > cfg.queue_sim_max for a in window))
@@ -136,8 +176,8 @@ def rerank(
             if not ok:
                 continue
             if "main" in active:
-                best = max(deficit.get(c.genre, -1e9) if c.genre else -1e9 for c in ok)
-                ok = [c for c in ok if (deficit.get(c.genre, -1e9) if c.genre else -1e9) == best]
+                best = max(deficit.get(c.genre or None, -1e9) for c in ok)
+                ok = [c for c in ok if deficit.get(c.genre or None, -1e9) == best]
             chosen = ok[0]
             break
         if chosen is None:
@@ -149,6 +189,6 @@ def rerank(
         subs.append(chosen.sub)
         if chosen.song_key is not None:
             keys.add(chosen.song_key)
-        if chosen.genre:
-            counts[chosen.genre] = counts.get(chosen.genre, 0) + 1
+        counts[chosen.genre or None] = counts.get(chosen.genre or None, 0) + 1
+        used[chosen.source] = used.get(chosen.source, 0) + 1
     return out

@@ -15,7 +15,14 @@ from app.config import GraphSettings, ProfileSettings, RecommendSettings
 from app.models import ListenLater, Track, User, VoteEvent
 from app.profile.probe import genre_theta, probe_and_joker, profile_genre_shares
 from app.profile.queue import song_key
-from app.profile.sampler import SOURCES, Cand, genre_targets, rerank, source_mix
+from app.profile.sampler import (
+    Cand,
+    genre_targets,
+    interleave,
+    rerank,
+    source_mix,
+    source_quota,
+)
 from app.profile.suggest import connected_adapter, ready_suggestions, suggest_items
 from app.recommend.genres import GENRES
 
@@ -36,8 +43,9 @@ def sampled_items(
     exclude = voted_ids | later | recent_set | expired
     nb_exclude = set(fresh) | exclude
     ready_total = None
+    k = max(cfg.queue_oversample, 1)
     if cfg.fast_queue_enabled:
-        neighborhood, ready_total = ready_suggestions(db, user, now, size, nb_exclude)
+        neighborhood, ready_total = ready_suggestions(db, user, now, size * k, nb_exclude)
     else:
         neighborhood = suggest_items(
             db, user, adapter or (lambda: connected_adapter(db, user, http)), now, size,
@@ -46,26 +54,24 @@ def sampled_items(
     theta = genre_theta(db, user.id, seed, rcfg)
     probe, joker = probe_and_joker(
         db, user.id, now, nb_exclude | {i["track"] for i in neighborhood},
-        size, size, cfg, theta, seed,
+        size * k, size * k, cfg, theta, seed,
     )
     lib = [
         {"track": t, "title": fresh[t][2], "artists": fresh[t][3], "image": fresh[t][5],
          "artist": fresh[t][1]}
-        for t in library[:size]
+        for t in library[: size * k]
     ]
     pools = {"library": lib, "neighborhood": neighborhood, "probe": probe, "joker": joker}
     mix = source_mix(len(voted_ids), size, {s: bool(p) for s, p in pools.items()}, cfg)
-    chosen = [i for s in SOURCES for i in pools[s][: mix[s]]]
-    if len(chosen) < size:  # kaynak yetmediyse kalan yuvalar sırayla diğer kaynaklardan dolar
-        have = {i["track"] for i in chosen}
-        spare = (i for s in SOURCES for i in pools[s][mix[s]:] if i["track"] not in have)
-        chosen += [i for _, i in zip(range(size - len(chosen)), spare, strict=False)]
-    return _rerank_items(db, user, chosen, prior, voted_meta, size, cfg), ready_total
+    # Kaynak yetmezse payı diğerlerine kayar; rerank kotanın k katı adaydan `size` kart seçer.
+    quota = source_quota(mix, {s: len(p) for s, p in pools.items()}, size)
+    cands = interleave(pools, quota, k)
+    return _rerank_items(db, user, cands, prior, voted_meta, size, cfg, quota), ready_total
 
 
 def _rerank_items(
     db: Session, user: User, items: list[dict], prior: Sequence[int], voted_meta: Sequence[tuple],
-    size: int, cfg: ProfileSettings,
+    size: int, cfg: ProfileSettings, quota: Mapping[str, int] | None = None,
 ) -> list[dict]:
     tracks = [i["track"] for i in items]
     artist_of = {i["track"]: i["artist"] for i in items if i.get("artist") is not None}
@@ -90,7 +96,7 @@ def _rerank_items(
         cands.append(Cand(t, artist_of.get(t), g, s, i.get("source") or "library", repr(key)))
     target = genre_targets(profile_genre_shares(db, user.id), list(GENRES), cfg.queue_genre_epsilon)
     prior_subs = [genre_of.get(a, (None, None))[1] for a in prior]
-    ordered = rerank(cands, target, size, cfg, list(prior), prior_subs)
+    ordered = rerank(cands, target, size, cfg, list(prior), prior_subs, quota=quota)
     return [
         {k: v for k, v in seen[c.track].items() if k not in ("artist", "genre", "sub")}
         for c in ordered

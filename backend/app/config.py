@@ -208,6 +208,8 @@ class ProfileSettings(BaseSettings):
     queue_sim_window: int = 3  # graf benzerlik penceresi (son N sanatçı)
     queue_sim_max: float = 0.85  # pencere içinde izin verilen en yüksek kosinüs
     queue_history_size: int = 200  # örnekleyicinin okuduğu maruziyet olayı üst sınırı
+    # Rerank'e kaynak kotasının kaç katı aday verilir; 1 = yalnız sıralama (eleme yok).
+    queue_oversample: int = 3
 
 
 class RecommendSettings(BaseSettings):

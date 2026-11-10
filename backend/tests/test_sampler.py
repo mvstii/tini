@@ -7,8 +7,10 @@ from app.profile.sampler import (
     cell_scores,
     genre_targets,
     gumbel_order,
+    interleave,
     rerank,
     source_mix,
+    source_quota,
 )
 
 CFG = ProfileSettings(_env_file=None)
@@ -115,6 +117,51 @@ def test_rerank_is_deterministic_and_limit_bounded():
     t = {"rock": 0.5, "rap": 0.5}
     assert rerank(cands, t, 7, CFG) == rerank(cands, t, 7, CFG)
     assert len(rerank(cands, t, 7, CFG)) == 7
+
+
+def test_rerank_selects_from_oversampled_pool_without_artist_violation():
+    # 6 parçalı tek sanatçı + 12 ayrı sanatçı; 10 kart seçilirken aralık (4) hiç bozulmaz.
+    cands = [c(i, 1, None) for i in range(6)] + [c(100 + i, 100 + i, None) for i in range(12)]
+    out = rerank(cands, {"rock": 1.0}, 10, CFG)
+    artists = [x.artist for x in out]
+    assert len(out) == 10
+    assert all(a not in artists[max(0, i - 4):i] for i, a in enumerate(artists))
+
+
+def test_rerank_unknown_genre_is_neutral_not_last():
+    # Yarısı türü bilinmeyen: bilinenler başa yığılmaz, havuzdaki paya göre dağılır.
+    cands = [c(i, i, "rock", f"r{i}") for i in range(10)] + [
+        c(100 + i, 100 + i, None) for i in range(10)
+    ]
+    out = rerank(cands, {"rock": 1.0}, 10, CFG)
+    known = [x.genre is not None for x in out]
+    assert known.count(True) == 5
+    assert sum(known[:4]) == 2 and sum(known[-4:]) == 2
+
+
+def test_rerank_source_quota_holds_and_relaxes_when_short():
+    cands = [c(i, i, None, source="library") for i in range(10)] + [
+        c(100 + i, 100 + i, None, source="probe") for i in range(10)
+    ]
+    out = rerank(cands, {"rock": 1.0}, 10, CFG, quota={"library": 7, "probe": 3})
+    assert [x.source for x in out].count("probe") == 3
+    short = rerank(cands[:4], {"rock": 1.0}, 4, CFG, quota={"library": 1, "probe": 3})
+    assert len(short) == 4  # kota tutmasa da parti küçülmez
+
+
+def test_source_quota_redistributes_shortage():
+    mix = {"library": 3, "neighborhood": 4, "probe": 2, "joker": 1}
+    have = {"library": 50, "neighborhood": 0, "probe": 1, "joker": 5}
+    q = source_quota(mix, have, 10)
+    assert q == {"library": 8, "neighborhood": 0, "probe": 1, "joker": 1}
+    assert sum(source_quota(mix, dict.fromkeys(SOURCES, 1), 10).values()) == 4
+
+
+def test_interleave_spreads_sources_by_quota_and_oversamples():
+    pools = {"library": list(range(10)), "neighborhood": [], "probe": [100, 101, 102, 103],
+             "joker": []}
+    out = interleave(pools, {"library": 3, "neighborhood": 0, "probe": 1, "joker": 0}, 2)
+    assert out == [0, 1, 100, 2, 3, 4, 101, 5]  # kaynak başına kota × 2 aday, kotaya göre aralıklı
 
 
 def test_queue_sim_metrics():
