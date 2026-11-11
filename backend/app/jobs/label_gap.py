@@ -14,7 +14,17 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.db import make_engine
-from app.models import Artist, ArtistTag, ArtistTagFetch, Track, User, UserTrackLink, VoteEvent
+from app.models import (
+    Artist,
+    ArtistTag,
+    ArtistTagFetch,
+    FetchLog,
+    Track,
+    User,
+    UserTrackArtist,
+    UserTrackLink,
+    VoteEvent,
+)
 from app.recommend.genres import main_genre
 
 GROUPS = ("never_tried", "tried_no_tags", "tags_unmapped", "labeled")
@@ -54,6 +64,54 @@ def label_gap(
     }
 
 
+def artistless_breakdown(rows: Sequence[tuple[str | None, str | None, bool]]) -> dict:
+    """Sanatçısız parçaların nedeni. `rows`: parça başına (MusicBrainz fetch_log durumu | None,
+    Last.fm fetch_log durumu | None, kullanıcıya özel kademe B bağı var mı).
+
+    Her parça tek gruba girer; bağ varsa `user_linked` (kuyruk bu bağı okumuyor)."""
+    out = {
+        "user_linked": 0, "mb_never_tried": 0, "mb_error": 0, "mb_ok_no_artist": 0,
+        "mb_empty_lastfm_never_tried": 0, "mb_empty_lastfm_empty": 0, "mb_empty_lastfm_error": 0,
+    }
+    for mb, lfm, linked in rows:
+        if linked:
+            out["user_linked"] += 1
+        elif mb is None:
+            out["mb_never_tried"] += 1
+        elif mb == "empty":
+            out[f"mb_empty_lastfm_{lfm or 'never_tried'}"] += 1
+        elif mb == "error":
+            out["mb_error"] += 1
+        else:
+            out["mb_ok_no_artist"] += 1
+    return out
+
+
+def _artistless(db: Session, user_id, track_ids: Sequence[int]) -> dict:
+    if not track_ids:
+        return artistless_breakdown([])
+    isrc = dict(db.execute(select(Track.id, Track.isrc).where(Track.id.in_(track_ids))).all())
+    mb = dict(db.execute(
+        select(FetchLog.key, FetchLog.status).where(
+            FetchLog.source == "musicbrainz",
+            FetchLog.key.in_([f"isrc:{i}" for i in isrc.values() if i]),
+        )
+    ).all())
+    lfm = dict(db.execute(
+        select(FetchLog.key, FetchLog.status).where(
+            FetchLog.source == "lastfm", FetchLog.key.in_([f"track:{t}" for t in track_ids])
+        )
+    ).all())
+    linked = set(db.scalars(
+        select(UserTrackArtist.track_id).where(
+            UserTrackArtist.user_id == user_id, UserTrackArtist.track_id.in_(track_ids)
+        )
+    ))
+    return artistless_breakdown(
+        [(mb.get(f"isrc:{isrc.get(t)}"), lfm.get(f"track:{t}"), t in linked) for t in track_ids]
+    )
+
+
 def run(email: str, top: int = 30) -> dict:
     engine = make_engine()
     with Session(engine) as db:
@@ -81,6 +139,7 @@ def run(email: str, top: int = 30) -> dict:
             db.scalars(select(Artist.id).where(Artist.id.in_(ids), Artist.mbid.is_not(None)))
         )
         out = label_gap([a for _, a in rows], attempted, tags, with_mbid, top)
+        out["artistless"] = _artistless(db, user.id, [t for t, a in rows if a is None])
         out["db"] = f"{engine.url.host}/{engine.url.database}"
         return out
 
