@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 
 from app.catalog.tags import load_genre_pairs
 from app.config import GraphSettings, ProfileSettings, RecommendSettings
-from app.models import ListenLater, Track, User, VoteEvent
+from app.models import ListenLater, User, VoteEvent
 from app.profile.probe import genre_theta, probe_and_joker, profile_genre_shares
 from app.profile.queue import song_key
 from app.profile.sampler import (
@@ -24,6 +24,7 @@ from app.profile.sampler import (
     source_quota,
 )
 from app.profile.suggest import connected_adapter, ready_suggestions, suggest_items
+from app.profile.track_artists import track_artists
 from app.recommend.genres import GENRES
 
 
@@ -83,11 +84,7 @@ def _rerank_items(
     artist_of = {i["track"]: i["artist"] for i in items if i.get("artist") is not None}
     missing = [t for t in tracks if t not in artist_of]
     if missing:
-        artist_of.update({
-            t: a for t, a in db.execute(
-                select(Track.id, Track.artist_id).where(Track.id.in_(missing))
-            ).all() if a is not None
-        })
+        artist_of.update(track_artists(db, user.id, missing))
     genre_of = load_genre_pairs(db, set(artist_of.values()) | set(prior))
     voted_keys = {song_key(t, a, cfg.queue_version_markers) for t, a in voted_meta}
     cands: list[Cand] = []

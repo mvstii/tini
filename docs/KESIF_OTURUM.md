@@ -2,14 +2,17 @@
 
 Bu dosya Claude Code oturumları arasında köprüdür. **Her oturumun başında okunur; her aşama bitiminde ve oturum kapanmadan önce güncellenir.** Program planı ve kapsam: `docs/KESIF_PLANI.md`. Kalıcı proje kayıtları: `docs/DURUM.md`.
 
-Son güncelleme: 2026-11-11 gece (PR-6: gerçek taban çizgisi 3/7; kök neden bulundu, kuyruk düzeltmesi onay bekliyor)
+Son güncelleme: 2026-11-11 (PR-6: SPEC 5c-3 kuyruk düzeltmesi uygulandı, iki yol; `queue_sim` yeniden ölçümü geliştiricide)
 
 ## Aktif durum
 
-- **SIRADAKİ OTURUM BURADAN BAŞLAR (11 Kasım 2026 gece kapanışı).** Dal `feat/pr6-sampler`, son commit bu notun commit'i; push yok, çalışma ağacı temiz (`SPEC.md` git dışı).
-  - **Durum:** `queue-8` kapıdan **3/7** geçiyor (9. ölçüm, staging `ep-patient-star`). Kök neden: kuyruk sanatçıyı yalnız `Track.artist_id`'den okuyor; kullanıcıya özel kademe B bağını (`user_track_artist`) yok sayıyor. 276 oylanmamış parçanın 237'si bu yüzden kuyrukta sanatçısız/türsüz.
-  - **Sıradaki adım (SPEC 5c-3, onay bekliyor):** `backend/app/profile/api.py` `queue()` içinde aday satırları (`:181`), `voted_artists` (`:201`), `recent_artist` (`:230`) ve `backend/app/profile/sampled_queue.py:86` `missing` sanatçıları `profile/track_artists.py::track_artists` yardımcısına geçer; kırmızı→yeşil birim testi (bağlı parça `cands`'a girer, `unresolved`'a düşmez). Sonra geliştirici `queue_sim` koşturur.
-  - **Geliştiriciden beklenen karar:** düzeltme canlı `queue-7` yolunu da kapsasın mı (öneri: evet, tek kural; bedeli canlı sıra değişir) yoksa yalnız `queue_sampler_enabled` açıkken mi.
+- **SIRADAKİ OTURUM BURADAN BAŞLAR (11 Kasım 2026, 5c-3 sonrası).** Dal `feat/pr6-sampler`, son commit `fix(queue): read user-linked artists in queue-7 and queue-8`; push yok (`SPEC.md` git dışı).
+  - **5c-3 uygulandı (onay: 11 Kasım 2026, geliştirici "Evet, ikisi de" — hem canlı `queue-7` hem `queue-8` yolu).** `queue()` aday satırları, `voted_artists`, `recent_artist` ve `sampled_queue._rerank_items` artık `track_artists` yardımcısını kullanır (paylaşılan `Track.artist_id`, yoksa kullanıcıya özel bağ). Göç, ayar, bayrak yok. **Canlı etkisi:** bayraktan bağımsızdır; dağıtılınca `queue-7` sırası da değişir (bağlı parçalar "çözülmemiş" kuyruğundan aktif sıralamaya geçer).
+  - **Test:** yeni iki test kırmızı→yeşil (`tests/test_track_artists.py`: bağlı parça çözülmüş sayılır; aynı bağlı sanatçının iki parçası aralıklı dizilir). Kuyrukla ilgili 8 dosya 71/71; `ruff check app tests` temiz. Tam paket: 406 geçti, 27 atlandı, **1 kaldı** (`tests/test_tags.py::test_fetch_prefers_musicbrainz_falls_back_to_lastfm_and_records_misses`). Kalan test bu değişiklikle ilgisiz: `fetch_artist_tags` yerel veritabanındaki tüm sanatçıları (10.973; `artist_tag_fetch` boş) test işleminin içinde savepoint'lerle dolaşıyor, Postgres "out of memory" veriyor; tek başına koşunca da takılıyor. Borç: test yalıtımı (temiz veritabanında ya da sınırlı sanatçı kümesiyle koşmalı); bu dalda düzeltilmedi.
+  - **Sıradaki adım (geliştiricide):** staging'de `python -m app.jobs.queue_sim --email <e-posta>` ve `--no-sampler`; 7 ölçüt yeniden ölçülür (taban çizgisi 3/7). **Henüz ölçülmedi;** kapı geçildi sayılmaz.
+  - **Durum (düzeltme öncesi):** `queue-8` kapıdan **3/7** geçiyordu (9. ölçüm, staging `ep-patient-star`). Kök neden: kuyruk sanatçıyı yalnız `Track.artist_id`'den okuyordu; kullanıcıya özel kademe B bağını (`user_track_artist`) yok sayıyordu. 276 oylanmamış parçanın 237'si bu yüzden kuyrukta sanatçısız/türsüzdü.
+  - **(Eski, uygulandı) SPEC 5c-3 tarifi:** `backend/app/profile/api.py` `queue()` içinde aday satırları (`:181`), `voted_artists` (`:201`), `recent_artist` (`:230`) ve `backend/app/profile/sampled_queue.py:86` `missing` sanatçıları `profile/track_artists.py::track_artists` yardımcısına geçer; kırmızı→yeşil birim testi (bağlı parça `cands`'a girer, `unresolved`'a düşmez). Sonra geliştirici `queue_sim` koşturur.
+  - **Karar verildi (11 Kasım):** düzeltme canlı `queue-7` yolunu da kapsar (tek kural; bedeli canlı sıra değişir).
   - **Sonrası:** ana tür hâlâ kalırsa 31 MBID'siz etiketsiz sanatçıya bak (Last.fm anahtarı yokken kalıcı "etiketsiz" işaretlenmiş olabilir; `fetch_tags` koşturmadan önce anahtarı geliştirici doğrular). Açık borçlar: keşif payı 0,04, `rank` gecikmesi, tam test paketi, `test_tracks.py::test_account_deletion_removes_later_and_comments` yalıtımı, `ep-noisy-scene` teyidi.
   - Aşağıdaki maddeler tarih sırasıyla geçmiştir; en güncel ölçümler listenin sonundadır.
 
