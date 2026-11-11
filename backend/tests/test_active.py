@@ -100,3 +100,35 @@ def test_diversify_explore_slots_are_seeded_random_and_prefer_pool():
     assert a != order[:6]
     assert a == diversify(order, artist_of, {}, {9}, 0, cfg, 6)
     assert any(diversify(order, artist_of, {}, set(), s, cfg, 6) != a for s in range(1, 10))
+
+
+def _spread_cands(n=100):
+    cands = [(t, 1000 + t) for t in range(n)]  # her parça ayrı sanatçı
+    unc = {1000 + t: t / n for t in range(n)}
+    return cands, unc
+
+
+def test_order_without_noise_ignores_seed_when_scores_differ():
+    cands, unc = _spread_cands()
+    assert order_active(cands, unc, set(), set(), 1, CFG) == order_active(
+        cands, unc, set(), set(), 2, CFG
+    )
+
+
+def test_gumbel_noise_refreshes_head_across_seeds_and_stays_deterministic():
+    cands, unc = _spread_cands()
+    a = order_active(cands, unc, set(), set(), 1, CFG, tau=0.5)
+    b = order_active(cands, unc, set(), set(), 2, CFG, tau=0.5)
+    assert a == order_active(cands, unc, set(), set(), 1, CFG, tau=0.5)
+    assert sorted(a) == sorted(b) == list(range(100))
+    assert len(set(a[:20]) & set(b[:20])) / 20 < 0.5
+    # Gürültü belirsizliği silmez: baş taraf ortalamada kuyruktan daha belirsizdir.
+    mean = lambda ts: sum(unc[1000 + t] for t in ts) / len(ts)  # noqa: E731
+    assert mean(a[:20]) > mean(a[-20:])
+
+
+def test_gumbel_noise_keeps_voted_artists_after_unvoted():
+    cands, unc = _spread_cands(20)
+    voted = {1000 + t for t in range(10)}
+    out = order_active(cands, unc, set(), voted, 3, CFG, tau=0.5)
+    assert set(out[:10]) == set(range(10, 20))

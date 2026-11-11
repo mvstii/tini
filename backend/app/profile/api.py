@@ -221,11 +221,15 @@ def queue(
     st.lap("candidates")
     unc = artist_uncertainties(db, user.id, {a for _, a in cands}, cfg, rcfg, gcfg)
     st.lap("uncertainty")
-    order = order_active(cands, unc, pool & set(fresh), voted_artists, seed, cfg)
+    sampled = cfg.queue_sampler_enabled
+    # queue-8: kütüphane sırasına tohumlu gürültü (tazelik); queue-7 saf puan sırasında kalır.
+    order = order_active(
+        cands, unc, pool & set(fresh), voted_artists, seed, cfg,
+        tau=cfg.queue_gumbel_tau if sampled else 0.0,
+    )
     artist_of = dict(cands)
     recent_artist = track_artists(db, user.id, recent_set)
     prior = [recent_artist[t] for t in recent if recent_artist.get(t) is not None]
-    sampled = cfg.queue_sampler_enabled
     if sampled:
         # queue-8: dört kaynaktan birleşik havuz + rerank (profile/sampled_queue.py).
         items, ready_total = sampled_items(

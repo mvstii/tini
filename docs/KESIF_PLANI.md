@@ -490,7 +490,7 @@ python -m app.jobs.queue_sim --email <e-posta>   # PR-6 sonrası
 | PR-3 | İstemci kuyruk denetleyicisi | Uygulandı (emülatör ölçümü geliştiricide) | `feat/pr3-queue-controller` | Flutter 62/62, analyze temiz; backend 348 geçti/10 atlandı/0 hata, ruff temiz; "çıkmaz ekran 0" emülatörde ölçülmedi |
 | PR-4 | Evren: tür omurgası | Uygulandı (staging omurga raporu geliştiricide) | `feat/pr4-genre-spine` | Backend 370 geçti/11 atlandı/0 hata, ruff temiz; ayrı `genre_seed` + `track_popularity` (göç 0021), 77 alt tür; bayrak kapalı; omurga raporu ölçülmedi |
 | PR-5 | Kullanıcı modeli | Birleşti (#86, `866b9f1`) | `feat/pr5-user-model` | Backend 381 geçti/11 atlandı/0 hata, ruff temiz; göç yok, davranış değişmez (bandit PR-6 bağlar) |
-| PR-6 | Örnekleyici `queue-8` | Kabul kapısı düzeltmesi sürüyor (`queue_sim` 3/7; birleştirilmez) | `feat/pr6-sampler` | 11 Kasım: kök neden bulundu (kuyruk kademe B sanatçı bağını okumuyordu); SPEC 5c-3 uygulandı (`queue-7` + `queue-8`), yeniden ölçüm bekliyor. Göç yok, bayrak `queue_sampler_enabled` kapalı; push yok; tam test paketi bugünkü commitlerle koşturulmadı |
+| PR-6 | Örnekleyici `queue-8` | Kabul kapısı düzeltmesi sürüyor (`queue_sim` 6/7; birleştirilmez) | `feat/pr6-sampler` | 11 Kasım: kök neden bulundu (kuyruk kademe B sanatçı bağını okumuyordu); SPEC 5c-3 uygulandı (`queue-7` + `queue-8`). 12 Kasım: 10. ölçüm 6/7 (tazelik 0,45 kaldı); `queue-8` kütüphane sırasına tohumlu Gumbel eklendi, yeniden ölçüm bekliyor. Göç yok, bayrak `queue_sampler_enabled` kapalı; push yok; tam test paketi bugünkü commitlerle koşturulmadı |
 | PR-7 | Liste tarafı `list-6` | Başlamadı | | |
 
 Durum değerleri: Başlamadı · Analiz/onay bekliyor · Uygulanıyor · Canlıda (bayrak kapalı) · Tamamlandı
