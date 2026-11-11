@@ -84,6 +84,24 @@ def overlap(a: list[int], b: list[int]) -> float:
     return len(set(a) & set(b)) / max(min(len(a), len(b)), 1)
 
 
+def sub_runs(cards: list[dict]) -> list[dict]:
+    """Tanı: 2+ uzunluktaki aynı alt tür serileri; konum (0 tabanlı), alt tür ve kart kaynakları."""
+    out, pos = [], 0
+    for sub, grp in groupby(cards, key=lambda c: c.get("sub")):
+        run = list(grp)
+        if sub is not None and len(run) > 1:
+            out.append({
+                "at": pos, "sub": sub, "sources": [c.get("source") or "library" for c in run],
+            })
+        pos += len(run)
+    return out
+
+
+def discovery_positions(cards: list[dict]) -> list[int]:
+    """Tanı: kütüphane dışı kartların sırası (0 tabanlı); sona yığılma buradan görülür."""
+    return [n for n, c in enumerate(cards) if c.get("source") not in (None, "library")]
+
+
 def metrics(cards: list[dict]) -> dict:
     """cards: sıralı {track, artist, main, sub, key, source} sözlükleri."""
     artists = [c.get("artist") for c in cards]
@@ -174,6 +192,8 @@ def run(email: str, size: int = 100, seed: int = 1, sampler: bool = True) -> dic
                 "key": key, "source": i.get("source"),
             })
         out = metrics(cards)
+        out["sub_runs"] = sub_runs(cards)
+        out["discovery_positions"] = discovery_positions(cards)
         out["requested"] = size
         out["algo_version"] = runs[0]["algo_version"]
         # Tanı: 0 kartın nedeni (yanlış veritabanı / süresi dolmuş önbellek) buradan okunur.

@@ -1,6 +1,8 @@
+
 """queue_sim saf ölçütleri: KESIF_PLANI kabul ölçütleriyle (Çeşitlilik, Tazelik) birebir."""
 from app.jobs.queue_sim import (
     artist_gap_violations,
+    discovery_positions,
     duplicate_keys,
     gate,
     longest_run,
@@ -8,6 +10,7 @@ from app.jobs.queue_sim import (
     metrics,
     min_window_distinct,
     overlap,
+    sub_runs,
 )
 
 
@@ -88,3 +91,16 @@ def test_discovery_share_counts_non_library():
     cards[1]["source"] = "probe"
     cards[2]["source"] = "library"
     assert metrics(cards)["discovery_share"] == 0.333
+
+
+def test_sub_runs_and_discovery_positions_locate_runs_and_sources():
+    cards = [
+        {"sub": "a"}, {"sub": None, "source": "suggested"}, {"sub": None},
+        {"sub": "b", "source": "probe"}, {"sub": "b", "source": "joker"}, {"sub": "c"},
+        {"sub": "c", "source": "library"},
+    ]
+    assert sub_runs(cards) == [
+        {"at": 3, "sub": "b", "sources": ["probe", "joker"]},
+        {"at": 5, "sub": "c", "sources": ["library", "library"]},
+    ]
+    assert discovery_positions(cards) == [1, 3, 4]
