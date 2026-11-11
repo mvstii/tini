@@ -4,7 +4,8 @@ Hiçbir şey yazmaz (hızlı yol, servis çağrısı yok).
 
 Ölçülenler: 20'lik en kötü pencerede ana tür sayısı, 20'lik pencerede aynı sanatçı üst sınırı,
 sanatçı aralığı ihlali (son 4), aynı şarkı sürümü, en uzun aynı alt tür serisi, iki oturumun
-ilk 20 kartının örtüşmesi, aynı tohumla özdeşlik. Bilgi: keşif payı, türü bilinmeyen kart payı.
+ilk 20 kartının örtüşmesi (ilk oturumun ilk 10 kartı görülmüş sayılarak), aynı tohumla
+özdeşlik. Bilgi: keşif payı, türü bilinmeyen kart payı.
 ÖLÇÜLMEYEN: Kapsama ölçütü (ilk 50/200 oyda tür sayısı) oy simülasyonu ister; burada yok.
 CLI: python -m app.jobs.queue_sim --email EPOSTA [--size 100] [--seed 1] [--sampler/--no-sampler]
 """
@@ -31,6 +32,9 @@ MAX_SAME_ARTIST = 2
 ARTIST_GAP = 4
 MAX_SUB_RUN = 1
 MAX_FIRST_OVERLAP = 0.20
+# Tazelik: ikinci oturumdan önce ilk oturumun baştaki bu kadar kartı görülmüş sayılır (istemcinin
+# `recent` parametresiyle; yazma yok). Geliştirici kararı, 11 Kasım 2026.
+SEEN_BETWEEN_SESSIONS = 10
 
 
 def longest_run(labels: list) -> int:
@@ -147,6 +151,11 @@ def gate(m: dict, first_overlap: float, same_seed_identical: bool) -> dict[str, 
     }
 
 
+def queue_url(size: int, seed: int, recent: list[int] = ()) -> str:
+    """Kuyruk isteği; `recent` istemcide zaten görülmüş parçalardır (eskiden yeniye)."""
+    return f"/votes/queue?limit={size}&seed={seed}" + "".join(f"&recent={t}" for t in recent)
+
+
 def _genre_of_item(item: dict, pair: tuple | None) -> tuple:
     """Sonda/joker kartında tür kapsama gerekçesinden, diğerlerinde sanatçı etiketinden gelir."""
     for r in item.get("reasons") or []:
@@ -167,9 +176,13 @@ def run(email: str, size: int = 100, seed: int = 1, sampler: bool = True) -> dic
         app.dependency_overrides[get_profile_settings] = lambda: cfg
         try:
             client = TestClient(app)
+            one = client.get(queue_url(size, seed)).json()
+            seen = [i["track"] for i in one["items"][:SEEN_BETWEEN_SESSIONS]]
             runs = [
-                client.get(f"/votes/queue?limit={size}&seed={s}").json()
-                for s in (seed, seed + 1, seed)
+                one,
+                client.get(queue_url(size, seed + 1, seen)).json(),
+                client.get(queue_url(size, seed)).json(),
+                client.get(queue_url(size, seed + 1)).json(),
             ]
         finally:
             app.dependency_overrides.clear()
@@ -203,6 +216,8 @@ def run(email: str, size: int = 100, seed: int = 1, sampler: bool = True) -> dic
         second = [i["track"] for i in runs[1]["items"]]
         again = [i["track"] for i in runs[2]["items"]]
         out["first_20_overlap"] = round(overlap(tracks[:WINDOW], second[:WINDOW]), 3)
+        raw = [i["track"] for i in runs[3]["items"]]
+        out["first_20_overlap_unseen"] = round(overlap(tracks[:WINDOW], raw[:WINDOW]), 3)
         out["two_session_overlap"] = round(overlap(tracks, second), 3)
         out["gate"] = gate(out, out["first_20_overlap"], tracks == again)
         return out

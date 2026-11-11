@@ -10,6 +10,7 @@ from app.jobs.queue_sim import (
     metrics,
     min_window_distinct,
     overlap,
+    queue_url,
     sub_runs,
 )
 
@@ -104,3 +105,8 @@ def test_sub_runs_and_discovery_positions_locate_runs_and_sources():
         {"at": 5, "sub": "c", "sources": ["library", "library"]},
     ]
     assert discovery_positions(cards) == [1, 3, 4]
+
+
+def test_queue_url_sends_seen_cards_as_recent():
+    assert queue_url(100, 2) == "/votes/queue?limit=100&seed=2"
+    assert queue_url(20, 1, [7, 9]) == "/votes/queue?limit=20&seed=1&recent=7&recent=9"
