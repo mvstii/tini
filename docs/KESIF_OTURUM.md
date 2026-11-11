@@ -2,11 +2,16 @@
 
 Bu dosya Claude Code oturumları arasında köprüdür. **Her oturumun başında okunur; her aşama bitiminde ve oturum kapanmadan önce güncellenir.** Program planı ve kapsam: `docs/KESIF_PLANI.md`. Kalıcı proje kayıtları: `docs/DURUM.md`.
 
-Son güncelleme: 2026-11-12 (PR-6: 10. ölçüm 6/7; tazelik için queue-8 kütüphane sırasına tohumlu Gumbel eklendi, yeniden ölçüm geliştiricide)
+Son güncelleme: 2026-11-12 (PR-6: 19. ölçüm, kabul kapısı 7/7 GEÇTİ; push ve birleştirme geliştirici onayında)
 
 ## Aktif durum
 
-- **SIRADAKİ OTURUM BURADAN BAŞLAR (11 Kasım 2026, 5c-3 sonrası).** Dal `feat/pr6-sampler`, son commit `fix(queue): read user-linked artists in queue-7 and queue-8`; push yok (`SPEC.md` git dışı).
+- **SIRADAKİ OTURUM BURADAN BAŞLAR (12 Kasım 2026, kapı geçti).** Dal `feat/pr6-sampler`, kod son commit `f0eb0d1`; push yok. **PR-6 kabul kapısı (Çeşitlilik + Tazelik) 7/7 GEÇTİ** (19. ölçüm, staging `ep-patient-star`, `queue-8`, 100 kart, yeni kapı koduyla, geliştirici koşturdu).
+  - **Değerler:** `main_genres_per_20` 5 / ≥ 5 (sınırda, yalnız tohum 1'de ölçülür), `same_artist_per_20` 1, `artist_gap` 0, `duplicate_songs` 0, `sub_genre_run` 1, tazelik ortalama **0,16** / < 0,20 (çiftler 0,35 / 0,10 / 0,15 / 0,10 / 0,10; 4/5 çift eşiği geçiyor), özdeşlik doğru.
+  - **Testler:** yerel tam paket 426 geçti / 18 atlandı / 0 kaldı (+ `test_tags` testi tek başına geçti); ruff temiz (kuyruk paketleriyle son koşu).
+  - **Ölçülmeyen / sınırlar:** Kapsama ölçütü (ilk 50/200 oy) ve Kalite koruması ölçülmedi; tek kullanıcı, tek kütüphane, 5 tohum çifti (küçük örnek). Gözlemler: türsüz kart payı 0,35; keşif payı 0,04; `queue-8` isteği staging'de 3,2–4,8 sn (`rank` 1,1–2,4 sn) — Hız ölçütünün (p95 < 800 ms) çok üstünde, canlıda bayrak açılmadan önce ele alınmalı; `suggested` kartı 12→12 sabit; havuz kartı 614 kalıcı.
+  - **Sıradaki adım (geliştirici onayı gerekir):** `feat/pr6-sampler` push + `main`'e birleştirme. Birleşince canlıda `queue_sampler_enabled` kapalı kalır; ancak 5c-3 bayraktan bağımsızdır, dağıtımla canlı `queue-7` sırası değişir. Sonra PR-7 (`list-6`) Aşama 1. Geliştirici: ortamdan `PROFILE_QUEUE_GENRE_JITTER` / `PROFILE_QUEUE_GUMBEL_TAU` ezmelerini kaldırır; staging'de `@example.com` test artığı kontrolü açık.
+- **(Geçmiş) 11 Kasım 2026, 5c-3 sonrası.** Dal `feat/pr6-sampler`, son commit `fix(queue): read user-linked artists in queue-7 and queue-8`; push yok (`SPEC.md` git dışı).
   - **5c-3 uygulandı (onay: 11 Kasım 2026, geliştirici "Evet, ikisi de" — hem canlı `queue-7` hem `queue-8` yolu).** `queue()` aday satırları, `voted_artists`, `recent_artist` ve `sampled_queue._rerank_items` artık `track_artists` yardımcısını kullanır (paylaşılan `Track.artist_id`, yoksa kullanıcıya özel bağ). Göç, ayar, bayrak yok. **Canlı etkisi:** bayraktan bağımsızdır; dağıtılınca `queue-7` sırası da değişir (bağlı parçalar "çözülmemiş" kuyruğundan aktif sıralamaya geçer).
   - **Test:** yeni iki test kırmızı→yeşil (`tests/test_track_artists.py`: bağlı parça çözülmüş sayılır; aynı bağlı sanatçının iki parçası aralıklı dizilir). Kuyrukla ilgili 8 dosya 71/71; `ruff check app tests` temiz. Tam paket: 406 geçti, 27 atlandı, **1 kaldı** (`tests/test_tags.py::test_fetch_prefers_musicbrainz_falls_back_to_lastfm_and_records_misses`). Kalan test bu değişiklikle ilgisiz: `fetch_artist_tags` yerel veritabanındaki tüm sanatçıları (10.973; `artist_tag_fetch` boş) test işleminin içinde savepoint'lerle dolaşıyor, Postgres "out of memory" veriyor; tek başına koşunca da takılıyor. Borç: test yalıtımı (temiz veritabanında ya da sınırlı sanatçı kümesiyle koşmalı); bu dalda düzeltilmedi.
   - **10. ölçüm (12 Kasım, `a3f775c`, staging `ep-patient-star`, geliştirici koşturdu):** `queue-8` **6/7**. Ana tür 5 (ort. 8,02), aynı sanatçı 1, aralık 0 ihlal, şarkı 0, alt tür serisi 1, özdeşlik GEÇTİ; **tazelik 0,45 KALDI** (eşik < 0,2; düzeltme öncesi 0,10). `artist_known_share` 1,0; türsüz 0,35; keşif payı 0,04. `queue-7` (`--no-sampler`): 4/7 (ana tür 3, aynı sanatçı 3, tazelik 0,40 kaldı).
@@ -86,7 +91,7 @@ Son güncelleme: 2026-11-12 (PR-6: 10. ölçüm 6/7; tazelik için queue-8 küt�
 | PR-3 | `feat/pr3-queue-controller` | Uygulandı, emülatör ölçümü bekliyor | Evet (`origin/main` `33e9d96`) |
 | PR-4 | `feat/pr4-genre-spine` | Birleşti (#84, #85); tam omurga koşusu sürüyor | Evet |
 | PR-5 | `feat/pr5-user-model` | Birleşti (#86, `866b9f1`) | Evet |
-| PR-6 | `feat/pr6-sampler` | Uygulandı, birleştirme onayı bekliyor | Hayır |
+| PR-6 | `feat/pr6-sampler` (`f0eb0d1` + kayıtlar) | Kabul kapısı 7/7 geçti (12 Kasım); push ve birleştirme onayı bekliyor | Hayır |
 
 ## PR-0'dan PR-4'e taşınacak bulgular (ayrıntı: PR-0 dalındaki `docs/ARCHITECTURE.md`)
 
