@@ -167,6 +167,28 @@ def test_rerank_quota_uses_pool_key_not_display_label(db):
     assert all("pool" not in i and "artist" not in i for i in out)  # iç alanlar sızmaz
 
 
+def test_rerank_uses_coverage_cell_genre_of_probe_cards(db):
+    """Sonda/joker kartı türünü kapsama hücresinden taşır; sanatçının etiketi olmasa da
+    rerank bunu görmeli, yoksa art arda aynı alt tür kısıtı işlemez."""
+    db.add(User(email="p7@example.com", password_hash="x"))
+    db.flush()
+    u = user_of(db, "p7@example.com")
+    seeds = mk_seeds(db, 2, prefix="ZZR") + mk_seeds(db, 2, sub="jazz", main="jazz_blues",
+                                                      band="mid", prefix="ZZR")
+    cells = [("rock", "grunge")] * 2 + [("jazz_blues", "jazz")] * 2
+    items = [
+        {"track": t.id, "title": f"Omurga {t.id}", "artists": ["S"], "artist": t.artist_id,
+         "genre": g, "sub": s, "source": "probe", "pool": "probe"}
+        for t, (g, s) in zip(seeds, cells, strict=True)
+    ]
+    sub_of = {i["track"]: i["sub"] for i in items}
+    cfg = ProfileSettings(_env_file=None)
+    out = _rerank_items(db, u, items, [], [], 4, cfg, {"probe": 4})
+    subs = [sub_of[i["track"]] for i in out]
+    assert len(out) == 4
+    assert all(a != b for a, b in zip(subs, subs[1:], strict=False))  # alt türler dönüşümlü
+
+
 def test_queue_flag_off_is_unchanged_queue7(client, db):
     h = register(client, "p5@example.com")
     lib_track(db, "p5@example.com", "ZZP5L0000001", mk_artist(db, "P5A"), "Bir")

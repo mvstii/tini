@@ -97,7 +97,11 @@ def _rerank_items(
         key = song_key(i.get("title") or "", i.get("artists"), cfg.queue_version_markers)
         if key in voted_keys:
             continue
-        g, s = genre_of.get(artist_of.get(t, -1), (None, None))
+        # Sonda/joker kartı türünü kapsama hücresinden taşır; diğerleri sanatçı etiketinden.
+        g, s = (
+            (i["genre"], i.get("sub")) if i.get("genre")
+            else genre_of.get(artist_of.get(t, -1), (None, None))
+        )
         seen[t] = i
         cands.append(Cand(t, artist_of.get(t), g, s, i.get("pool") or "library", repr(key)))
     target = genre_targets(profile_genre_shares(db, user.id), list(GENRES), cfg.queue_genre_epsilon)
