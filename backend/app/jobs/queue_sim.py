@@ -107,6 +107,20 @@ def discovery_positions(cards: list[dict]) -> list[int]:
     return [n for n, c in enumerate(cards) if c.get("source") not in (None, "library")]
 
 
+def overlap_cards(cards: list[dict], other: list[int], width: int = WINDOW) -> list[dict]:
+    """Tanı: iki oturumun ilk `width` kartında ortak çıkanlar; konumlar (0 tabanlı), kaynak, tür
+    ve o ana türün bu partideki kart sayısı (`main_n`; küçükse tür havuzu dar demektir)."""
+    where = {t: n for n, t in enumerate(other[:width])}
+    per_main = Counter(c.get("main") for c in cards)
+    return [
+        {
+            "at": n, "at2": where[c["track"]], "source": c.get("source") or "library",
+            "main": c.get("main"), "sub": c.get("sub"), "main_n": per_main[c.get("main")],
+        }
+        for n, c in enumerate(cards[:width]) if c["track"] in where
+    ]
+
+
 def metrics(cards: list[dict]) -> dict:
     """cards: sıralı {track, artist, main, sub, key, source} sözlükleri."""
     artists = [c.get("artist") for c in cards]
@@ -211,6 +225,8 @@ def run(email: str, size: int = 100, seed: int = 1, sampler: bool = True) -> dic
         out["discovery_positions"] = discovery_positions(cards)
         out["artist_known_share"] = round(out_resolved / len(tracks), 2) if tracks else 0.0
         out["requested"] = size
+        out["gumbel_tau"] = cfg.queue_gumbel_tau
+        out["main_counts"] = dict(Counter(c["main"] for c in cards).most_common())
         out["algo_version"] = runs[0]["algo_version"]
         # Tanı: 0 kartın nedeni (yanlış veritabanı / süresi dolmuş önbellek) buradan okunur.
         out["db"] = f"{engine.url.host}/{engine.url.database}"
@@ -222,6 +238,8 @@ def run(email: str, size: int = 100, seed: int = 1, sampler: bool = True) -> dic
         raw = [i["track"] for i in runs[3]["items"]]
         out["first_20_overlap_unseen"] = round(overlap(tracks[:WINDOW], raw[:WINDOW]), 3)
         out["two_session_overlap"] = round(overlap(tracks, second), 3)
+        out["overlap_cards"] = overlap_cards(cards, second)
+        out["overlap_cards_unseen"] = overlap_cards(cards, raw)
         out["gate"] = gate(out, out["first_20_overlap"], tracks == again)
         return out
 

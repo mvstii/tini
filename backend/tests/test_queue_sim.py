@@ -10,6 +10,7 @@ from app.jobs.queue_sim import (
     metrics,
     min_window_distinct,
     overlap,
+    overlap_cards,
     queue_url,
     sub_runs,
 )
@@ -110,3 +111,17 @@ def test_sub_runs_and_discovery_positions_locate_runs_and_sources():
 def test_queue_url_sends_seen_cards_as_recent():
     assert queue_url(100, 2) == "/votes/queue?limit=100&seed=2"
     assert queue_url(20, 1, [7, 9]) == "/votes/queue?limit=20&seed=1&recent=7&recent=9"
+
+
+def test_overlap_cards_lists_shared_head_cards_with_genre_pool_size():
+    cards = [
+        {"track": 1, "main": "rock", "sub": "indie", "source": None},
+        {"track": 2, "main": "jazz", "sub": None, "source": "probe"},
+        {"track": 3, "main": "rock", "sub": "punk", "source": "library"},
+    ]
+    out = overlap_cards(cards, [9, 2, 1, 3], width=2)
+    assert out == [
+        {"at": 1, "at2": 1, "source": "probe", "main": "jazz", "sub": None, "main_n": 1},
+    ]
+    assert [c["at"] for c in overlap_cards(cards, [3, 1, 2], width=3)] == [0, 1, 2]
+    assert overlap_cards(cards, [], width=3) == []
