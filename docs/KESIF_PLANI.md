@@ -320,6 +320,17 @@ Kütüphanesiz kullanıcıda kütüphane payı diğerlerine dağıtılır. Kayna
 - [x] `config.py`: `queue_mix_warm`, `queue_mix_mature`, `queue_genre_epsilon`, `queue_gumbel_tau`, `queue_coverage_kappa`, `queue_sim_window`, `queue_sim_max`, `queue_history_size`; `queue_algo_version` = `queue-8`; canlıda kapalı/sıfır başlar.
 - [x] `app/jobs/queue_sim.py` (salt okunur): 100 kartlık simülasyon → Çeşitlilik ve Tazelik kabul ölçütleri için geçti/kaldı (en kötü 20'lik pencerede ana tür, 20'de aynı sanatçı, son 4 aralığı, aynı şarkı sürümü, alt tür serisi, ilk 20 kart örtüşmesi, aynı tohumla özdeşlik) + keşif payı ve türü bilinmeyen kart payı. Kapsama ölçütü (ilk 50/200 oy) ölçülmez.
 
+**Kabul kapısı ilerlemesi (11 Kasım 2026; ayrıntı `docs/KESIF_OTURUM.md`, adımlar `SPEC.md`):**
+
+- [x] Aday fazlası (`queue_oversample`), türsüz aday nötr, kota anahtarı = havuz anahtarı, sonda/joker türü kapsama hücresinden.
+- [x] Kota temposu: `rerank` her yuvada en geride kalan kaynağı seçer; keşif kartları partiye yayılır (12, 37, 62, 87. yuva).
+- [x] Tazelik ölçüm tanımı (ilk 10 kart görülmüş sayılır); tazelik 0,10 ile geçiyor.
+- [x] Tanı işi `app/jobs/label_gap.py` (salt okunur): türsüz/sanatçısız parçaların neden dökümü.
+- [x] Ortak sanatçı kuralı `profile/track_artists.py` (paylaşılan `track.artist_id`, yoksa kullanıcıya özel `user_track_artist`); `queue_sim` ve `label_gap` bunu kullanır.
+- [ ] **Kuyruk aynı kuralı kullansın (SPEC 5c-3).** Kök neden: kuyruk kademe B bağını okumuyor; 276 oylanmamış parçanın 237'si kuyrukta sanatçısız ve türsüz sayılıyor, sanatçı aralığı ve alt tür kısıtları onlara uygulanmıyor. Karar bekliyor: düzeltme canlı `queue-7` yolunu da kapsasın mı.
+- [ ] Düzeltme sonrası 7 ölçüt yeniden ölçülür. **Gerçek taban çizgisi 3/7** (ana tür 4, aynı sanatçı 3, aralık 3 ihlal, alt tür serisi 2 kaldı; şarkı, tazelik, özdeşlik geçti). Daha önce raporlanan 5/7 ve 6/7, ölçümün bağlı sanatçıları görmemesinden kaynaklanıyordu.
+- [ ] Açık: 31 MBID'siz etiketsiz sanatçı (Last.fm anahtarı yokken kalıcı "etiketsiz" işaretlenmiş olabilir, doğrulanmadı); keşif payı 0,04; `rank` ≈ 1,2–2,0 sn (`queue-7` ≈ 0,1 sn).
+
 **Testler:** determinizm (aynı tohum → aynı sıra, farklı tohum → farklı sıra), seri üst sınırı, azınlık türün önden tükenmemesi, gevşeme sırası, ε=0 ve τ=0'da eski davranışa yakınsama, kaynak boşken parti boyutu.
 
 **Öğrenilen kavramlar:** calibrated recommendations (Steck, 2018), Gumbel-max hilesi, UCB tarzı iyimserlik, çok amaçlı yeniden sıralama.
@@ -479,7 +490,7 @@ python -m app.jobs.queue_sim --email <e-posta>   # PR-6 sonrası
 | PR-3 | İstemci kuyruk denetleyicisi | Uygulandı (emülatör ölçümü geliştiricide) | `feat/pr3-queue-controller` | Flutter 62/62, analyze temiz; backend 348 geçti/10 atlandı/0 hata, ruff temiz; "çıkmaz ekran 0" emülatörde ölçülmedi |
 | PR-4 | Evren: tür omurgası | Uygulandı (staging omurga raporu geliştiricide) | `feat/pr4-genre-spine` | Backend 370 geçti/11 atlandı/0 hata, ruff temiz; ayrı `genre_seed` + `track_popularity` (göç 0021), 77 alt tür; bayrak kapalı; omurga raporu ölçülmedi |
 | PR-5 | Kullanıcı modeli | Birleşti (#86, `866b9f1`) | `feat/pr5-user-model` | Backend 381 geçti/11 atlandı/0 hata, ruff temiz; göç yok, davranış değişmez (bandit PR-6 bağlar) |
-| PR-6 | Örnekleyici `queue-8` | Uygulandı (birleştirme onayı bekliyor) | `feat/pr6-sampler` | Backend 392 geçti/15 atlandı (geçici DB), ruff temiz; göç yok, bayrak `queue_sampler_enabled` kapalı; `queue_sim` canlı veride koşulacak |
+| PR-6 | Örnekleyici `queue-8` | Kabul kapısı düzeltmesi sürüyor (`queue_sim` 3/7; birleştirilmez) | `feat/pr6-sampler` | 11 Kasım: kök neden bulundu (kuyruk kademe B sanatçı bağını okumuyor); sıradaki SPEC 5c-3. Göç yok, bayrak `queue_sampler_enabled` kapalı; push yok; tam test paketi bugünkü commitlerle koşturulmadı |
 | PR-7 | Liste tarafı `list-6` | Başlamadı | | |
 
 Durum değerleri: Başlamadı · Analiz/onay bekliyor · Uygulanıyor · Canlıda (bayrak kapalı) · Tamamlandı

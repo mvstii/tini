@@ -2,9 +2,16 @@
 
 Bu dosya Claude Code oturumları arasında köprüdür. **Her oturumun başında okunur; her aşama bitiminde ve oturum kapanmadan önce güncellenir.** Program planı ve kapsam: `docs/KESIF_PLANI.md`. Kalıcı proje kayıtları: `docs/DURUM.md`.
 
-Son güncelleme: 2026-11-11 (PR-6: `queue_sim` kapısı KALDI; düzeltme adım 1+2 ve kaynak etiketi düzeltmesi uygulandı, yeniden ölçüm bekliyor)
+Son güncelleme: 2026-11-11 gece (PR-6: gerçek taban çizgisi 3/7; kök neden bulundu, kuyruk düzeltmesi onay bekliyor)
 
 ## Aktif durum
+
+- **SIRADAKİ OTURUM BURADAN BAŞLAR (11 Kasım 2026 gece kapanışı).** Dal `feat/pr6-sampler`, son commit bu notun commit'i; push yok, çalışma ağacı temiz (`SPEC.md` git dışı).
+  - **Durum:** `queue-8` kapıdan **3/7** geçiyor (9. ölçüm, staging `ep-patient-star`). Kök neden: kuyruk sanatçıyı yalnız `Track.artist_id`'den okuyor; kullanıcıya özel kademe B bağını (`user_track_artist`) yok sayıyor. 276 oylanmamış parçanın 237'si bu yüzden kuyrukta sanatçısız/türsüz.
+  - **Sıradaki adım (SPEC 5c-3, onay bekliyor):** `backend/app/profile/api.py` `queue()` içinde aday satırları (`:181`), `voted_artists` (`:201`), `recent_artist` (`:230`) ve `backend/app/profile/sampled_queue.py:86` `missing` sanatçıları `profile/track_artists.py::track_artists` yardımcısına geçer; kırmızı→yeşil birim testi (bağlı parça `cands`'a girer, `unresolved`'a düşmez). Sonra geliştirici `queue_sim` koşturur.
+  - **Geliştiriciden beklenen karar:** düzeltme canlı `queue-7` yolunu da kapsasın mı (öneri: evet, tek kural; bedeli canlı sıra değişir) yoksa yalnız `queue_sampler_enabled` açıkken mi.
+  - **Sonrası:** ana tür hâlâ kalırsa 31 MBID'siz etiketsiz sanatçıya bak (Last.fm anahtarı yokken kalıcı "etiketsiz" işaretlenmiş olabilir; `fetch_tags` koşturmadan önce anahtarı geliştirici doğrular). Açık borçlar: keşif payı 0,04, `rank` gecikmesi, tam test paketi, `test_tracks.py::test_account_deletion_removes_later_and_comments` yalıtımı, `ep-noisy-scene` teyidi.
+  - Aşağıdaki maddeler tarih sırasıyla geçmiştir; en güncel ölçümler listenin sonundadır.
 
 - **Aktif PR:** PR-6 (Örnekleyici `queue-8`), dal `feat/pr6-sampler`. Kod, testler (392 geçti/15 atlandı/0 hata, ruff temiz) ve dokümanlar bitti; push ve birleştirme geliştirici onayında.
 - **Onay kaydı:** 10 Kasım 2026 — Aşama 2 raporu sunuldu; geliştirici "Onaylıyorum. Önerin üzerinden ilerleyelim" dedi ve find_card riski için "adaptöre `isrc_only`" seçti.
