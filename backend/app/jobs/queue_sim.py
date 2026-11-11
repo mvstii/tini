@@ -8,6 +8,7 @@ ilk 20 kartının örtüşmesi (ilk oturumun ilk 10 kartı görülmüş sayılar
 özdeşlik. Bilgi: keşif payı, türü bilinmeyen kart payı.
 ÖLÇÜLMEYEN: Kapsama ölçütü (ilk 50/200 oyda tür sayısı) oy simülasyonu ister; burada yok.
 CLI: python -m app.jobs.queue_sim --email EPOSTA [--size 100] [--seed 1] [--sampler/--no-sampler]
+     [--pairs 5]  (tazelik bu kadar tohum çiftinde de ölçülür; yalnız bilgi, kapıyı değiştirmez)
 """
 import argparse
 from collections import Counter
@@ -88,6 +89,22 @@ def duplicate_keys(keys: list) -> int:
 
 def overlap(a: list[int], b: list[int]) -> float:
     return len(set(a) & set(b)) / max(min(len(a), len(b)), 1)
+
+
+def pair_seeds(seed: int, pairs: int) -> list[tuple[int, int]]:
+    """Örtüşmeyen tohum çiftleri; ilki kapının ölçtüğü (seed, seed + 1) çiftidir."""
+    return [(seed + 2 * k, seed + 2 * k + 1) for k in range(max(pairs, 1))]
+
+
+def freshness_stats(values: list[float]) -> dict:
+    """Tanı: çiftler arası tazelik dağılımı ve eşiği geçen çift sayısı."""
+    if not values:
+        return {"pairs": 0}
+    return {
+        "pairs": len(values), "mean": round(sum(values) / len(values), 3),
+        "min": min(values), "max": max(values),
+        "passing": sum(1 for v in values if v < MAX_FIRST_OVERLAP), "values": values,
+    }
 
 
 def sub_runs(cards: list[dict]) -> list[dict]:
@@ -223,7 +240,7 @@ def _genre_of_item(item: dict, pair: tuple | None) -> tuple:
     return pair or (None, None)
 
 
-def run(email: str, size: int = 100, seed: int = 1, sampler: bool = True) -> dict:
+def run(email: str, size: int = 100, seed: int = 1, sampler: bool = True, pairs: int = 1) -> dict:
     cfg = ProfileSettings(queue_sampler_enabled=sampler, fast_queue_enabled=True)
     engine = make_engine()
     with Session(engine) as db:
@@ -243,6 +260,15 @@ def run(email: str, size: int = 100, seed: int = 1, sampler: bool = True) -> dic
                 client.get(queue_url(size, seed)).json(),
                 client.get(queue_url(size, seed + 1)).json(),
             ]
+            # Tek çift gürültülüdür (1 kart = 0,05); ek çiftlerde aynı ölçüm, yalnız bilgi.
+            fresh_values = [overlap(
+                [i["track"] for i in one["items"][:WINDOW]],
+                [i["track"] for i in runs[1]["items"][:WINDOW]],
+            )]
+            for a, b in pair_seeds(seed, pairs)[1:]:
+                head = [i["track"] for i in client.get(queue_url(size, a)).json()["items"]]
+                nxt = client.get(queue_url(size, b, head[:SEEN_BETWEEN_SESSIONS])).json()["items"]
+                fresh_values.append(overlap(head[:WINDOW], [i["track"] for i in nxt[:WINDOW]]))
         finally:
             app.dependency_overrides.clear()
         first = runs[0]["items"]
@@ -280,6 +306,7 @@ def run(email: str, size: int = 100, seed: int = 1, sampler: bool = True) -> dic
         again = [i["track"] for i in runs[2]["items"]]
         out["first_20_overlap"] = round(overlap(tracks[:WINDOW], second[:WINDOW]), 3)
         raw = [i["track"] for i in runs[3]["items"]]
+        out["freshness_pairs"] = freshness_stats([round(v, 3) for v in fresh_values])
         out["first_20_overlap_unseen"] = round(overlap(tracks[:WINDOW], raw[:WINDOW]), 3)
         out["two_session_overlap"] = round(overlap(tracks, second), 3)
         out["overlap_cards"] = overlap_cards(cards, second)
@@ -301,8 +328,9 @@ def main() -> None:
     p.add_argument("--size", type=int, default=100)
     p.add_argument("--seed", type=int, default=1)
     p.add_argument("--sampler", action=argparse.BooleanOptionalAction, default=True)
+    p.add_argument("--pairs", type=int, default=1)
     a = p.parse_args()
-    out = run(a.email, a.size, a.seed, a.sampler)
+    out = run(a.email, a.size, a.seed, a.sampler, a.pairs)
     verdicts = out.pop("gate")
     for k, v in out.items():
         print(f"{k}: {v}")

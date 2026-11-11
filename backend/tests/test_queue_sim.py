@@ -4,6 +4,7 @@ from app.jobs.queue_sim import (
     artist_gap_violations,
     discovery_positions,
     duplicate_keys,
+    freshness_stats,
     gate,
     library_head,
     longest_run,
@@ -12,6 +13,7 @@ from app.jobs.queue_sim import (
     min_window_distinct,
     overlap,
     overlap_cards,
+    pair_seeds,
     queue_url,
     sub_runs,
 )
@@ -139,6 +141,18 @@ def test_library_head_counts_tiers_and_marks_tracks():
     assert info[3] == {"tier": 0, "artist_tracks": 1, "pool": True}
     assert info[1] == {"tier": 0, "artist_tracks": 2, "pool": False}
     assert info[4]["tier"] == 1
+
+
+def test_pair_seeds_do_not_overlap_and_start_with_the_gate_pair():
+    assert pair_seeds(1, 3) == [(1, 2), (3, 4), (5, 6)]
+    assert pair_seeds(7, 0) == [(7, 8)]
+
+
+def test_freshness_stats_summarises_pairs_against_threshold():
+    out = freshness_stats([0.1, 0.2, 0.3])
+    assert out["pairs"] == 3 and out["mean"] == 0.2
+    assert (out["min"], out["max"], out["passing"]) == (0.1, 0.3, 1)  # 0,2 eşiği geçmez
+    assert freshness_stats([]) == {"pairs": 0}
 
 
 # --- Veritabanı okuması (kuyrukla aynı aday kuralı) ---
