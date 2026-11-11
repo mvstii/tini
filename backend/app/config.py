@@ -204,6 +204,7 @@ class ProfileSettings(BaseSettings):
     queue_mix_mature_votes: int = 200
     queue_genre_epsilon: float = 0.3  # kalibrasyon hedefinde eşit dağılım payı
     queue_gumbel_tau: float = 0.5  # 0 = deterministik sıra
+    queue_genre_jitter: float = 1.0  # tür açığına tohumlu kayma genişliği (kart); 0 = kapalı
     queue_coverage_kappa: float = 1.0  # az gezilmiş hücre iyimserliği
     queue_sim_window: int = 3  # graf benzerlik penceresi (son N sanatçı)
     queue_sim_max: float = 0.85  # pencere içinde izin verilen en yüksek kosinüs

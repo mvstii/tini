@@ -19,6 +19,7 @@ from app.profile.sampler import (
     Cand,
     genre_targets,
     interleave,
+    noisy_rank,
     rerank,
     source_mix,
     source_quota,
@@ -52,6 +53,8 @@ def sampled_items(
             db, user, adapter or (lambda: connected_adapter(db, user, http)), now, size,
             nb_exclude, cfg, rcfg, gcfg,
         )
+    # Tazelik: öneri sırası tohumla sarsılır; yoksa her oturumda aynı öneri aynı yuvaya düşer.
+    neighborhood = noisy_rank(neighborhood, cfg.queue_gumbel_tau, seed, lambda i: i["track"])
     theta = genre_theta(db, user.id, seed, rcfg)
     probe, joker = probe_and_joker(
         db, user.id, now, nb_exclude | {i["track"] for i in neighborhood},
@@ -73,12 +76,12 @@ def sampled_items(
     # Kaynak yetmezse payı diğerlerine kayar; rerank kotanın k katı adaydan `size` kart seçer.
     quota = source_quota(mix, {s: len(p) for s, p in pools.items()}, size)
     cands = interleave(pools, quota, k)
-    return _rerank_items(db, user, cands, prior, voted_meta, size, cfg, quota), ready_total
+    return _rerank_items(db, user, cands, prior, voted_meta, size, cfg, quota, seed), ready_total
 
 
 def _rerank_items(
     db: Session, user: User, items: list[dict], prior: Sequence[int], voted_meta: Sequence[tuple],
-    size: int, cfg: ProfileSettings, quota: Mapping[str, int] | None = None,
+    size: int, cfg: ProfileSettings, quota: Mapping[str, int] | None = None, seed: int = 0,
 ) -> list[dict]:
     tracks = [i["track"] for i in items]
     artist_of = {i["track"]: i["artist"] for i in items if i.get("artist") is not None}
@@ -103,7 +106,10 @@ def _rerank_items(
         cands.append(Cand(t, artist_of.get(t), g, s, i.get("pool") or "library", repr(key)))
     target = genre_targets(profile_genre_shares(db, user.id), list(GENRES), cfg.queue_genre_epsilon)
     prior_subs = [genre_of.get(a, (None, None))[1] for a in prior]
-    ordered = rerank(cands, target, size, cfg, list(prior), prior_subs, quota=quota)
+    ordered = rerank(
+        cands, target, size, cfg, list(prior), prior_subs, quota=quota,
+        seed=seed, jitter=cfg.queue_genre_jitter,
+    )
     return [
         {k: v for k, v in seen[c.track].items() if k not in ("artist", "genre", "sub", "pool")}
         for c in ordered

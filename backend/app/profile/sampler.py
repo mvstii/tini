@@ -99,6 +99,19 @@ def gumbel_order(scores: Mapping[Hashable, float], tau: float, seed: int) -> lis
     return sorted(scores, key=key)
 
 
+def noisy_rank(items: Sequence, tau: float, seed: int, key: Callable[[object], Hashable]) -> list:
+    """Sıralı listeyi tohumla sarsar: puan = −i/n + τ·G (G Gumbel). τ=0 sırayı korur; baştaki
+    öğeler başa yakın kalır ama oturumdan oturuma aynı öğe aynı yere düşmez."""
+    if tau <= 0 or len(items) < 2:
+        return list(items)
+    n = len(items)
+    scores = {i: -i / n for i in range(n)}
+    noise = {
+        i: -math.log(-math.log(seeded_unit(seed, f"rank:{key(items[i])}"))) for i in range(n)
+    }
+    return [items[i] for i in sorted(scores, key=lambda i: (-(scores[i] + tau * noise[i]), i))]
+
+
 def genre_targets(
     shares: Mapping[str, float], genres: Sequence[str], epsilon: float
 ) -> dict[str, float]:
@@ -121,6 +134,8 @@ def rerank(
     prior_subs: Sequence[str | None] = (),
     sim: Callable[[int, int], float] | None = None,
     quota: Mapping[str, int] | None = None,
+    seed: int = 0,
+    jitter: float = 0.0,
 ) -> list[Cand]:
     """Aday sırasını (öncelik) koruyup yuva yuva seçer; ilk `limit` aday. Havuz `limit`ten
     büyükse kısıtları bozan adaylar elenir (yalnız sıralama değil, seçim).
@@ -132,7 +147,9 @@ def rerank(
     tekilliği, kaynak kotası (`quota[kaynak]` dolunca o kaynaktan alınmaz).
     Kota aynı zamanda tempodur: her yuvada en geride kalan kaynak seçilir, tür kalibrasyonu
     o kaynağın adayları içinde çalışır.
-    Uygun aday yoksa kademeli gevşeme: alt tür, benzerlik, ana tür (kalibrasyon), kota, sanatçı."""
+    Uygun aday yoksa kademeli gevşeme: alt tür, benzerlik, ana tür (kalibrasyon), kota, sanatçı.
+    `jitter` > 0 ise her türün açığına tohumlu sabit bir kayma (±jitter/2 kart) eklenir: türün
+    partideki payı en çok o kadar oynar, ama az adaylı tür her oturumda aynı yuvaya düşmez."""
     pool = list(cands)
     out: list[Cand] = []
     artists = list(prior_artists)
@@ -150,6 +167,10 @@ def rerank(
         set(),
     )
     gap = cfg.queue_artist_gap
+    shift: dict[str | None, float] = {
+        g: jitter * (seeded_unit(seed, f"genre:{g}") - 0.5) if jitter > 0 else 0.0
+        for g in (*target, None)
+    }
 
     def full(c: Cand) -> bool:
         return quota is not None and used.get(c.source, 0) >= quota.get(c.source, 0)
@@ -160,9 +181,10 @@ def rerank(
             break
         n = len(out) + 1
         deficit: dict[str | None, float] = {
-            g: target.get(g, 0.0) * (1 - unknown) * n - counts.get(g, 0) for g in target
+            g: target.get(g, 0.0) * (1 - unknown) * n - counts.get(g, 0) + shift[g]
+            for g in target
         }
-        deficit[None] = unknown * n - counts.get(None, 0)
+        deficit[None] = unknown * n - counts.get(None, 0) + shift[None]
         recent_artists = set(artists[-gap:]) if gap > 0 else set()
         window = [a for a in artists[-cfg.queue_sim_window:]] if cfg.queue_sim_window > 0 else []
         chosen: Cand | None = None
