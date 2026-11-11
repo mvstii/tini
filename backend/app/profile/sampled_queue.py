@@ -61,7 +61,13 @@ def sampled_items(
          "artist": fresh[t][1]}
         for t in library[: size * k]
     ]
-    pools = {"library": lib, "neighborhood": neighborhood, "probe": probe, "joker": joker}
+    # `pool`: kota anahtarı. Öğedeki `source` görüntü etiketidir (mahallede "suggested");
+    # algoritmaya girmez.
+    pools = {
+        s: [{**i, "pool": s} for i in p]
+        for s, p in (("library", lib), ("neighborhood", neighborhood), ("probe", probe),
+                     ("joker", joker))
+    }
     mix = source_mix(len(voted_ids), size, {s: bool(p) for s, p in pools.items()}, cfg)
     # Kaynak yetmezse payı diğerlerine kayar; rerank kotanın k katı adaydan `size` kart seçer.
     quota = source_quota(mix, {s: len(p) for s, p in pools.items()}, size)
@@ -93,11 +99,11 @@ def _rerank_items(
             continue
         g, s = genre_of.get(artist_of.get(t, -1), (None, None))
         seen[t] = i
-        cands.append(Cand(t, artist_of.get(t), g, s, i.get("source") or "library", repr(key)))
+        cands.append(Cand(t, artist_of.get(t), g, s, i.get("pool") or "library", repr(key)))
     target = genre_targets(profile_genre_shares(db, user.id), list(GENRES), cfg.queue_genre_epsilon)
     prior_subs = [genre_of.get(a, (None, None))[1] for a in prior]
     ordered = rerank(cands, target, size, cfg, list(prior), prior_subs, quota=quota)
     return [
-        {k: v for k, v in seen[c.track].items() if k not in ("artist", "genre", "sub")}
+        {k: v for k, v in seen[c.track].items() if k not in ("artist", "genre", "sub", "pool")}
         for c in ordered
     ]
