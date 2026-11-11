@@ -22,8 +22,9 @@ from app.config import ProfileSettings, get_profile_settings
 from app.db import make_engine
 from app.deps import current_user, get_db
 from app.main import app
-from app.models import Track, User
+from app.models import User
 from app.profile.queue import song_key
+from app.profile.track_artists import track_artists
 
 # Kabul ölçütleri (docs/KESIF_PLANI.md "Kabul ölçütleri" tablosu); algoritma parametresi değildir.
 WINDOW = 20
@@ -188,10 +189,11 @@ def run(email: str, size: int = 100, seed: int = 1, sampler: bool = True) -> dic
             app.dependency_overrides.clear()
         first = runs[0]["items"]
         tracks = [i["track"] for i in first]
-        artist_of = dict(
-            db.execute(select(Track.id, Track.artist_id).where(Track.id.in_(tracks))).all()
-        )
-        genre_of = load_genre_pairs(db, {a for a in artist_of.values() if a is not None})
+        # Paylaşılan sanatçı, yoksa kullanıcıya özel bağ (kademe B); yalnız `Track.artist_id`
+        # okumak bağlı parçaları sanatçısız ve türsüz gösteriyordu.
+        artist_of = track_artists(db, user.id, tracks)
+        genre_of = load_genre_pairs(db, set(artist_of.values()))
+        out_resolved = sum(1 for t in tracks if t in artist_of)
         cards = []
         for i in first:
             artist = artist_of.get(i["track"])
@@ -207,6 +209,7 @@ def run(email: str, size: int = 100, seed: int = 1, sampler: bool = True) -> dic
         out = metrics(cards)
         out["sub_runs"] = sub_runs(cards)
         out["discovery_positions"] = discovery_positions(cards)
+        out["artist_known_share"] = round(out_resolved / len(tracks), 2) if tracks else 0.0
         out["requested"] = size
         out["algo_version"] = runs[0]["algo_version"]
         # Tanı: 0 kartın nedeni (yanlış veritabanı / süresi dolmuş önbellek) buradan okunur.

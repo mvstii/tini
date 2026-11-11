@@ -25,6 +25,7 @@ from app.models import (
     UserTrackLink,
     VoteEvent,
 )
+from app.profile.track_artists import track_artists
 from app.recommend.genres import main_genre
 
 GROUPS = ("never_tried", "tried_no_tags", "tags_unmapped", "labeled")
@@ -125,7 +126,9 @@ def run(email: str, top: int = 30) -> dict:
             .where(UserTrackLink.user_id == user.id, Track.id.not_in(voted))
             .distinct()
         ).all()
-        ids = {a for _, a in rows if a is not None}
+        # Kuyrukla aynı kural: paylaşılan sanatçı, yoksa kullanıcıya özel bağ (kademe B).
+        artist_of = track_artists(db, user.id, [t for t, _ in rows])
+        ids = set(artist_of.values())
         attempted = set(
             db.scalars(select(ArtistTagFetch.artist_id).where(ArtistTagFetch.artist_id.in_(ids)))
         )
@@ -138,8 +141,9 @@ def run(email: str, top: int = 30) -> dict:
         with_mbid = set(
             db.scalars(select(Artist.id).where(Artist.id.in_(ids), Artist.mbid.is_not(None)))
         )
-        out = label_gap([a for _, a in rows], attempted, tags, with_mbid, top)
-        out["artistless"] = _artistless(db, user.id, [t for t, a in rows if a is None])
+        out = label_gap([artist_of.get(t) for t, _ in rows], attempted, tags, with_mbid, top)
+        # Paylaşılan sanatçısı (`track.artist_id`) olmayan parçaların dökümü.
+        out["no_shared_artist"] = _artistless(db, user.id, [t for t, a in rows if a is None])
         out["db"] = f"{engine.url.host}/{engine.url.database}"
         return out
 
