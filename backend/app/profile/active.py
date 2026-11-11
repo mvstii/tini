@@ -5,10 +5,12 @@ skor dağılımındaki mid-rank persentili p ise 1 - |2p - 1| (medyanda 1, uçla
 (grafikte olmayan veya skoru 0) sanatçıya yapılandırmadaki sabit değer verilir.
 """
 import hashlib
+import math
 from bisect import bisect_left, bisect_right
 from collections.abc import Mapping, Sequence
 
 from app.config import ProfileSettings
+from app.profile.sampler import seeded_unit
 
 
 def _key(seed: int, ident: int) -> str:
@@ -89,10 +91,14 @@ def order_active(
     voted_artists: set[int],
     seed: int,
     cfg: ProfileSettings,
+    tau: float = 0.0,
 ) -> list[int]:
     """cands: (track_id, artist_id). Oy almamış sanatçılar önce; her sanatçıdan sırayla birer
     parça (çeşitlilik). Tur içinde sıra: belirsizlik + havuz bonusu (azalan), eşitlikte tohumlu
-    özet. Sanatçı içinde havuzdaki parça önce gelir."""
+    özet. Sanatçı içinde havuzdaki parça önce gelir.
+
+    `tau` > 0 ise puana tohumlu Gumbel gürültüsü (τ·G) eklenir: oturumlar arası tazelik için
+    baş taraf tohumla değişir, tur ve oy almamış-önce kuralı korunur. τ=0 saf puan sırası."""
     by_artist: dict[int, list[int]] = {}
     for track, artist in cands:
         by_artist.setdefault(artist, []).append(track)
@@ -103,6 +109,8 @@ def order_active(
         ordered = sorted(tracks, key=lambda t: (t not in pool, _key(seed, t)))
         for idx, track in enumerate(ordered):
             score = base + (cfg.active_pool_bonus if track in pool else 0.0)
+            if tau > 0:
+                score += tau * -math.log(-math.log(seeded_unit(seed, f"active:{track}")))
             ranked.append((idx, tier, -score, _key(seed, track), track))
     ranked.sort()
     return [r[4] for r in ranked]

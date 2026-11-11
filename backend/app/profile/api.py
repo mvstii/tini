@@ -42,6 +42,7 @@ from app.profile.sampled_queue import sampled_items
 from app.profile.scoring import VoteEvt, score_votes
 from app.profile.service import rebuild_profile, unheard_statuses
 from app.profile.suggest import connected_adapter, ready_suggestions, suggest_items
+from app.profile.track_artists import track_artists
 from app.profile.unheard import next_state
 from app.timing import Stages
 
@@ -196,13 +197,8 @@ def queue(
     ).all()
     now = datetime.now(UTC)
     fresh = {r[0]: r for r in rows if r[4] is not None and r[4] > now}
-    voted_artists = set(
-        db.scalars(
-            select(Track.artist_id)
-            .join(VoteEvent, VoteEvent.track_id == Track.id)
-            .where(VoteEvent.user_id == user.id, Track.artist_id.is_not(None))
-        )
-    )
+    # Sanatçı: paylaşılan `track.artist_id`, yoksa kullanıcıya özel bağ (profille aynı kural).
+    voted_artists = set(track_artists(db, user.id, db.scalars(voted)).values())
     statuses = unheard_statuses(db, user.id, cfg)
     expired = {s.track_id for s in statuses if s.state == "expired"}
     pool = {s.track_id for s in statuses} - expired
@@ -218,19 +214,22 @@ def queue(
     keep = pick_versions(
         [(t, r[2], r[3]) for t, r in fresh.items()], voted_meta, pool, cfg.queue_version_markers
     )
-    fresh = {t: r for t, r in fresh.items() if t in keep}
+    art = track_artists(db, user.id, keep)
+    fresh = {t: (r[0], art.get(t), *r[2:]) for t, r in fresh.items() if t in keep}
     cands = [(r[0], r[1]) for r in fresh.values() if r[1] is not None]
     unresolved = [t for t, r in fresh.items() if r[1] is None]
     st.lap("candidates")
     unc = artist_uncertainties(db, user.id, {a for _, a in cands}, cfg, rcfg, gcfg)
     st.lap("uncertainty")
-    order = order_active(cands, unc, pool & set(fresh), voted_artists, seed, cfg)
-    artist_of = dict(cands)
-    recent_artist = dict(db.execute(
-        select(Track.id, Track.artist_id).where(Track.id.in_(recent_set))
-    ).all()) if recent_set else {}
-    prior = [recent_artist[t] for t in recent if recent_artist.get(t) is not None]
     sampled = cfg.queue_sampler_enabled
+    # queue-8: kütüphane sırasına tohumlu gürültü (tazelik); queue-7 saf puan sırasında kalır.
+    order = order_active(
+        cands, unc, pool & set(fresh), voted_artists, seed, cfg,
+        tau=cfg.queue_gumbel_tau if sampled else 0.0,
+    )
+    artist_of = dict(cands)
+    recent_artist = track_artists(db, user.id, recent_set)
+    prior = [recent_artist[t] for t in recent if recent_artist.get(t) is not None]
     if sampled:
         # queue-8: dört kaynaktan birleşik havuz + rerank (profile/sampled_queue.py).
         items, ready_total = sampled_items(

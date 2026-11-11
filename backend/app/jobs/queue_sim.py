@@ -1,11 +1,17 @@
 """Kuyruk simülasyonu (PR-6, salt okuma): bir kullanıcı için 100 kartlık kuyruk üretir ve
-çeşitlilik ölçütlerini yazdırır. Hiçbir şey yazmaz (hızlı yol, servis çağrısı yok).
+KESIF_PLANI kabul ölçütlerini (Çeşitlilik, Tazelik) ölçüp geçti/kaldı yazdırır.
+Hiçbir şey yazmaz (hızlı yol, servis çağrısı yok).
 
-Ölçütler: en uzun aynı-tür serisi, 20'lik pencerede ayrı tür sayısı, sanatçı tekrarı, keşif
-(kütüphane dışı) payı, iki oturum (farklı tohum) örtüşmesi.
+Ölçülenler: 20'lik en kötü pencerede ana tür sayısı, 20'lik pencerede aynı sanatçı üst sınırı,
+sanatçı aralığı ihlali (son 4), aynı şarkı sürümü, en uzun aynı alt tür serisi, iki oturumun
+ilk 20 kartının örtüşmesi (ilk oturumun ilk 10 kartı görülmüş sayılarak), aynı tohumla
+özdeşlik. Bilgi: keşif payı, türü bilinmeyen kart payı.
+ÖLÇÜLMEYEN: Kapsama ölçütü (ilk 50/200 oyda tür sayısı) oy simülasyonu ister; burada yok.
 CLI: python -m app.jobs.queue_sim --email EPOSTA [--size 100] [--seed 1] [--sampler/--no-sampler]
+     [--pairs 5]  (tazelik kapısı bu kadar tohum çiftinin ortalamasıdır)
 """
 import argparse
+from collections import Counter
 from itertools import groupby
 
 from fastapi.testclient import TestClient
@@ -17,14 +23,32 @@ from app.config import ProfileSettings, get_profile_settings
 from app.db import make_engine
 from app.deps import current_user, get_db
 from app.main import app
-from app.models import Track, User
+from app.models import ListenLater, User, UserTrackLink, VoteEvent
+from app.profile.queue import song_key
+from app.profile.service import unheard_statuses
+from app.profile.track_artists import track_artists
+
+# Kabul ölçütleri (docs/KESIF_PLANI.md "Kabul ölçütleri" tablosu); algoritma parametresi değildir.
+WINDOW = 20
+MIN_MAIN_GENRES = 5
+MAX_SAME_ARTIST = 2
+ARTIST_GAP = 4
+MAX_SUB_RUN = 1
+MAX_FIRST_OVERLAP = 0.20
+# Tazelik: ikinci oturumdan önce ilk oturumun baştaki bu kadar kartı görülmüş sayılır (istemcinin
+# `recent` parametresiyle; yazma yok). Geliştirici kararı, 11 Kasım 2026.
+SEEN_BETWEEN_SESSIONS = 10
+# Tazelik kapısı bu kadar örtüşmeyen tohum çiftinin ortalamasıdır: tek çiftte 1 kart 0,05 oynatır
+# ve sonuç tohum seçimine bağlı kalır. Geliştirici kararı, 12 Kasım 2026.
+FRESHNESS_PAIRS = 5
 
 
 def longest_run(labels: list) -> int:
-    return max((len(list(g)) for _, g in groupby(labels)), default=0)
+    """En uzun ardışık aynı etiket serisi; bilinmeyen (None) seri sayılmaz, seriyi böler."""
+    return max((len(list(g)) for k, g in groupby(labels) if k is not None), default=0)
 
 
-def window_distinct(labels: list, width: int = 20) -> float:
+def window_distinct(labels: list, width: int = WINDOW) -> float:
     """Kayan pencerelerde ortalama ayrı etiket sayısı."""
     if len(labels) < width:
         return float(len(set(labels)))
@@ -32,23 +56,197 @@ def window_distinct(labels: list, width: int = 20) -> float:
     return sum(wins) / len(wins)
 
 
+def _windows(items: list, width: int) -> list[list]:
+    if len(items) <= width:
+        return [items]
+    return [items[i:i + width] for i in range(len(items) - width + 1)]
+
+
+def min_window_distinct(labels: list, width: int = WINDOW) -> int:
+    """En kötü penceredeki ayrı (bilinen) etiket sayısı."""
+    return min(len({x for x in w if x is not None}) for w in _windows(labels, width))
+
+
+def max_per_window(labels: list, width: int = WINDOW) -> int:
+    """Herhangi bir pencerede tek bir (bilinen) etiketin en çok görülme sayısı."""
+    best = 0
+    for w in _windows(labels, width):
+        counts = Counter(x for x in w if x is not None)
+        best = max(best, max(counts.values(), default=0))
+    return best
+
+
+def artist_gap_violations(artists: list, gap: int = ARTIST_GAP) -> int:
+    """Önceki `gap` kart içinde aynı sanatçısı bulunan kart sayısı."""
+    return sum(
+        1 for i, a in enumerate(artists)
+        if a is not None and a in artists[max(0, i - gap):i]
+    )
+
+
+def duplicate_keys(keys: list) -> int:
+    """Aynı şarkı anahtarının fazladan görülme sayısı (None sayılmaz)."""
+    counts = Counter(k for k in keys if k is not None)
+    return sum(n - 1 for n in counts.values())
+
+
 def overlap(a: list[int], b: list[int]) -> float:
     return len(set(a) & set(b)) / max(min(len(a), len(b)), 1)
 
 
-def metrics(tracks: list[int], artist_of: dict, genre_of: dict, sources: list) -> dict:
-    artists = [artist_of.get(t) for t in tracks]
-    genres = [(genre_of.get(a) or (None, None))[0] for a in artists]
+def pair_seeds(seed: int, pairs: int) -> list[tuple[int, int]]:
+    """Örtüşmeyen tohum çiftleri; ilki kapının ölçtüğü (seed, seed + 1) çiftidir."""
+    return [(seed + 2 * k, seed + 2 * k + 1) for k in range(max(pairs, 1))]
+
+
+def freshness_stats(values: list[float]) -> dict:
+    """Çiftler arası tazelik: ortalama (kapı ölçütü), dağılım ve eşiği geçen çift sayısı."""
+    if not values:
+        return {"pairs": 0}
     return {
-        "cards": len(tracks),
-        "longest_same_genre_run": longest_run(genres),
-        "avg_distinct_genres_per_20": round(window_distinct(genres), 2),
-        "artist_repeats": len(artists) - len(set(artists)),
-        "discovery_share": round(sum(1 for s in sources if s) / max(len(sources), 1), 3),
+        "pairs": len(values), "mean": round(sum(values) / len(values), 3),
+        "min": min(values), "max": max(values),
+        "passing": sum(1 for v in values if v < MAX_FIRST_OVERLAP), "values": values,
     }
 
 
-def run(email: str, size: int = 100, seed: int = 1, sampler: bool = True) -> dict:
+def sub_runs(cards: list[dict]) -> list[dict]:
+    """Tanı: 2+ uzunluktaki aynı alt tür serileri; konum (0 tabanlı), alt tür ve kart kaynakları."""
+    out, pos = [], 0
+    for sub, grp in groupby(cards, key=lambda c: c.get("sub")):
+        run = list(grp)
+        if sub is not None and len(run) > 1:
+            out.append({
+                "at": pos, "sub": sub, "sources": [c.get("source") or "library" for c in run],
+            })
+        pos += len(run)
+    return out
+
+
+def discovery_positions(cards: list[dict]) -> list[int]:
+    """Tanı: kütüphane dışı kartların sırası (0 tabanlı); sona yığılma buradan görülür."""
+    return [n for n, c in enumerate(cards) if c.get("source") not in (None, "library")]
+
+
+def overlap_cards(cards: list[dict], other: list[int], width: int = WINDOW) -> list[dict]:
+    """Tanı: iki oturumun ilk `width` kartında ortak çıkanlar; konumlar (0 tabanlı), kaynak, tür
+    ve o ana türün bu partideki kart sayısı (`main_n`; küçükse tür havuzu dar demektir)."""
+    where = {t: n for n, t in enumerate(other[:width])}
+    per_main = Counter(c.get("main") for c in cards)
+    return [
+        {
+            "track": c["track"], "at": n, "at2": where[c["track"]],
+            "source": c.get("source") or "library",
+            "main": c.get("main"), "sub": c.get("sub"), "main_n": per_main[c.get("main")],
+        }
+        for n, c in enumerate(cards[:width]) if c["track"] in where
+    ]
+
+
+def library_head(
+    cands: list[tuple[int, int]], voted_artists: set[int], pool: set[int]
+) -> tuple[dict, dict[int, dict]]:
+    """Tanı: `order_active`'in katı önceliklerinin baş tarafı ne kadar daralttığı.
+    cands: (parça, sanatçı). Kademe 0 = oy almamış sanatçı (her zaman önce gelir).
+    Döner: özet ve parça -> {tier, artist_tracks, pool}. `artist_tracks` 1 ise parça her
+    tohumda sanatçısının ilk tur adayıdır; `pool` havuz bonusu aldığını gösterir."""
+    per_artist = Counter(a for _, a in cands)
+    pooled = {a for t, a in cands if t in pool}
+    tier0 = set(per_artist) - voted_artists
+    summary = {
+        "tier0_artists": len(tier0),
+        "tier1_artists": len(per_artist) - len(tier0),
+        "tier0_single_track_artists": sum(1 for a in tier0 if per_artist[a] == 1),
+        "tier0_pool_artists": len(tier0 & pooled),
+        "tracks": len(cands),
+    }
+    info = {
+        t: {"tier": 1 if a in voted_artists else 0, "artist_tracks": per_artist[a],
+            "pool": t in pool}
+        for t, a in cands
+    }
+    return summary, info
+
+
+def _library_state(db: Session, user: User, cfg: ProfileSettings) -> tuple:
+    """Kuyruğun kütüphane adayları (yaklaşık: önbellek süresi ve sürüm elemesi uygulanmaz),
+    oy almış sanatçılar ve Unheard havuzu; `api.queue` ile aynı kurallar, salt okuma."""
+    voted = select(VoteEvent.track_id).where(VoteEvent.user_id == user.id)
+    later = select(ListenLater.track_id).where(ListenLater.user_id == user.id)
+    tracks = set(db.scalars(
+        select(UserTrackLink.track_id).where(
+            UserTrackLink.user_id == user.id,
+            UserTrackLink.track_id.not_in(voted),
+            UserTrackLink.track_id.not_in(later),
+        )
+    ))
+    voted_artists = set(track_artists(db, user.id, db.scalars(voted)).values())
+    pool = {s.track_id for s in unheard_statuses(db, user.id, cfg) if s.state != "expired"}
+    return list(track_artists(db, user.id, tracks).items()), voted_artists, pool
+
+
+def metrics(cards: list[dict]) -> dict:
+    """cards: sıralı {track, artist, main, sub, key, source} sözlükleri."""
+    artists = [c.get("artist") for c in cards]
+    mains = [c.get("main") for c in cards]
+    n = max(len(cards), 1)
+    return {
+        "cards": len(cards),
+        "min_main_genres_per_20": min_window_distinct(mains),
+        "avg_main_genres_per_20": round(window_distinct([m for m in mains if m is not None]), 2),
+        "max_same_artist_per_20": max_per_window(artists),
+        "artist_gap_violations": artist_gap_violations(artists),
+        "duplicate_songs": duplicate_keys([c.get("key") for c in cards]),
+        "longest_same_sub_genre_run": longest_run([c.get("sub") for c in cards]),
+        "longest_same_genre_run": longest_run(mains),
+        "discovery_share": round(
+            sum(1 for c in cards if c.get("source") not in (None, "library")) / n, 3
+        ),
+        "unknown_genre_share": round(sum(1 for m in mains if m is None) / n, 3),
+    }
+
+
+def gate(m: dict, first_overlap: float, same_seed_identical: bool) -> dict[str, tuple[bool, str]]:
+    """Ölçüt adı -> (geçti mi, 'ölçülen / eşik')."""
+    return {
+        "main_genres_per_20": (
+            m["min_main_genres_per_20"] >= MIN_MAIN_GENRES,
+            f"{m['min_main_genres_per_20']} / >= {MIN_MAIN_GENRES}",
+        ),
+        "same_artist_per_20": (
+            m["max_same_artist_per_20"] <= MAX_SAME_ARTIST,
+            f"{m['max_same_artist_per_20']} / <= {MAX_SAME_ARTIST}",
+        ),
+        "artist_gap": (m["artist_gap_violations"] == 0, f"{m['artist_gap_violations']} / 0"),
+        "duplicate_songs": (m["duplicate_songs"] == 0, f"{m['duplicate_songs']} / 0"),
+        "sub_genre_run": (
+            m["longest_same_sub_genre_run"] <= MAX_SUB_RUN,
+            f"{m['longest_same_sub_genre_run']} / <= {MAX_SUB_RUN}",
+        ),
+        "freshness": (
+            first_overlap < MAX_FIRST_OVERLAP, f"{first_overlap:.3f} / < {MAX_FIRST_OVERLAP}"
+        ),
+        "determinism": (same_seed_identical, f"{same_seed_identical} / True"),
+    }
+
+
+def queue_url(size: int, seed: int, recent: list[int] = ()) -> str:
+    """Kuyruk isteği; `recent` istemcide zaten görülmüş parçalardır (eskiden yeniye)."""
+    return f"/votes/queue?limit={size}&seed={seed}" + "".join(f"&recent={t}" for t in recent)
+
+
+def _genre_of_item(item: dict, pair: tuple | None) -> tuple:
+    """Sonda/joker kartında tür kapsama gerekçesinden, diğerlerinde sanatçı etiketinden gelir."""
+    for r in item.get("reasons") or []:
+        if r.get("kind") == "coverage":
+            return r.get("main_genre"), r.get("sub_genre")
+    return pair or (None, None)
+
+
+def run(
+    email: str, size: int = 100, seed: int = 1, sampler: bool = True,
+    pairs: int = FRESHNESS_PAIRS,
+) -> dict:
     cfg = ProfileSettings(queue_sampler_enabled=sampler, fast_queue_enabled=True)
     engine = make_engine()
     with Session(engine) as db:
@@ -60,22 +258,73 @@ def run(email: str, size: int = 100, seed: int = 1, sampler: bool = True) -> dic
         app.dependency_overrides[get_profile_settings] = lambda: cfg
         try:
             client = TestClient(app)
+            one = client.get(queue_url(size, seed)).json()
+            seen = [i["track"] for i in one["items"][:SEEN_BETWEEN_SESSIONS]]
             runs = [
-                client.get(f"/votes/queue?limit={size}&seed={s}").json()
-                for s in (seed, seed + 1)
+                one,
+                client.get(queue_url(size, seed + 1, seen)).json(),
+                client.get(queue_url(size, seed)).json(),
+                client.get(queue_url(size, seed + 1)).json(),
             ]
+            # Tek çift gürültülüdür (1 kart = 0,05); kapı çiftlerin ortalamasına bakar.
+            fresh_values = [overlap(
+                [i["track"] for i in one["items"][:WINDOW]],
+                [i["track"] for i in runs[1]["items"][:WINDOW]],
+            )]
+            for a, b in pair_seeds(seed, pairs)[1:]:
+                head = [i["track"] for i in client.get(queue_url(size, a)).json()["items"]]
+                nxt = client.get(queue_url(size, b, head[:SEEN_BETWEEN_SESSIONS])).json()["items"]
+                fresh_values.append(overlap(head[:WINDOW], [i["track"] for i in nxt[:WINDOW]]))
         finally:
             app.dependency_overrides.clear()
         first = runs[0]["items"]
         tracks = [i["track"] for i in first]
-        artist_of = dict(
-            db.execute(select(Track.id, Track.artist_id).where(Track.id.in_(tracks))).all()
-        )
-        genre_of = load_genre_pairs(db, {a for a in artist_of.values() if a is not None})
-        out = metrics(tracks, artist_of, genre_of, [i.get("source") for i in first])
+        # Paylaşılan sanatçı, yoksa kullanıcıya özel bağ (kademe B); yalnız `Track.artist_id`
+        # okumak bağlı parçaları sanatçısız ve türsüz gösteriyordu.
+        artist_of = track_artists(db, user.id, tracks)
+        genre_of = load_genre_pairs(db, set(artist_of.values()))
+        out_resolved = sum(1 for t in tracks if t in artist_of)
+        cards = []
+        for i in first:
+            artist = artist_of.get(i["track"])
+            main, sub = _genre_of_item(i, genre_of.get(artist))
+            key = (
+                repr(song_key(i["title"], i.get("artists"), cfg.queue_version_markers))
+                if i.get("title") else None
+            )
+            cards.append({
+                "track": i["track"], "artist": artist, "main": main, "sub": sub,
+                "key": key, "source": i.get("source"),
+            })
+        out = metrics(cards)
+        out["sub_runs"] = sub_runs(cards)
+        out["discovery_positions"] = discovery_positions(cards)
+        out["artist_known_share"] = round(out_resolved / len(tracks), 2) if tracks else 0.0
+        out["requested"] = size
+        out["gumbel_tau"] = cfg.queue_gumbel_tau
+        out["main_counts"] = dict(Counter(c["main"] for c in cards).most_common())
         out["algo_version"] = runs[0]["algo_version"]
+        # Tanı: 0 kartın nedeni (yanlış veritabanı / süresi dolmuş önbellek) buradan okunur.
+        out["db"] = f"{engine.url.host}/{engine.url.database}"
+        out["remaining"] = runs[0].get("remaining")
+        out["stale"] = runs[0].get("stale")
         second = [i["track"] for i in runs[1]["items"]]
+        again = [i["track"] for i in runs[2]["items"]]
+        out["first_20_overlap"] = round(overlap(tracks[:WINDOW], second[:WINDOW]), 3)
+        raw = [i["track"] for i in runs[3]["items"]]
+        out["freshness_pairs"] = freshness_stats([round(v, 3) for v in fresh_values])
+        out["first_20_overlap_unseen"] = round(overlap(tracks[:WINDOW], raw[:WINDOW]), 3)
         out["two_session_overlap"] = round(overlap(tracks, second), 3)
+        out["overlap_cards"] = overlap_cards(cards, second)
+        out["overlap_cards_unseen"] = overlap_cards(cards, raw)
+        # Tanı: ortak kartlar katı öncelikten mi geliyor (kademe, tek parçalı sanatçı, havuz)?
+        out["library_head"], info = library_head(*_library_state(db, user, cfg))
+        for c in out["overlap_cards"] + out["overlap_cards_unseen"]:
+            c.update(info.get(c["track"], {}))
+        out["head_20_library"] = dict(Counter(
+            (info[t]["tier"], info[t]["pool"]) for t in tracks[:WINDOW] if t in info
+        ))
+        out["gate"] = gate(out, out["freshness_pairs"]["mean"], tracks == again)
         return out
 
 
@@ -85,9 +334,19 @@ def main() -> None:
     p.add_argument("--size", type=int, default=100)
     p.add_argument("--seed", type=int, default=1)
     p.add_argument("--sampler", action=argparse.BooleanOptionalAction, default=True)
+    p.add_argument("--pairs", type=int, default=FRESHNESS_PAIRS)
     a = p.parse_args()
-    for k, v in run(a.email, a.size, a.seed, a.sampler).items():
+    out = run(a.email, a.size, a.seed, a.sampler, a.pairs)
+    verdicts = out.pop("gate")
+    for k, v in out.items():
         print(f"{k}: {v}")
+    measurable = out["cards"] >= WINDOW
+    if not measurable:
+        print(f"UYARI: {out['cards']} kart; {WINDOW}'lik pencere ölçütleri anlamsız.")
+    print("--- kapı (Çeşitlilik + Tazelik; Kapsama ölçülmedi) ---")
+    for name, (ok, detail) in verdicts.items():
+        label = ("GEÇTİ" if ok else "KALDI") if measurable else "ÖLÇÜLEMEDİ"
+        print(f"{label}  {name}: {detail}")
 
 
 if __name__ == "__main__":

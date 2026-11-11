@@ -17,6 +17,7 @@ from app.config import (
 from app.main import app
 from app.models import GenreSeed, Track, User, UserTrackMeta
 from app.profile.probe import probe_and_joker, resolve_seed_cards
+from app.profile.sampled_queue import _rerank_items
 from app.profile.sampler import SOURCES
 
 TTL = timedelta(seconds=get_settings().spotify_cache_ttl_seconds)
@@ -139,6 +140,53 @@ def test_queue8_mixes_sources_keeps_batch_size_and_is_seeded(client, db):
     assert {"probe", None} <= sources  # omurga ve kütüphane birlikte
     assert sources <= {*SOURCES, None}
     assert all(i["title"] for i in items)
+
+
+def test_rerank_quota_uses_pool_key_not_display_label(db):
+    """Mahalle öğesinin görüntü etiketi "suggested"dır; kota havuz anahtarıyla ("neighborhood")
+    sayılır. Etiket kotaya girerse mahalle adayları hep "dolu" görünür ve payını yitirir."""
+    db.add(User(email="p6@example.com", password_hash="x"))
+    db.flush()
+    u = user_of(db, "p6@example.com")
+
+    def item(k, pool, label=None):
+        art = mk_artist(db, f"P6{pool}{k}")
+        t = Track(isrc=f"ZZP6{pool[:1].upper()}{k:07d}", artist_id=art.id)
+        db.add(t)
+        db.flush()
+        out = {"track": t.id, "title": f"{pool} {k}", "artists": [art.name], "artist": art.id,
+               "pool": pool}
+        return {**out, "source": label} if label else out
+
+    lib = [item(k, "library") for k in range(4)]
+    nb = [item(k, "neighborhood", "suggested") for k in range(4)]
+    cfg = ProfileSettings(_env_file=None)
+    out = _rerank_items(db, u, lib + nb, [], [], 4, cfg, {"library": 1, "neighborhood": 3})
+    assert len(out) == 4
+    assert sum(i.get("source") == "suggested" for i in out) == 3  # kota: 1 kütüphane + 3 mahalle
+    assert all("pool" not in i and "artist" not in i for i in out)  # iç alanlar sızmaz
+
+
+def test_rerank_uses_coverage_cell_genre_of_probe_cards(db):
+    """Sonda/joker kartı türünü kapsama hücresinden taşır; sanatçının etiketi olmasa da
+    rerank bunu görmeli, yoksa art arda aynı alt tür kısıtı işlemez."""
+    db.add(User(email="p7@example.com", password_hash="x"))
+    db.flush()
+    u = user_of(db, "p7@example.com")
+    seeds = mk_seeds(db, 2, prefix="ZZR") + mk_seeds(db, 2, sub="jazz", main="jazz_blues",
+                                                      band="mid", prefix="ZZR")
+    cells = [("rock", "grunge")] * 2 + [("jazz_blues", "jazz")] * 2
+    items = [
+        {"track": t.id, "title": f"Omurga {t.id}", "artists": ["S"], "artist": t.artist_id,
+         "genre": g, "sub": s, "source": "probe", "pool": "probe"}
+        for t, (g, s) in zip(seeds, cells, strict=True)
+    ]
+    sub_of = {i["track"]: i["sub"] for i in items}
+    cfg = ProfileSettings(_env_file=None)
+    out = _rerank_items(db, u, items, [], [], 4, cfg, {"probe": 4})
+    subs = [sub_of[i["track"]] for i in out]
+    assert len(out) == 4
+    assert all(a != b for a, b in zip(subs, subs[1:], strict=False))  # alt türler dönüşümlü
 
 
 def test_queue_flag_off_is_unchanged_queue7(client, db):

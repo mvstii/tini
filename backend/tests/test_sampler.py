@@ -7,8 +7,11 @@ from app.profile.sampler import (
     cell_scores,
     genre_targets,
     gumbel_order,
+    interleave,
+    noisy_rank,
     rerank,
     source_mix,
+    source_quota,
 )
 
 CFG = ProfileSettings(_env_file=None)
@@ -117,13 +120,111 @@ def test_rerank_is_deterministic_and_limit_bounded():
     assert len(rerank(cands, t, 7, CFG)) == 7
 
 
+def test_rerank_selects_from_oversampled_pool_without_artist_violation():
+    # 6 parçalı tek sanatçı + 12 ayrı sanatçı; 10 kart seçilirken aralık (4) hiç bozulmaz.
+    cands = [c(i, 1, None) for i in range(6)] + [c(100 + i, 100 + i, None) for i in range(12)]
+    out = rerank(cands, {"rock": 1.0}, 10, CFG)
+    artists = [x.artist for x in out]
+    assert len(out) == 10
+    assert all(a not in artists[max(0, i - 4):i] for i, a in enumerate(artists))
+
+
+def test_rerank_unknown_genre_is_neutral_not_last():
+    # Yarısı türü bilinmeyen: bilinenler başa yığılmaz, havuzdaki paya göre dağılır.
+    cands = [c(i, i, "rock", f"r{i}") for i in range(10)] + [
+        c(100 + i, 100 + i, None) for i in range(10)
+    ]
+    out = rerank(cands, {"rock": 1.0}, 10, CFG)
+    known = [x.genre is not None for x in out]
+    assert known.count(True) == 5
+    assert sum(known[:4]) == 2 and sum(known[-4:]) == 2
+
+
+def test_rerank_source_quota_holds_and_relaxes_when_short():
+    cands = [c(i, i, None, source="library") for i in range(10)] + [
+        c(100 + i, 100 + i, None, source="probe") for i in range(10)
+    ]
+    out = rerank(cands, {"rock": 1.0}, 10, CFG, quota={"library": 7, "probe": 3})
+    assert [x.source for x in out].count("probe") == 3
+    short = rerank(cands[:4], {"rock": 1.0}, 4, CFG, quota={"library": 1, "probe": 3})
+    assert len(short) == 4  # kota tutmasa da parti küçülmez
+
+
+def test_rerank_paces_sources_instead_of_piling_discovery_at_tail():
+    """Kota tempo kısıtıdır: türlü keşif kartı kalibrasyonda küçük hedefle yarışıp partinin
+    sonuna kalmamalı (sonda uygun aday bitince alt tür kısıtı gevşiyordu)."""
+    lib = [Cand(k, 100 + k, None, None, "library") for k in range(48)]
+    probe = [Cand(900 + k, 500 + k, "jazz_blues", "jazz", "probe") for k in range(4)]
+    target = {"rock": 0.9, "jazz_blues": 0.1}
+    out = rerank(lib + probe, target, 20, CFG, quota={"library": 16, "probe": 4})
+    pos = [n for n, c in enumerate(out) if c.source == "probe"]
+    assert [p // 5 for p in pos] == [0, 1, 2, 3]  # her 5'lik dilimde bir keşif kartı
+    subs = [c.sub for c in out]
+    assert all(a is None or a != b for a, b in zip(subs, subs[1:], strict=False))
+
+
+def test_source_quota_redistributes_shortage():
+    mix = {"library": 3, "neighborhood": 4, "probe": 2, "joker": 1}
+    have = {"library": 50, "neighborhood": 0, "probe": 1, "joker": 5}
+    q = source_quota(mix, have, 10)
+    assert q == {"library": 8, "neighborhood": 0, "probe": 1, "joker": 1}
+    assert sum(source_quota(mix, dict.fromkeys(SOURCES, 1), 10).values()) == 4
+
+
+def test_interleave_spreads_sources_by_quota_and_oversamples():
+    pools = {"library": list(range(10)), "neighborhood": [], "probe": [100, 101, 102, 103],
+             "joker": []}
+    out = interleave(pools, {"library": 3, "neighborhood": 0, "probe": 1, "joker": 0}, 2)
+    assert out == [0, 1, 100, 2, 3, 4, 101, 5]  # kaynak başına kota × 2 aday, kotaya göre aralıklı
+
+
 def test_queue_sim_metrics():
     from app.jobs.queue_sim import longest_run, metrics, overlap, window_distinct
 
     assert longest_run(["a", "a", "b", "a", "a", "a"]) == 3
     assert window_distinct(["a", "b", "a", "b"], 2) == 2.0
     assert overlap([1, 2, 3], [3, 4, 5]) == 1 / 3
-    m = metrics([1, 2, 3], {1: 10, 2: 10, 3: 11}, {10: ("rock", "x"), 11: ("pop", "y")},
-                [None, "probe", "joker"])
-    assert m["artist_repeats"] == 1 and m["longest_same_genre_run"] == 2
+    m = metrics([
+        {"track": 1, "artist": 10, "main": "rock", "sub": "x", "source": None},
+        {"track": 2, "artist": 10, "main": "rock", "sub": "x", "source": "probe"},
+        {"track": 3, "artist": 11, "main": "pop", "sub": "y", "source": "joker"},
+    ])
+    assert m["artist_gap_violations"] == 1 and m["longest_same_genre_run"] == 2
     assert m["discovery_share"] == 0.667
+
+
+# --- tazelik: tohumlu öneri sırası ve tür kayması ---
+def test_noisy_rank_keeps_order_without_noise_and_varies_with_seed():
+    items = list(range(30))
+    assert noisy_rank(items, 0.0, 1, lambda i: i) == items
+    a, b = noisy_rank(items, 0.5, 1, lambda i: i), noisy_rank(items, 0.5, 2, lambda i: i)
+    assert a == noisy_rank(items, 0.5, 1, lambda i: i)  # aynı tohum, aynı sıra
+    assert sorted(a) == items and a != b
+    assert len({noisy_rank(items, 0.5, s, lambda i: i)[0] for s in range(20)}) > 1
+    # Sıra eğilimi korunur: baştaki yarı ortalamada sondaki yarıdan önde kalır.
+    head = sum(a.index(i) for i in items[:15]) / 15
+    assert head < sum(a.index(i) for i in items[15:]) / 15
+
+
+def _lone_genre_slot(seed: int, jitter: float) -> int:
+    cands = [c(i, i, "rap", f"s{i}") for i in range(60)] + [c(999, 999, "jazz", "j")]
+    out = rerank(cands, {"rap": 0.95, "jazz": 0.05}, 40, CFG, seed=seed, jitter=jitter)
+    return [x.track for x in out].index(999)
+
+
+def test_rerank_jitter_moves_lone_genre_slot_across_seeds_only_when_enabled():
+    assert len({_lone_genre_slot(s, 0.0) for s in range(12)}) == 1
+    slots = {_lone_genre_slot(s, 1.0) for s in range(12)}
+    assert len(slots) > 3
+    assert _lone_genre_slot(5, 1.0) == _lone_genre_slot(5, 1.0)
+
+
+def test_rerank_jitter_keeps_genre_counts_within_one_card():
+    cands = [c(i, i, ("rock", "rap", "pop")[i % 3], f"s{i}") for i in range(90)]
+    t = {"rock": 0.5, "rap": 0.3, "pop": 0.2}
+    base = rerank(cands, t, 30, CFG)
+    for seed in range(8):
+        out = rerank(cands, t, 30, CFG, seed=seed, jitter=1.0)
+        for g in t:
+            diff = sum(x.genre == g for x in out) - sum(x.genre == g for x in base)
+            assert abs(diff) <= 1, (seed, g)

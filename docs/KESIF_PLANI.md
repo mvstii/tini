@@ -318,7 +318,18 @@ Kütüphanesiz kullanıcıda kütüphane payı diğerlerine dağıtılır. Kayna
 - [x] `profile/api.py` `queue()`: dört kaynak birleşik havuzda; öğeye `source` ve gerekçe (PPR veya kapsama, D4).
 - [x] `profile/suggest.py` `refill_buffer` + `profile/probe.py`: sonda/joker kartları önceden çözülür (`isrc_only`); sapma: tür açığına göre değil hücre skoruna göre, hızlı yol açıkken. Graf benzerlik penceresi `queue()`'e bağlanmadı (kanca hazır).
 - [x] `config.py`: `queue_mix_warm`, `queue_mix_mature`, `queue_genre_epsilon`, `queue_gumbel_tau`, `queue_coverage_kappa`, `queue_sim_window`, `queue_sim_max`, `queue_history_size`; `queue_algo_version` = `queue-8`; canlıda kapalı/sıfır başlar.
-- [x] `app/jobs/queue_sim.py` (salt okunur): 100 kartlık simülasyon → en uzun aynı tür serisi, 20'lik pencerede tür sayısı, sanatçı tekrarı, keşif payı, iki oturum örtüşmesi.
+- [x] `app/jobs/queue_sim.py` (salt okunur): 100 kartlık simülasyon → Çeşitlilik ve Tazelik kabul ölçütleri için geçti/kaldı (en kötü 20'lik pencerede ana tür, 20'de aynı sanatçı, son 4 aralığı, aynı şarkı sürümü, alt tür serisi, ilk 20 kart örtüşmesi, aynı tohumla özdeşlik) + keşif payı ve türü bilinmeyen kart payı. Kapsama ölçütü (ilk 50/200 oy) ölçülmez.
+
+**Kabul kapısı ilerlemesi (11 Kasım 2026; ayrıntı `docs/KESIF_OTURUM.md`, adımlar `SPEC.md`):**
+
+- [x] Aday fazlası (`queue_oversample`), türsüz aday nötr, kota anahtarı = havuz anahtarı, sonda/joker türü kapsama hücresinden.
+- [x] Kota temposu: `rerank` her yuvada en geride kalan kaynağı seçer; keşif kartları partiye yayılır (12, 37, 62, 87. yuva).
+- [x] Tazelik ölçüm tanımı (ilk 10 kart görülmüş sayılır); tazelik 0,10 ile geçiyor.
+- [x] Tanı işi `app/jobs/label_gap.py` (salt okunur): türsüz/sanatçısız parçaların neden dökümü.
+- [x] Ortak sanatçı kuralı `profile/track_artists.py` (paylaşılan `track.artist_id`, yoksa kullanıcıya özel `user_track_artist`); `queue_sim` ve `label_gap` bunu kullanır.
+- [x] **Kuyruk aynı kuralı kullansın (SPEC 5c-3; 11 Kasım, onay "ikisi de": `queue-7` ve `queue-8`).** Kök neden: kuyruk kademe B bağını okumuyor; 276 oylanmamış parçanın 237'si kuyrukta sanatçısız ve türsüz sayılıyordu, sanatçı aralığı ve alt tür kısıtları onlara uygulanmıyordu. Düzeltme bayraktan bağımsızdır; canlı `queue-7` sırası da değişir.
+- [x] Düzeltme sonrası 7 ölçüt yeniden ölçülür (12 Kasım: 7/7, tazelik 5 çift ortalaması 0,16). **Gerçek taban çizgisi 3/7** (ana tür 4, aynı sanatçı 3, aralık 3 ihlal, alt tür serisi 2 kaldı; şarkı, tazelik, özdeşlik geçti). Daha önce raporlanan 5/7 ve 6/7, ölçümün bağlı sanatçıları görmemesinden kaynaklanıyordu.
+- [ ] Açık: 31 MBID'siz etiketsiz sanatçı (Last.fm anahtarı yokken kalıcı "etiketsiz" işaretlenmiş olabilir, doğrulanmadı); keşif payı 0,04; `rank` ≈ 1,2–2,0 sn (`queue-7` ≈ 0,1 sn).
 
 **Testler:** determinizm (aynı tohum → aynı sıra, farklı tohum → farklı sıra), seri üst sınırı, azınlık türün önden tükenmemesi, gevşeme sırası, ε=0 ve τ=0'da eski davranışa yakınsama, kaynak boşken parti boyutu.
 
@@ -377,7 +388,7 @@ Program, aşağıdaki ölçütler sınırlı yerel ortamda (`rapid_vote_bench`, 
 | Soğuk açılış | Hata yerine "Sunucu uyanıyor", kuyruk kendiliğinden gelir | Emülatör | PR-3 |
 | Kapsama | İlk 50 oyda ≥ 10 ana tür; ilk 200 oyda ≥ 30 alt tür (sert kaçınılanlar hariç) | `queue_sim` | PR-4–6 |
 | Çeşitlilik | 20 kartta ≥ 5 ana tür; aynı sanatçı 20 kartta ≤ 2, son 4'te 0; aynı şarkı sürümü 0; en uzun aynı alt tür serisi 1 | `queue_sim` | PR-6 |
-| Tazelik | İki ardışık oturumun ilk 20 kartı örtüşmesi < %20; aynı tohumla %100 | `queue_sim`, birim test | PR-6 |
+| Tazelik | İki ardışık oturumun ilk 20 kartı örtüşmesi < %20 (ölçüm: ikinci oturumdan önce ilk oturumun ilk 10 kartı görülmüş sayılır, `recent` ile; karar 11 Kasım 2026. Örtüşme 5 örtüşmeyen tohum çiftinin ortalamasıdır; karar 12 Kasım 2026); aynı tohumla %100 | `queue_sim`, birim test | PR-6 |
 | Kalite koruması | Sonda/joker kartlarında Good+ oranı genel ortalamanın ≥ %60'ı; "Dinlemedim" < %50 | `evaluate` | PR-6–7 |
 | Bütçe | Neon CU < 60/ay, OOM 0, Last.fm verisi < 100 MB, DB < 1 GB | Neon/Render panelleri, `graph_stats` | Tümü |
 
@@ -479,7 +490,7 @@ python -m app.jobs.queue_sim --email <e-posta>   # PR-6 sonrası
 | PR-3 | İstemci kuyruk denetleyicisi | Uygulandı (emülatör ölçümü geliştiricide) | `feat/pr3-queue-controller` | Flutter 62/62, analyze temiz; backend 348 geçti/10 atlandı/0 hata, ruff temiz; "çıkmaz ekran 0" emülatörde ölçülmedi |
 | PR-4 | Evren: tür omurgası | Uygulandı (staging omurga raporu geliştiricide) | `feat/pr4-genre-spine` | Backend 370 geçti/11 atlandı/0 hata, ruff temiz; ayrı `genre_seed` + `track_popularity` (göç 0021), 77 alt tür; bayrak kapalı; omurga raporu ölçülmedi |
 | PR-5 | Kullanıcı modeli | Birleşti (#86, `866b9f1`) | `feat/pr5-user-model` | Backend 381 geçti/11 atlandı/0 hata, ruff temiz; göç yok, davranış değişmez (bandit PR-6 bağlar) |
-| PR-6 | Örnekleyici `queue-8` | Uygulandı (birleştirme onayı bekliyor) | `feat/pr6-sampler` | Backend 392 geçti/15 atlandı (geçici DB), ruff temiz; göç yok, bayrak `queue_sampler_enabled` kapalı; `queue_sim` canlı veride koşulacak |
+| PR-6 | Örnekleyici `queue-8` | Kabul kapısı geçti (`queue_sim` 7/7, 12 Kasım); birleştirme onayı bekliyor | `feat/pr6-sampler` | Staging, 100 kart: ana tür 5 (sınırda), aynı sanatçı 1, aralık 0, şarkı 0, alt tür serisi 1, tazelik 0,16 (5 tohum çifti ortalaması; 4/5 çift geçiyor), özdeşlik doğru. Düzeltmeler: 5c-3 (`queue-7` + `queue-8`), tohumlu Gumbel, tohumlu öneri sırası + tür kalibrasyon kayması (`queue_genre_jitter`), çok çiftli tazelik kapısı. Yerel tam paket 426 geçti/18 atlandı/0 hata. Göç yok, bayrak `queue_sampler_enabled` kapalı; push yok. Ölçülmedi: Kapsama, Kalite koruması. Borç: `queue-8` isteği staging'de 3,2–4,8 sn, keşif payı 0,04, türsüz kart 0,35 |
 | PR-7 | Liste tarafı `list-6` | Başlamadı | | |
 
 Durum değerleri: Başlamadı · Analiz/onay bekliyor · Uygulanıyor · Canlıda (bayrak kapalı) · Tamamlandı
