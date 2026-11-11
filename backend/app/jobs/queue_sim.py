@@ -176,6 +176,10 @@ def run(email: str, size: int = 100, seed: int = 1, sampler: bool = True) -> dic
         out = metrics(cards)
         out["requested"] = size
         out["algo_version"] = runs[0]["algo_version"]
+        # Tanı: 0 kartın nedeni (yanlış veritabanı / süresi dolmuş önbellek) buradan okunur.
+        out["db"] = f"{engine.url.host}/{engine.url.database}"
+        out["remaining"] = runs[0].get("remaining")
+        out["stale"] = runs[0].get("stale")
         second = [i["track"] for i in runs[1]["items"]]
         again = [i["track"] for i in runs[2]["items"]]
         out["first_20_overlap"] = round(overlap(tracks[:WINDOW], second[:WINDOW]), 3)
@@ -195,11 +199,13 @@ def main() -> None:
     verdicts = out.pop("gate")
     for k, v in out.items():
         print(f"{k}: {v}")
-    if out["cards"] < WINDOW:
+    measurable = out["cards"] >= WINDOW
+    if not measurable:
         print(f"UYARI: {out['cards']} kart; {WINDOW}'lik pencere ölçütleri anlamsız.")
     print("--- kapı (Çeşitlilik + Tazelik; Kapsama ölçülmedi) ---")
     for name, (ok, detail) in verdicts.items():
-        print(f"{'GEÇTİ' if ok else 'KALDI'}  {name}: {detail}")
+        label = ("GEÇTİ" if ok else "KALDI") if measurable else "ÖLÇÜLEMEDİ"
+        print(f"{label}  {name}: {detail}")
 
 
 if __name__ == "__main__":
