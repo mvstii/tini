@@ -22,8 +22,9 @@ from app.config import ProfileSettings, get_profile_settings
 from app.db import make_engine
 from app.deps import current_user, get_db
 from app.main import app
-from app.models import User
+from app.models import ListenLater, User, UserTrackLink, VoteEvent
 from app.profile.queue import song_key
+from app.profile.service import unheard_statuses
 from app.profile.track_artists import track_artists
 
 # Kabul ölçütleri (docs/KESIF_PLANI.md "Kabul ölçütleri" tablosu); algoritma parametresi değildir.
@@ -114,11 +115,54 @@ def overlap_cards(cards: list[dict], other: list[int], width: int = WINDOW) -> l
     per_main = Counter(c.get("main") for c in cards)
     return [
         {
-            "at": n, "at2": where[c["track"]], "source": c.get("source") or "library",
+            "track": c["track"], "at": n, "at2": where[c["track"]],
+            "source": c.get("source") or "library",
             "main": c.get("main"), "sub": c.get("sub"), "main_n": per_main[c.get("main")],
         }
         for n, c in enumerate(cards[:width]) if c["track"] in where
     ]
+
+
+def library_head(
+    cands: list[tuple[int, int]], voted_artists: set[int], pool: set[int]
+) -> tuple[dict, dict[int, dict]]:
+    """Tanı: `order_active`'in katı önceliklerinin baş tarafı ne kadar daralttığı.
+    cands: (parça, sanatçı). Kademe 0 = oy almamış sanatçı (her zaman önce gelir).
+    Döner: özet ve parça -> {tier, artist_tracks, pool}. `artist_tracks` 1 ise parça her
+    tohumda sanatçısının ilk tur adayıdır; `pool` havuz bonusu aldığını gösterir."""
+    per_artist = Counter(a for _, a in cands)
+    pooled = {a for t, a in cands if t in pool}
+    tier0 = set(per_artist) - voted_artists
+    summary = {
+        "tier0_artists": len(tier0),
+        "tier1_artists": len(per_artist) - len(tier0),
+        "tier0_single_track_artists": sum(1 for a in tier0 if per_artist[a] == 1),
+        "tier0_pool_artists": len(tier0 & pooled),
+        "tracks": len(cands),
+    }
+    info = {
+        t: {"tier": 1 if a in voted_artists else 0, "artist_tracks": per_artist[a],
+            "pool": t in pool}
+        for t, a in cands
+    }
+    return summary, info
+
+
+def _library_state(db: Session, user: User, cfg: ProfileSettings) -> tuple:
+    """Kuyruğun kütüphane adayları (yaklaşık: önbellek süresi ve sürüm elemesi uygulanmaz),
+    oy almış sanatçılar ve Unheard havuzu; `api.queue` ile aynı kurallar, salt okuma."""
+    voted = select(VoteEvent.track_id).where(VoteEvent.user_id == user.id)
+    later = select(ListenLater.track_id).where(ListenLater.user_id == user.id)
+    tracks = set(db.scalars(
+        select(UserTrackLink.track_id).where(
+            UserTrackLink.user_id == user.id,
+            UserTrackLink.track_id.not_in(voted),
+            UserTrackLink.track_id.not_in(later),
+        )
+    ))
+    voted_artists = set(track_artists(db, user.id, db.scalars(voted)).values())
+    pool = {s.track_id for s in unheard_statuses(db, user.id, cfg) if s.state != "expired"}
+    return list(track_artists(db, user.id, tracks).items()), voted_artists, pool
 
 
 def metrics(cards: list[dict]) -> dict:
@@ -240,6 +284,13 @@ def run(email: str, size: int = 100, seed: int = 1, sampler: bool = True) -> dic
         out["two_session_overlap"] = round(overlap(tracks, second), 3)
         out["overlap_cards"] = overlap_cards(cards, second)
         out["overlap_cards_unseen"] = overlap_cards(cards, raw)
+        # Tanı: ortak kartlar katı öncelikten mi geliyor (kademe, tek parçalı sanatçı, havuz)?
+        out["library_head"], info = library_head(*_library_state(db, user, cfg))
+        for c in out["overlap_cards"] + out["overlap_cards_unseen"]:
+            c.update(info.get(c["track"], {}))
+        out["head_20_library"] = dict(Counter(
+            (info[t]["tier"], info[t]["pool"]) for t in tracks[:WINDOW] if t in info
+        ))
         out["gate"] = gate(out, out["first_20_overlap"], tracks == again)
         return out
 

@@ -5,6 +5,7 @@ from app.jobs.queue_sim import (
     discovery_positions,
     duplicate_keys,
     gate,
+    library_head,
     longest_run,
     max_per_window,
     metrics,
@@ -121,7 +122,45 @@ def test_overlap_cards_lists_shared_head_cards_with_genre_pool_size():
     ]
     out = overlap_cards(cards, [9, 2, 1, 3], width=2)
     assert out == [
-        {"at": 1, "at2": 1, "source": "probe", "main": "jazz", "sub": None, "main_n": 1},
+        {"track": 2, "at": 1, "at2": 1, "source": "probe", "main": "jazz", "sub": None,
+         "main_n": 1},
     ]
     assert [c["at"] for c in overlap_cards(cards, [3, 1, 2], width=3)] == [0, 1, 2]
     assert overlap_cards(cards, [], width=3) == []
+
+
+def test_library_head_counts_tiers_and_marks_tracks():
+    cands = [(1, 10), (2, 10), (3, 20), (4, 30)]
+    summary, info = library_head(cands, voted_artists={30}, pool={3})
+    assert summary == {
+        "tier0_artists": 2, "tier1_artists": 1, "tier0_single_track_artists": 1,
+        "tier0_pool_artists": 1, "tracks": 4,
+    }
+    assert info[3] == {"tier": 0, "artist_tracks": 1, "pool": True}
+    assert info[1] == {"tier": 0, "artist_tracks": 2, "pool": False}
+    assert info[4]["tier"] == 1
+
+
+# --- Veritabanı okuması (kuyrukla aynı aday kuralı) ---
+# ruff: noqa: E402, F811  (sabitler test_queue içe aktarımından gelir; repo kalıbı)
+from sqlalchemy import select
+from test_queue import client, db, lib_track, mk_artist, register  # noqa: F401
+
+from app.config import ProfileSettings
+from app.jobs.queue_sim import _library_state
+from app.models import User
+
+
+def test_library_state_reads_unvoted_candidates_and_voted_artists(client, db):
+    email = "qsim1@example.com"
+    h = register(client, email)
+    voted_artist, other = mk_artist(db, "QS Oylu"), mk_artist(db, "QS Diger")
+    done = lib_track(db, email, "ZZQS1V000001", voted_artist, "Oylandi")
+    left = lib_track(db, email, "ZZQS1V000002", voted_artist, "Kalan")
+    new = lib_track(db, email, "ZZQS1N000001", other, "Yeni")
+    assert client.post("/votes", json={"track": done.id, "vote": 5}, headers=h).status_code == 201
+    user = db.scalar(select(User).where(User.email == email))
+    cands, voted_artists, pool = _library_state(db, user, ProfileSettings(_env_file=None))
+    assert sorted(cands) == sorted([(left.id, voted_artist.id), (new.id, other.id)])
+    assert voted_artists == {voted_artist.id}
+    assert pool == set()
