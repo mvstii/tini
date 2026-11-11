@@ -149,6 +149,19 @@ def test_rerank_source_quota_holds_and_relaxes_when_short():
     assert len(short) == 4  # kota tutmasa da parti küçülmez
 
 
+def test_rerank_paces_sources_instead_of_piling_discovery_at_tail():
+    """Kota tempo kısıtıdır: türlü keşif kartı kalibrasyonda küçük hedefle yarışıp partinin
+    sonuna kalmamalı (sonda uygun aday bitince alt tür kısıtı gevşiyordu)."""
+    lib = [Cand(k, 100 + k, None, None, "library") for k in range(48)]
+    probe = [Cand(900 + k, 500 + k, "jazz_blues", "jazz", "probe") for k in range(4)]
+    target = {"rock": 0.9, "jazz_blues": 0.1}
+    out = rerank(lib + probe, target, 20, CFG, quota={"library": 16, "probe": 4})
+    pos = [n for n, c in enumerate(out) if c.source == "probe"]
+    assert [p // 5 for p in pos] == [0, 1, 2, 3]  # her 5'lik dilimde bir keşif kartı
+    subs = [c.sub for c in out]
+    assert all(a is None or a != b for a, b in zip(subs, subs[1:], strict=False))
+
+
 def test_source_quota_redistributes_shortage():
     mix = {"library": 3, "neighborhood": 4, "probe": 2, "joker": 1}
     have = {"library": 50, "neighborhood": 0, "probe": 1, "joker": 5}

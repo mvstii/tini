@@ -130,6 +130,8 @@ def rerank(
     (1 − u) ile ölçeklenir; böylece bilinenler başa yığılmaz.
     Kısıtlar: sanatçı aralığı, art arda aynı alt tür yok, graf benzerlik penceresi, şarkı
     tekilliği, kaynak kotası (`quota[kaynak]` dolunca o kaynaktan alınmaz).
+    Kota aynı zamanda tempodur: her yuvada en geride kalan kaynak seçilir, tür kalibrasyonu
+    o kaynağın adayları içinde çalışır.
     Uygun aday yoksa kademeli gevşeme: alt tür, benzerlik, ana tür (kalibrasyon), kota, sanatçı."""
     pool = list(cands)
     out: list[Cand] = []
@@ -175,6 +177,13 @@ def rerank(
             ]
             if not ok:
                 continue
+            if quota is not None and "quota" in active:
+                # Tempo: en geride kalan kaynak (kota·n/limit − kullanılan) önce; kaynaklar
+                # partiye yayılır, keşif kartları sona yığılmaz.
+                lag = {c.source: quota.get(c.source, 0) * n / limit - used.get(c.source, 0)
+                       for c in ok}
+                top = max(lag.values())
+                ok = [c for c in ok if lag[c.source] == top]
             if "main" in active:
                 best = max(deficit.get(c.genre or None, -1e9) for c in ok)
                 ok = [c for c in ok if deficit.get(c.genre or None, -1e9) == best]
