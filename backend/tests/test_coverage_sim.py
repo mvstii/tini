@@ -26,14 +26,16 @@ def test_coverage_only_looks_at_first_n_votes():
     assert coverage_at(votes, 1)["main_genres"] == 1
 
 
-def test_hard_avoided_sub_and_main_are_excluded():
+def test_hard_avoided_means_mean_vote_at_most_two():
     votes = [
-        _v("rock", "indie", 6), _v("rock", "punk", 1),   # punk sert kaçınıldı
-        _v("metal", "doom", 1), _v("metal", "doom", 1),  # tüm ana tür kaçınıldı
+        _v("rock", "indie", 6), _v("rock", "punk", 1),   # tek Awful: ortalama 1 -> kaçınılan
+        _v("rock", "emo", 3), _v("rock", "emo", 1),      # ortalama 2 -> kaçınılan (sınır)
+        _v("pop", "synth", 1), _v("pop", "synth", 4),    # ortalama 2,5 -> kaçınılan değil
+        _v("metal", "doom", 1), _v("metal", "doom", 2),  # tüm ana tür kaçınılan
     ]
     c = coverage_at(votes, 10)
-    assert c["sub_genres"] == 3 and c["sub_excl_avoided"] == 1
-    assert c["main_genres"] == 2 and c["main_excl_avoided"] == 1
+    assert c["sub_genres"] == 5 and c["sub_excl_avoided"] == 2  # indie, synth
+    assert c["main_genres"] == 3 and c["main_excl_avoided"] == 2  # rock (ort. 2,75), pop
 
 
 def test_gate_requires_enough_votes_and_thresholds():

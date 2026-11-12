@@ -37,7 +37,7 @@ MAIN_CHECKPOINT = 50
 MIN_MAIN_GENRES = 10
 SUB_CHECKPOINT = 200
 MIN_SUB_GENRES = 30
-AWFUL = 1
+AVOID_MEAN = 2.0  # bir türdeki oyların ortalaması bunun altındaysa tür sert kaçınılan sayılır
 # Simüle oy dağılımı: (üst sınır yüzdelik, oy). Parçadan türetilir; tür bilgisi içermez.
 _VOTE_BANDS = ((10, 1), (20, 2), (35, 3), (65, 4), (90, 5), (100, 6))
 
@@ -48,21 +48,26 @@ def vote_for(seed: int, track: int) -> int:
     return next(v for cap, v in _VOTE_BANDS if h < cap)
 
 
+def _avoided(head: Sequence[dict], key: str) -> set:
+    """Sert kaçınılan etiketler: o etiketteki oyların ortalaması <= AVOID_MEAN (geliştirici
+    kararı, 12 Kasım 2026: "ortalama oy <= 2")."""
+    by: dict = {}
+    for v in head:
+        if v.get(key):
+            by.setdefault(v[key], []).append(v["vote"])
+    return {k for k, vs in by.items() if sum(vs) / len(vs) <= AVOID_MEAN}
+
+
 def coverage_at(votes: Sequence[dict], n: int) -> dict:
     """İlk `n` oyda ayrı ana/alt tür sayısı. `votes`: sıralı {main, sub, vote}.
-    `*_excl_avoided`: oyu Awful olan alt türler (sert kaçınılan) sayıdan çıkarılır."""
+    `*_excl_avoided`: oy ortalaması <= AVOID_MEAN olan (sert kaçınılan) türler sayıdan çıkarılır."""
     head = list(votes[:n])
-    avoided = {v["sub"] for v in head if v["vote"] == AWFUL and v.get("sub")}
     mains = {v["main"] for v in head if v.get("main")}
     subs = {v["sub"] for v in head if v.get("sub")}
-    avoided_mains = {
-        m for m in mains
-        if all(v["vote"] == AWFUL for v in head if v.get("main") == m)
-    }
     return {
         "votes": len(head), "main_genres": len(mains), "sub_genres": len(subs),
-        "main_excl_avoided": len(mains - avoided_mains),
-        "sub_excl_avoided": len(subs - avoided),
+        "main_excl_avoided": len(mains - _avoided(head, "main")),
+        "sub_excl_avoided": len(subs - _avoided(head, "sub")),
         "unknown_genre": sum(1 for v in head if not v.get("main")),
     }
 
