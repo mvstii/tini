@@ -6,6 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../api.dart';
 import '../app_state.dart';
 import '../theme/cosmic_colors.dart';
+import '../theme/tini_tokens.dart';
 import '../widgets/cover_art.dart';
 import '../widgets/preview_button.dart';
 import '../widgets/studio.dart';
@@ -303,11 +304,11 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
     final theme = Theme.of(context);
     final dark = theme.brightness == Brightness.dark;
     final fill = dark
-        ? const [Color(0xFF3E1F5E), Color(0xFF2A143D)]
-        : const [Color(0xFFF1EAFF), Color(0xFFE2D6FA)];
+        ? TiniTokens.heroFillDark
+        : TiniTokens.heroFillLight;
     final edge = dark
-        ? (const Color(0xFFE8C98A).withValues(alpha: 0.45), const Color(0xFFB9A4E8).withValues(alpha: 0.18))
-        : (const Color(0xFFB08A3E).withValues(alpha: 0.4), const Color(0xFF8E73D0).withValues(alpha: 0.18));
+        ? (TiniTokens.heroEdgeDarkHi.withValues(alpha: 0.45), TiniTokens.heroEdgeDarkLo.withValues(alpha: 0.18))
+        : (TiniTokens.heroEdgeLightHi.withValues(alpha: 0.4), TiniTokens.heroEdgeLightLo.withValues(alpha: 0.18));
     final d = _daily;
     return StudioSurface(
       radius: 24,
@@ -482,7 +483,7 @@ class _QuickVote extends StatelessWidget {
             onTap: onTap,
             child: Center(
               child: Text('$vote',
-                  style: TextStyle(color: style.fg, fontWeight: FontWeight.w800, fontSize: 15)),
+                  style: TiniTokens.bodyStrong.copyWith(color: style.fg, fontWeight: FontWeight.w800)),
             ),
           ),
         ),
@@ -522,8 +523,7 @@ class _ReleaseCard extends StatelessWidget {
                       border: Border.all(color: c.votes[6]!.border),
                     ),
                     child: Text('YENİ',
-                        style: TextStyle(
-                            fontSize: 9, fontWeight: FontWeight.w800, letterSpacing: 1, color: c.votes[6]!.fg)),
+                        style: TiniTokens.badge.copyWith(color: c.votes[6]!.fg)),
                   ),
                 ),
               ],

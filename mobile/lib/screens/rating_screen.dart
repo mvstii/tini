@@ -12,6 +12,7 @@ import '../app_state.dart';
 import '../preview_player.dart';
 import '../queue_controller.dart';
 import '../theme/cosmic_colors.dart';
+import '../theme/tini_tokens.dart';
 import '../widgets/cover_art.dart';
 import '../widgets/like_button.dart';
 import '../widgets/preview_button.dart';
@@ -605,7 +606,7 @@ BoxDecoration _cardDecoration(BuildContext context, Color color) {
           color: tok.primary.withValues(alpha: dark ? 0.16 : 0.14),
           blurRadius: 30,
           offset: const Offset(0, 12)),
-      if (dark) const BoxShadow(color: Color(0x99000000), blurRadius: 14, offset: Offset(0, 4)),
+      if (dark) const BoxShadow(color: TiniTokens.shadowDeep, blurRadius: 14, offset: Offset(0, 4)),
     ],
   );
 }
@@ -843,8 +844,8 @@ class _SwipeCardState extends State<_SwipeCard> with SingleTickerProviderStateMi
                       icon: Icons.open_in_new_rounded,
                       label: "Spotify'da aç",
                       accent: Theme.of(context).brightness == Brightness.dark
-                          ? const Color(0xFF1DB954)
-                          : const Color(0xFF138A3D),
+                          ? TiniTokens.spotify
+                          : TiniTokens.spotifyOnLight,
                     ),
                     const SizedBox(width: 6),
                     Expanded(
@@ -1069,7 +1070,7 @@ class _VoteButtonState extends State<_VoteButton> with SingleTickerProviderState
                 borderRadius: BorderRadius.circular(14),
                 border: Border.all(color: s.border, width: s.borderWidth),
                 // Sol üstten gelen ışık: üstte açılmış, altta kendi rengine inen geçiş.
-                gradient: LinearGradient(
+                gradient: s.gradient ?? LinearGradient(
                   begin: const Alignment(-0.6, -1),
                   end: const Alignment(0.4, 1),
                   colors: [
@@ -1131,11 +1132,8 @@ class _VoteButtonState extends State<_VoteButton> with SingleTickerProviderState
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Text('${widget.value}',
-                                style: TextStyle(
-                                    fontSize: 15,
-                                    color: s.fg,
-                                    fontWeight: FontWeight.w700,
-                                    fontFeatures: _tabular)),
+                                style: TiniTokens.bodyStrong
+                                    .copyWith(color: s.fg, fontWeight: FontWeight.w700, fontFeatures: _tabular)),
                             const SizedBox(width: 4),
                             // İkon: dokunuşta yaylanarak büyüyüp döner, sonra yerine oturur.
                             AnimatedBuilder(
@@ -1154,8 +1152,8 @@ class _VoteButtonState extends State<_VoteButton> with SingleTickerProviderState
                         Text(s.label,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                                fontSize: 12, fontWeight: FontWeight.w600, color: s.fg, height: 1.1)),
+                            style: TiniTokens.secondary.copyWith(
+                                fontWeight: FontWeight.w600, color: s.fg, height: 1.1)),
                       ],
                     ),
                   ),

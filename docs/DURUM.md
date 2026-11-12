@@ -1,12 +1,28 @@
 # Tını — Güncel Durum
 
-Son güncelleme: 11 Kasım 2026 · Her aşama (PR) sonrasında güncellenir.
+Son güncelleme: 13 Kasım 2026 · Her aşama (PR) sonrasında güncellenir.
 
 ## Özet
 
 - **Faz:** Faz 0–5 tamamlandı (Faz 5 kapısı 1 Kasım 2026). Faz 6 kapısı gevşetilerek kapatıldı (2 Kasım 2026, `v0.1.0-mvp`; ayrıntı S5/S6). Sıradaki: Faz 7 (genel UI incelemesi, hesap silme, Apple/Google girişi, gizlilik/KVKK, mağaza; öncesinde Last.fm ticari izni). Faz 6 planı `docs/FAZ6_PLAN.md` (onaylandı 2 Kasım 2026; ücretli hiçbir şey yayın öncesine kadar yapılmaz: barındırma = makine + ücretsiz ngrok tüneli, testçiler Android/APK). Açık kalemler: sanatçı etiketleri, Last.fm izin e-postası (senin işin), Deezer/Apple MusicKit doğrulaması (Faz 7 öncesi).
 - **Faz 1 kapısı geçildi (30 Ekim 2026):** emülatörde hesap açıldı, Spotify bağlandı, kütüphane aktarıldı (531 bağlantı, 524 parça veritabanında).
 - **Faz 0:** tamamlandı. Kalan kullanıcı işleri: partners@last.fm'e izin e-postası, `.env.example` şablonunu geri koymak, Spotify'daki "tini-spike" ve "tini-spike-2" çalma listelerini silmek.
+
+## Arayüz yeniden tasarımı (dal `ui/redesign`, 13 Kasım 2026)
+
+İstem: Claude Docs "Tını — Claude Code İstemi (Arayüz Tasarımı)". Karar: açık tema korunur, galaksi teması üzerine kurulur (istemin "yalnız koyu / nötr siyah" kısmı bilerek uygulanmaz).
+
+| PR | İçerik | Durum |
+|---|---|---|
+| UI-1 | Tema: `TiniTokens` + ThemeExtension, Inter (OFL, `assets/fonts/Inter.ttf`, opsz ile Inter Display), yeni oy skalası (Berbat/Kötü/İdare eder/İyi/Çok iyi/Efsane, Efsane gradyan), tek metin dosyası `lib/strings.dart`, ekranlardaki sabit renk ve yazı boyları tokenlara taşındı | Bitti (analyze temiz, 67 test geçti) |
+| UI-2 | Bileşenler + hata ayıklama galerisi + golden testler | Bekliyor |
+| UI-3 | Oyla ve Keşfet (sekme çubuğu, mini oynatıcı, 6 daireli oy satırı) | Bekliyor |
+| UI-4 | Keşif listesi ve Gerekçe paneli (Apple Music / Spotify kaydet düğmeleri) | Bekliyor |
+| UI-5 | Profil (mod baloncukları, oy dağılımı, kaçınma bölgesi) | Bekliyor |
+
+UI-1 notları: `Color(0x`/`fontSize:` artık yalnızca `lib/theme/` altında. Ekran kodundaki `BorderRadius.circular` yarıçapları bileşenler yazılırken (UI-2/3) tokenlara taşınır. Tasarım PNG'leri (`docs/design/`) depoda yok; ekranlar istemin yazılı değerlerine göre kurulur.
+
+**Eksik uç nokta listesi (uydurulmayacak, UI-3..5'te yer tutucu/gizli):** tahmini oy ve belirsizlik; baskın mod adı, payı ve çapa sayısı; ortak etiketler, yıl, albüm; oy dağılımı ve haftalık değişim (kısmen `/profile/history`'den türetilebilir); Apple Music adaptörü (yok, düğme "bağlı değil" durumunda kalır).
 
 ## Faz 1 aşamaları
 

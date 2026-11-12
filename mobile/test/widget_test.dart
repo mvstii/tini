@@ -817,7 +817,7 @@ void main() {
         {'track': 11, 'vote': 5}
       ]);
       expect(s.votes[11], 5);
-      expect(find.text('Oyun kaydedildi: 5 · Harika'), findsOneWidget);
+      expect(find.text('Oyun kaydedildi: 5 · Çok iyi'), findsOneWidget);
       await tester.tap(find.byKey(const ValueKey('daily-open')));
       await tester.pumpAndSettle();
       expect(opened, ['spotify:track:T1']);

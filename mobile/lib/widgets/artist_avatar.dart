@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../api.dart';
 import '../theme/cosmic_colors.dart';
+import '../theme/tini_tokens.dart';
 
 /// Spotify sanatçı sayfası tarzı yuvarlak portre. Fotoğraf yoksa ya da yüklenemezse adın baş
 /// harfi, addan türeyen Kozmik Spektrum geçişi üzerinde gösterilir.
@@ -18,10 +19,7 @@ class ArtistAvatar extends StatelessWidget {
     final initial = name.trim().isEmpty ? '?' : name.trim().characters.first.toUpperCase();
     final fallback = Center(
       child: Text(initial,
-          style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.92),
-              fontSize: size * 0.42,
-              fontWeight: FontWeight.w700)),
+          style: TiniTokens.initial(size).copyWith(color: Colors.white.withValues(alpha: 0.92))),
     );
     final u = url;
     return Container(

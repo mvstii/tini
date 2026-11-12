@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../theme/cosmic_colors.dart';
+import '../theme/tini_tokens.dart';
 
 const tiniSlogan = 'Zevkini keşfet, her önerinin nedenini gör.';
 
@@ -17,11 +18,7 @@ class BrandMark extends StatelessWidget {
       height: size,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [c.primary, const Color(0xFFB0307F)],
-        ),
+        gradient: TiniTokens.brandGradient,
         boxShadow: [
           BoxShadow(
               color: c.primary.withValues(alpha: 0.35), blurRadius: size * 0.4, spreadRadius: 1),
@@ -32,11 +29,7 @@ class BrandMark extends StatelessWidget {
         children: [
           Icon(Icons.graphic_eq_rounded, size: size * 0.78, color: Colors.white24),
           Text('T',
-              style: TextStyle(
-                  color: Colors.white,
-                  fontSize: size * 0.52,
-                  fontWeight: FontWeight.w800,
-                  height: 1)),
+              style: TiniTokens.logoLetter(size).copyWith(color: Colors.white)),
         ],
       ),
     );

@@ -5,6 +5,7 @@ import '../api.dart';
 import '../app_state.dart';
 import '../preview_player.dart';
 import '../theme/cosmic_colors.dart';
+import '../theme/tini_tokens.dart';
 import '../theme/transitions.dart';
 import '../widgets/studio.dart';
 import 'discover_screen.dart';
@@ -181,11 +182,11 @@ class PillNav extends StatelessWidget {
           BoxShadow(
               color: theme.brightness == Brightness.dark
                   ? c.primary.withValues(alpha: 0.16)
-                  : const Color(0xFF4A3A8C).withValues(alpha: 0.16),
+                  : TiniTokens.shadowTintLight.withValues(alpha: 0.16),
               blurRadius: 26,
               offset: const Offset(0, 6)),
           if (theme.brightness == Brightness.dark)
-            const BoxShadow(color: Color(0xCC000000), blurRadius: 12, offset: Offset(0, 4)),
+            const BoxShadow(color: TiniTokens.shadowDeeper, blurRadius: 12, offset: Offset(0, 4)),
         ],
       ),
       child: Stack(

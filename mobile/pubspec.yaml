@@ -65,6 +65,10 @@ flutter:
     - family: PlusJakartaSans
       fonts:
       - asset: assets/fonts/PlusJakartaSans.ttf
+    # Inter (OFL): değişken yazı tipi; wght ve opsz eksenleri. Başlıklarda opsz=32 (Inter Display).
+    - family: Inter
+      fonts:
+      - asset: assets/fonts/Inter.ttf
 
   # To add assets to your application, add an assets section, like this:
   # assets:

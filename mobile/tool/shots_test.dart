@@ -35,7 +35,7 @@ ThemeData _theme(Brightness b) {
     colorSchemeSeed: Colors.deepPurple,
     brightness: b,
     useMaterial3: true,
-    fontFamily: 'PlusJakartaSans',
+    fontFamily: 'Inter',
     scaffoldBackgroundColor: c.scaffold,
     pageTransitionsTheme: tiniPageTransitions,
     textTheme: tiniTextTheme(ThemeData(brightness: b).textTheme, c),
@@ -66,8 +66,8 @@ void main() {
   }
 
   setUpAll(() async {
-    final l = FontLoader('PlusJakartaSans')
-      ..addFont(Future.value(ByteData.view(File('assets/fonts/PlusJakartaSans.ttf').readAsBytesSync().buffer)));
+    final l = FontLoader('Inter')
+      ..addFont(Future.value(ByteData.view(File('assets/fonts/Inter.ttf').readAsBytesSync().buffer)));
     await l.load();
     final mi = FontLoader('MaterialIcons')
       ..addFont(Future.value(ByteData.view(
