@@ -2,6 +2,7 @@
 import hashlib
 import re
 from collections.abc import Iterable
+from functools import lru_cache
 
 from app.catalog.names import normalize_name
 
@@ -10,18 +11,25 @@ def _key(seed: int, ident: int) -> str:
     return hashlib.sha256(f"{seed}:{ident}".encode()).hexdigest()
 
 
+@lru_cache(maxsize=8)
+def _version_patterns(markers: tuple[str, ...]) -> tuple[re.Pattern[str], re.Pattern[str]] | None:
+    """Sürüm işaretleri için derlenmiş kalıplar (parantezli ek, tire sonrası ek); yoksa None."""
+    alt = "|".join(re.escape(m) for m in markers)
+    if not alt:
+        return None
+    return (
+        re.compile(rf"\s*[(\[][^)\]]*\b(?:{alt})[^)\]]*[)\]]", re.I),
+        re.compile(rf"\s+[-–—]\s+[^-–—]*\b(?:{alt})[^-–—]*$", re.I),
+    )
+
+
 def song_key(title: str, artists: list[str] | None, markers: Iterable[str]) -> tuple[str, str]:
     """Aynı şarkının sürümlerini (remaster, mono, deluxe...) tek anahtara indirir:
     (normalize başlık, normalize birincil sanatçı). Canlı/remix/akustik ayrı şarkıdır, atılmaz."""
-    alt = "|".join(re.escape(m) for m in markers)
+    patterns = _version_patterns(markers if isinstance(markers, tuple) else tuple(markers))
     stripped = title
-    if alt:
-        stripped = re.sub(
-            rf"\s*[(\[][^)\]]*\b(?:{alt})[^)\]]*[)\]]", "", stripped, flags=re.I
-        )
-        stripped = re.sub(
-            rf"\s+[-–—]\s+[^-–—]*\b(?:{alt})[^-–—]*$", "", stripped, flags=re.I
-        )
+    if patterns is not None:
+        stripped = patterns[1].sub("", patterns[0].sub("", stripped))
     name = normalize_name(stripped) or normalize_name(title)
     return name, normalize_name(artists[0]) if artists else ""
 

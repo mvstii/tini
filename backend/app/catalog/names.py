@@ -1,9 +1,11 @@
 import re
 import unicodedata
+from functools import lru_cache
 
 _NON_ALNUM = re.compile(r"[^0-9a-z]+")
 
 
+@lru_cache(maxsize=16384)
 def normalize_name(name: str) -> str:
     """Karşılaştırma anahtarı: aksan/büyük-küçük harf/noktalama farkı yok sayılır.
 
