@@ -50,12 +50,14 @@ class _TiniBootState extends State<TiniBoot> {
               theme: ThemeData(
                 colorSchemeSeed: Colors.deepPurple,
                 useMaterial3: true,
+                fontFamily: 'PlusJakartaSans',
                 extensions: [TiniCosmicColors.light],
               ),
               darkTheme: ThemeData(
                 colorSchemeSeed: Colors.deepPurple,
                 brightness: Brightness.dark,
                 useMaterial3: true,
+                fontFamily: 'PlusJakartaSans',
                 extensions: [TiniCosmicColors.dark],
               ),
               home: const Scaffold(body: AmbientBackground(child: SplashScreen())),

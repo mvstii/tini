@@ -204,7 +204,13 @@ class PillNav extends StatelessWidget {
             children: [
               for (var i = 0; i < _tabs.length; i++)
                 Expanded(
-                  child: InkWell(
+                  child: Semantics(
+                    button: true,
+                    selected: i == index,
+                    label: i == 2 && badge ? '${_tabs[i].$2}, yeni öneriler var' : _tabs[i].$2,
+                    excludeSemantics: true,
+                    onTap: () => onTap(i),
+                    child: InkWell(
                     key: ValueKey('tab-$i'),
                     customBorder: const StadiumBorder(),
                     onTap: () => onTap(i),
@@ -248,6 +254,7 @@ class PillNav extends StatelessWidget {
                         ],
                       ),
                     ),
+                  ),
                   ),
                 ),
             ],

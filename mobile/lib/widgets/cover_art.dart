@@ -59,6 +59,8 @@ class CoverArt extends StatelessWidget {
                 url!,
                 width: size,
                 height: size,
+                // Kod çözmeyi gösterilen boyuta indir (büyük kapaklar bellekte şişmesin).
+                cacheWidth: (size * MediaQuery.devicePixelRatioOf(context)).round(),
                 fit: BoxFit.cover,
                 gaplessPlayback: true,
                 errorBuilder: (_, e, _) {
