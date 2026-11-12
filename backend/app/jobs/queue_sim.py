@@ -7,17 +7,23 @@ sanatçı aralığı ihlali (son 4), aynı şarkı sürümü, en uzun aynı alt 
 ilk 20 kartının örtüşmesi (ilk oturumun ilk 10 kartı görülmüş sayılarak), aynı tohumla
 özdeşlik. Bilgi: keşif payı, türü bilinmeyen kart payı.
 ÖLÇÜLMEYEN: Kapsama ölçütü (ilk 50/200 oyda tür sayısı) oy simülasyonu ister; burada yok.
+Zamanlama (`timing`): istek başına süre, sorgu sayısı, veritabanı süresi, aşama dökümü ve
+`select 1` gidiş-dönüşü. Uygulama bu makinede, veritabanı uzakta koşuyorsa süre gidiş-dönüşle
+şişer; `non_rtt_ms` (süre - sorgu × gidiş-dönüş) aynı bölgedeki sunucu için kaba bir tahmindir.
 CLI: python -m app.jobs.queue_sim --email EPOSTA [--size 100] [--seed 1] [--sampler/--no-sampler]
      [--pairs 5]  (tazelik kapısı bu kadar tohum çiftinin ortalamasıdır)
 """
 import argparse
+import statistics
+import time
 from collections import Counter
 from itertools import groupby
 
 from fastapi.testclient import TestClient
-from sqlalchemy import select
+from sqlalchemy import event, select, text
 from sqlalchemy.orm import Session
 
+from app import timing
 from app.catalog.tags import load_genre_pairs
 from app.config import ProfileSettings, get_profile_settings
 from app.db import make_engine
@@ -41,6 +47,7 @@ SEEN_BETWEEN_SESSIONS = 10
 # Tazelik kapısı bu kadar örtüşmeyen tohum çiftinin ortalamasıdır: tek çiftte 1 kart 0,05 oynatır
 # ve sonuç tohum seçimine bağlı kalır. Geliştirici kararı, 12 Kasım 2026.
 FRESHNESS_PAIRS = 5
+RTT_SAMPLES = 5  # `select 1` gidiş-dönüş örneği (ortanca alınır)
 
 
 def longest_run(labels: list) -> int:
@@ -230,6 +237,106 @@ def gate(m: dict, first_overlap: float, same_seed_identical: bool) -> dict[str, 
     }
 
 
+def stage_breakdown(laps: list[tuple[str, int, float]]) -> dict[str, dict]:
+    """Kümülatif (aşama, sorgu sayısı, DB ms) işaretlerinden aşama başına fark."""
+    out: dict[str, dict] = {}
+    prev_n, prev_ms = 0, 0.0
+    for name, n, ms in laps:
+        cur = out.setdefault(name, {"queries": 0, "db_ms": 0.0})
+        cur["queries"] += n - prev_n
+        cur["db_ms"] = round(cur["db_ms"] + ms - prev_ms, 1)
+        prev_n, prev_ms = n, ms
+    return out
+
+
+def _median_sample(samples: list[dict]) -> dict:
+    stages: dict[str, dict] = {}
+    for name in dict.fromkeys(n for s in samples for n in s["stages"]):
+        rows = [s["stages"][name] for s in samples if name in s["stages"]]
+        stages[name] = {
+            k: round(statistics.median(r[k] for r in rows), 1)
+            for k in ("ms", "queries", "db_ms")
+        }
+    return {
+        **{k: round(statistics.median(s[k] for s in samples), 1)
+           for k in ("total_ms", "queries", "db_ms")},
+        "stages": stages,
+    }
+
+
+def timing_summary(samples: list[dict], rtt_ms: list[float]) -> dict:
+    """İstek örneklerinden özet. İlk istek soğuktur (graf matrisi kurulur), ayrı verilir; kalanı
+    ortanca ve en kötü. `non_rtt_ms` = süre - sorgu × gidiş-dönüş (kaba tahmin, alt sınır 0)."""
+    rtt = round(statistics.median(rtt_ms), 1) if rtt_ms else 0.0
+    out: dict = {"rtt_ms": rtt, "requests": len(samples)}
+    if not samples:
+        return out
+    warm = samples[1:] or samples
+    med = _median_sample(warm)
+    out["cold"] = {k: round(samples[0][k], 1) for k in ("total_ms", "queries", "db_ms")}
+    out["warm_median"] = med
+    out["warm_max_total_ms"] = round(max(s["total_ms"] for s in warm), 1)
+    out["non_rtt_ms"] = round(max(med["total_ms"] - med["queries"] * rtt, 0.0), 1)
+    return out
+
+
+class _Timer:
+    """Motor ve aşama zamanlayıcı kancaları (salt ölçüm; `close` ile geri alınır)."""
+
+    def __init__(self, engine) -> None:
+        self.engine = engine
+        self.count, self.db_ms = 0, 0.0
+        self.laps: list[tuple[str, int, float]] = []
+        self.stage_ms: dict[str, float] = {}
+        self.samples: list[dict] = []
+        self._t0: list[float] = []
+        self._lap = timing.Stages.lap
+        timer = self
+
+        def lap(stages, name: str) -> None:
+            timer._lap(stages, name)
+            timer.laps.append((name, timer.count, timer.db_ms))
+            timer.stage_ms = stages.as_dict()
+
+        timing.Stages.lap = lap
+        event.listen(engine, "before_cursor_execute", self._before)
+        event.listen(engine, "after_cursor_execute", self._after)
+
+    def _before(self, conn, cur, statement, params, ctx, many) -> None:
+        self._t0.append(time.perf_counter())
+
+    def _after(self, conn, cur, statement, params, ctx, many) -> None:
+        self.count += 1
+        self.db_ms += (time.perf_counter() - self._t0.pop()) * 1000
+
+    def get(self, client, url: str) -> dict:
+        self.count, self.db_ms, self.laps, self.stage_ms = 0, 0.0, [], {}
+        t = time.perf_counter()
+        body = client.get(url).json()
+        total = (time.perf_counter() - t) * 1000
+        stages = stage_breakdown(self.laps)
+        for name, s in stages.items():
+            s["ms"] = self.stage_ms.get(name, 0.0)
+        self.samples.append(
+            {"total_ms": total, "queries": self.count, "db_ms": self.db_ms, "stages": stages}
+        )
+        return body
+
+    def close(self) -> None:
+        timing.Stages.lap = self._lap
+        event.remove(self.engine, "before_cursor_execute", self._before)
+        event.remove(self.engine, "after_cursor_execute", self._after)
+
+
+def measure_rtt(db: Session, n: int = RTT_SAMPLES) -> list[float]:
+    out = []
+    for _ in range(n + 1):
+        t = time.perf_counter()
+        db.execute(text("select 1"))
+        out.append((time.perf_counter() - t) * 1000)
+    return out[1:]  # ilki bağlantı kurulumunu içerir
+
+
 def queue_url(size: int, seed: int, recent: list[int] = ()) -> str:
     """Kuyruk isteği; `recent` istemcide zaten görülmüş parçalardır (eskiden yeniye)."""
     return f"/votes/queue?limit={size}&seed={seed}" + "".join(f"&recent={t}" for t in recent)
@@ -256,15 +363,21 @@ def run(
         app.dependency_overrides[current_user] = lambda: user
         app.dependency_overrides[get_db] = lambda: db
         app.dependency_overrides[get_profile_settings] = lambda: cfg
+        rtt = measure_rtt(db)
+        timer = _Timer(engine)
         try:
             client = TestClient(app)
-            one = client.get(queue_url(size, seed)).json()
+
+            def get(url: str) -> dict:
+                return timer.get(client, url)
+
+            one = get(queue_url(size, seed))
             seen = [i["track"] for i in one["items"][:SEEN_BETWEEN_SESSIONS]]
             runs = [
                 one,
-                client.get(queue_url(size, seed + 1, seen)).json(),
-                client.get(queue_url(size, seed)).json(),
-                client.get(queue_url(size, seed + 1)).json(),
+                get(queue_url(size, seed + 1, seen)),
+                get(queue_url(size, seed)),
+                get(queue_url(size, seed + 1)),
             ]
             # Tek çift gürültülüdür (1 kart = 0,05); kapı çiftlerin ortalamasına bakar.
             fresh_values = [overlap(
@@ -272,10 +385,11 @@ def run(
                 [i["track"] for i in runs[1]["items"][:WINDOW]],
             )]
             for a, b in pair_seeds(seed, pairs)[1:]:
-                head = [i["track"] for i in client.get(queue_url(size, a)).json()["items"]]
-                nxt = client.get(queue_url(size, b, head[:SEEN_BETWEEN_SESSIONS])).json()["items"]
+                head = [i["track"] for i in get(queue_url(size, a))["items"]]
+                nxt = get(queue_url(size, b, head[:SEEN_BETWEEN_SESSIONS]))["items"]
                 fresh_values.append(overlap(head[:WINDOW], [i["track"] for i in nxt[:WINDOW]]))
         finally:
+            timer.close()
             app.dependency_overrides.clear()
         first = runs[0]["items"]
         tracks = [i["track"] for i in first]
@@ -324,6 +438,7 @@ def run(
         out["head_20_library"] = dict(Counter(
             (info[t]["tier"], info[t]["pool"]) for t in tracks[:WINDOW] if t in info
         ))
+        out["timing"] = timing_summary(timer.samples, rtt)
         out["gate"] = gate(out, out["freshness_pairs"]["mean"], tracks == again)
         return out
 
