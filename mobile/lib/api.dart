@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io' show SocketException;
 
-import 'package:flutter/material.dart' show ThemeMode;
+import 'package:flutter/material.dart' show ThemeMode, ValueNotifier;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 
@@ -18,6 +18,12 @@ const requestTimeout = Duration(seconds: 45);
 
 /// Kuyruk isteği kısa sürede dönmeli (hızlı yol); uzun sürerse denetleyici sessizce yeniden dener.
 const queueTimeout = Duration(seconds: 15);
+
+/// Bir istek bu kadar sürerse "sunucu uyanıyor" ipucu çıkar.
+const slowRequestHint = Duration(seconds: 8);
+
+/// Şu an [slowRequestHint]'ten uzun süredir bekleyen istek sayısı (0 ise ipucu gizli).
+final slowRequests = ValueNotifier<int>(0);
 
 /// Hatanın türü: istemci geri çekilme ve durum kararını buna göre verir.
 enum ApiFailure { timeout, offline, server, client }
@@ -536,6 +542,12 @@ class Api {
       req.body = jsonEncode(json);
     }
     final http.Response res;
+    // Soğuk başlangıçta (sunucu uyku) uzun süren istek: kullanıcıya "uyanıyor" ipucu göster.
+    var slow = false;
+    final slowTimer = Timer(slowRequestHint, () {
+      slow = true;
+      slowRequests.value++;
+    });
     try {
       res = await (() async => http.Response.fromStream(await _http.send(req)))()
           .timeout(timeout);
@@ -546,6 +558,9 @@ class Api {
       throw ApiException(0, 'İnternet bağlantısı yok', kind: ApiFailure.offline);
     } on http.ClientException {
       throw ApiException(0, 'İnternet bağlantısı yok', kind: ApiFailure.offline);
+    } finally {
+      slowTimer.cancel();
+      if (slow) slowRequests.value--;
     }
     final text = utf8.decode(res.bodyBytes);
     if (res.statusCode >= 400) {
