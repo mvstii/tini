@@ -10,6 +10,7 @@ kilidi güvenlidir.
 import logging
 import time
 import uuid
+from collections.abc import Sequence
 from datetime import UTC, datetime, timedelta
 
 import httpx
@@ -25,7 +26,8 @@ from app.config import (
 )
 from app.db import get_engine, get_session_factory
 from app.jobs.worker import get_worker
-from app.models import User, UserTrackMeta, VoteEvent
+from app.models import TasteProfile, User, UserTrackMeta, VoteEvent
+from app.profile.active_service import UNSET
 from app.profile.suggest import (
     _latest_profile,
     connected_adapter,
@@ -52,21 +54,27 @@ def unlock(conn, key: int) -> None:
 
 
 def refill_needed(
-    db: Session, user: User, now: datetime, cfg: ProfileSettings, ready_total: int | None = None
+    db: Session, user: User, now: datetime, cfg: ProfileSettings, ready_total: int | None = None,
+    *, profile: TasteProfile | None = UNSET, vote_times: Sequence[datetime] | None = None,
 ) -> bool:
     """Doldurucu gerekir mi: hazır sayısı alt eşikte, süresi dolmak üzere meta var ya da
-    profil yenileme eşiğini geçecek kadar yeni oy var."""
-    if _latest_profile(db, user.id) is not None:
+    profil yenileme eşiğini geçecek kadar yeni oy var. `profile` (son anlık görüntü ya da None)
+    ve `vote_times` (tüm oy zamanları) verilirse yeniden okunmaz."""
+    if profile is UNSET:
+        profile = _latest_profile(db, user.id)
+    if profile is not None:
         if ready_total is None:
             ready_total = ready_count(db, user.id, now)
         if ready_total < cfg.buffer_low_watermark:
             return True
-        profile = _latest_profile(db, user.id)
-        new_votes = db.scalar(
-            select(func.count()).select_from(VoteEvent).where(
-                VoteEvent.user_id == user.id, VoteEvent.created_at > profile.created_at
+        if vote_times is None:
+            new_votes = db.scalar(
+                select(func.count()).select_from(VoteEvent).where(
+                    VoteEvent.user_id == user.id, VoteEvent.created_at > profile.created_at
+                )
             )
-        )
+        else:
+            new_votes = sum(1 for t in vote_times if t > profile.created_at)
         if new_votes >= cfg.queue_rebuild_after_votes:
             return True
     ttl = timedelta(seconds=get_settings().spotify_cache_ttl_seconds)
@@ -80,10 +88,13 @@ def refill_needed(
 
 
 def maybe_refill(
-    db: Session, user: User, now: datetime, cfg: ProfileSettings, ready_total: int | None = None
+    db: Session, user: User, now: datetime, cfg: ProfileSettings, ready_total: int | None = None,
+    *, profile: TasteProfile | None = UNSET, vote_times: Sequence[datetime] | None = None,
 ) -> bool:
     """Gerekirse doldurucuyu yürütücüye verir (kullanıcı başına tek bekleyen iş)."""
-    if not cfg.fast_queue_enabled or not refill_needed(db, user, now, cfg, ready_total):
+    if not cfg.fast_queue_enabled or not refill_needed(
+        db, user, now, cfg, ready_total, profile=profile, vote_times=vote_times
+    ):
         return False
     return get_worker().submit(("refill", user.id), run_refill, user.id)
 

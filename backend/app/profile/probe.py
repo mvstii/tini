@@ -6,7 +6,7 @@ kullanıcıya özel TTL'li `UserTrackMeta`'dan okunur. Kart ISRC'den çözüleme
 (sanatçı aramasına düşmek farklı bir parça gösterip oyu yanlış parçaya yazdırırdı).
 """
 import logging
-from collections.abc import Callable, Iterable
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from datetime import datetime, timedelta
 
 import httpx
@@ -14,7 +14,7 @@ from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import distinct_on
 from sqlalchemy.orm import Session
 
-from app.catalog.tags import load_genre_pairs
+from app.catalog.tags import GenrePairs, load_genre_pairs
 from app.config import ProfileSettings, RecommendSettings, get_settings
 from app.models import (
     GenreSeed,
@@ -37,16 +37,24 @@ PROBE_BANDS = ("top", "mid")  # tanınır bantlar; joker tüm bantları (niş da
 Cell = tuple[str, str, str]  # (ana tür, alt tür, bant)
 
 
-def exposure_counts(db: Session, user_id, cfg: ProfileSettings) -> dict[Cell, int]:
+def exposure_counts(
+    db: Session, user_id, cfg: ProfileSettings, *,
+    vote_tracks: Sequence[int] | None = None, genres: GenrePairs | None = None,
+) -> dict[Cell, int]:
     """Hücre başına gösterilen kart sayısı (oy + dinlemedim + sonra dinle), en yeni
-    `queue_history_size` olay üzerinden. Hücre = (ana tür, alt tür, bant); bilinmeyen "unknown"."""
+    `queue_history_size` olay üzerinden. Hücre = (ana tür, alt tür, bant); bilinmeyen "unknown".
+    `vote_tracks` (oy olaylarının parçaları, yeniden eskiye) verilirse oy tablosu okunmaz."""
     n = cfg.queue_history_size
     events: list[ExposureEvt] = []
     for kind, model in (("vote", VoteEvent), ("unheard", UnheardEvent)):
-        for track_id in db.scalars(
-            select(model.track_id).where(model.user_id == user_id)
-            .order_by(model.id.desc()).limit(n)
-        ):
+        if kind == "vote" and vote_tracks is not None:
+            ids_desc: Iterable[int] = vote_tracks[:n]
+        else:
+            ids_desc = db.scalars(
+                select(model.track_id).where(model.user_id == user_id)
+                .order_by(model.id.desc()).limit(n)
+            )
+        for track_id in ids_desc:
             events.append(ExposureEvt(track_id, None, kind))
     events += [
         ExposureEvt(t, None, "later")
@@ -58,7 +66,8 @@ def exposure_counts(db: Session, user_id, cfg: ProfileSettings) -> dict[Cell, in
     ids = {e.track_id for e in events}
     artist_of = dict(db.execute(select(Track.id, Track.artist_id).where(Track.id.in_(ids))).all())
     events = [ExposureEvt(e.track_id, artist_of.get(e.track_id), e.kind) for e in events]
-    genre_of = load_genre_pairs(db, {a for a in artist_of.values() if a is not None})
+    wanted = {a for a in artist_of.values() if a is not None}
+    genre_of = genres.get(wanted) if genres is not None else load_genre_pairs(db, wanted)
     band_of = dict(
         db.execute(
             select(TrackPopularity.track_id, TrackPopularity.band)
@@ -71,21 +80,29 @@ def exposure_counts(db: Session, user_id, cfg: ProfileSettings) -> dict[Cell, in
 
 
 def genre_theta(
-    db: Session, user_id, seed: int, rcfg: RecommendSettings
+    db: Session, user_id, seed: int, rcfg: RecommendSettings, *,
+    votes: Sequence[tuple[int, int]] | None = None,
+    artist_of: Mapping[int, int | None] | None = None, genres: GenrePairs | None = None,
 ) -> dict[str, float]:
-    """θ(ana tür): PR-5 tür-bandit örneği (güncel oylardan; Good+/Bad- sayımı)."""
-    rows = db.execute(
-        select(VoteEvent.track_id, VoteEvent.vote)
-        .where(VoteEvent.user_id == user_id)
-        .ext(distinct_on(VoteEvent.track_id))
-        .order_by(VoteEvent.track_id, VoteEvent.id.desc())
-    ).all()
-    artist_of = dict(
-        db.execute(
-            select(Track.id, Track.artist_id).where(Track.id.in_([r[0] for r in rows]))
+    """θ(ana tür): PR-5 tür-bandit örneği (güncel oylardan; Good+/Bad- sayımı).
+    `votes` ((parça, güncel oy), parça sıralı) ve `artist_of` (parça -> paylaşılan sanatçı)
+    verilirse yeniden okunmaz."""
+    rows = votes
+    if rows is None:
+        rows = db.execute(
+            select(VoteEvent.track_id, VoteEvent.vote)
+            .where(VoteEvent.user_id == user_id)
+            .ext(distinct_on(VoteEvent.track_id))
+            .order_by(VoteEvent.track_id, VoteEvent.id.desc())
         ).all()
-    )
-    genre_of = load_genre_pairs(db, {a for a in artist_of.values() if a is not None})
+    if artist_of is None:
+        artist_of = dict(
+            db.execute(
+                select(Track.id, Track.artist_id).where(Track.id.in_([r[0] for r in rows]))
+            ).all()
+        )
+    wanted = {artist_of.get(t) for t, _ in rows} - {None}
+    genre_of = genres.get(wanted) if genres is not None else load_genre_pairs(db, wanted)
     pairs = [
         (genre_of[artist_of[t]][0], v) for t, v in rows
         if artist_of.get(t) is not None and artist_of[t] in genre_of
@@ -93,14 +110,20 @@ def genre_theta(
     return sample_genre_scores(genre_outcomes(pairs), list(GENRES), seed, rcfg)
 
 
-def profile_genre_shares(db: Session, user_id) -> dict[str, float]:
-    """Son profil anlık görüntüsündeki ana tür payları (yoksa boş)."""
-    body = db.scalar(
-        select(TasteProfile.body).where(TasteProfile.user_id == user_id)
-        .order_by(TasteProfile.version.desc()).limit(1)
-    )
+def genre_shares(body: Mapping | None) -> dict[str, float]:
+    """Profil gövdesindeki ana tür payları (yoksa boş)."""
     main = ((body or {}).get("genres") or {}).get("main") or []
     return {m["genre"]: float(m["share"]) for m in main}
+
+
+def profile_genre_shares(db: Session, user_id) -> dict[str, float]:
+    """Son profil anlık görüntüsündeki ana tür payları (yoksa boş)."""
+    return genre_shares(
+        db.scalar(
+            select(TasteProfile.body).where(TasteProfile.user_id == user_id)
+            .order_by(TasteProfile.version.desc()).limit(1)
+        )
+    )
 
 
 def _seed_rows(db: Session, user_id, now: datetime, exclude: set[int], ready: bool):
@@ -167,14 +190,15 @@ def _coverage_item(cell: Cell, shown: int, r, source: str) -> dict:
 
 def probe_and_joker(
     db: Session, user_id, now: datetime, exclude: set[int], need_probe: int, need_joker: int,
-    cfg: ProfileSettings, theta: dict[str, float], seed: int,
+    cfg: ProfileSettings, theta: dict[str, float], seed: int, *,
+    vote_tracks: Sequence[int] | None = None, genres: GenrePairs | None = None,
 ) -> tuple[list[dict], list[dict]]:
     """Hazır (kartı çözülmüş) omurga parçalarından sonda ve joker kartları. Aynı parça iki
     kaynakta çıkmaz. Sonda: tanınır bantlar, skor = κ/√(1+o)+θ; joker: tüm bantlar, tekdüze."""
     rows = _seed_rows(db, user_id, now, exclude, ready=True)
     if not rows:
         return [], []
-    shown = exposure_counts(db, user_id, cfg)
+    shown = exposure_counts(db, user_id, cfg, vote_tracks=vote_tracks, genres=genres)
     probe = _pick_by_cells(
         rows, shown, theta, PROBE_BANDS, need_probe, cfg.queue_gumbel_tau,
         cfg.queue_coverage_kappa, seed, uniform=False,

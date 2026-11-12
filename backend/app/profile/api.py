@@ -40,9 +40,14 @@ from app.profile.queue import pick_versions
 from app.profile.refill import maybe_refill
 from app.profile.sampled_queue import sampled_items
 from app.profile.scoring import VoteEvt, score_votes
-from app.profile.service import rebuild_profile, unheard_statuses
-from app.profile.suggest import connected_adapter, ready_suggestions, suggest_items
-from app.profile.track_artists import track_artists
+from app.profile.service import load_vote_view, rebuild_profile, unheard_statuses
+from app.profile.suggest import (
+    _latest_profile,
+    connected_adapter,
+    ready_suggestions,
+    suggest_items,
+)
+from app.profile.track_artists import merge_track_artists, track_artist_parts
 from app.profile.unheard import next_state
 from app.timing import Stages
 
@@ -197,9 +202,9 @@ def queue(
     ).all()
     now = datetime.now(UTC)
     fresh = {r[0]: r for r in rows if r[4] is not None and r[4] > now}
-    # Sanatçı: paylaşılan `track.artist_id`, yoksa kullanıcıya özel bağ (profille aynı kural).
-    voted_artists = set(track_artists(db, user.id, db.scalars(voted)).values())
-    statuses = unheard_statuses(db, user.id, cfg)
+    # Oy olayları istek başına bir kez okunur; türevleri (kimlikler, son oy, güncel oy) buradan.
+    votes = load_vote_view(db, user.id)
+    statuses = unheard_statuses(db, user.id, cfg, votes.last_at)
     expired = {s.track_id for s in statuses if s.state == "expired"}
     pool = {s.track_id for s in statuses} - expired
     # Yalnızca önbelleği dolmuş parçalar "eski" sayılır (yenileme bunları düzeltir); havuzda
@@ -214,12 +219,19 @@ def queue(
     keep = pick_versions(
         [(t, r[2], r[3]) for t, r in fresh.items()], voted_meta, pool, cfg.queue_version_markers
     )
-    art = track_artists(db, user.id, keep)
+    # Sanatçı: paylaşılan `track.artist_id`, yoksa kullanıcıya özel bağ (profille aynı kural).
+    # Oylanan, kuyruğa girecek ve istemcideki parçalar tek sorguda çözülür.
+    shared_artists, private_artists = track_artist_parts(
+        db, user.id, votes.track_ids | set(keep) | recent_set
+    )
+    art = merge_track_artists(shared_artists, private_artists)
+    voted_artists = {art[t] for t in votes.track_ids if t in art}
     fresh = {t: (r[0], art.get(t), *r[2:]) for t, r in fresh.items() if t in keep}
     cands = [(r[0], r[1]) for r in fresh.values() if r[1] is not None]
     unresolved = [t for t, r in fresh.items() if r[1] is None]
     st.lap("candidates")
-    unc = artist_uncertainties(db, user.id, {a for _, a in cands}, cfg, rcfg, gcfg)
+    profile = _latest_profile(db, user.id)
+    unc = artist_uncertainties(db, user.id, {a for _, a in cands}, cfg, rcfg, gcfg, profile)
     st.lap("uncertainty")
     sampled = cfg.queue_sampler_enabled
     # queue-8: kütüphane sırasına tohumlu gürültü (tazelik); queue-7 saf puan sırasında kalır.
@@ -228,15 +240,14 @@ def queue(
         tau=cfg.queue_gumbel_tau if sampled else 0.0,
     )
     artist_of = dict(cands)
-    recent_artist = track_artists(db, user.id, recent_set)
-    prior = [recent_artist[t] for t in recent if recent_artist.get(t) is not None]
+    prior = [art[t] for t in recent if art.get(t) is not None]
     if sampled:
         # queue-8: dört kaynaktan birleşik havuz + rerank (profile/sampled_queue.py).
         items, ready_total = sampled_items(
             db, user, http, now, size=size, seed=seed, fresh=fresh,
             library=order + order_unresolved(unresolved, pool, seed), expired=expired,
             recent_set=recent_set, prior=prior, voted_meta=voted_meta, cfg=cfg, rcfg=rcfg,
-            gcfg=gcfg,
+            gcfg=gcfg, votes=votes, shared_artists=shared_artists, profile=profile,
         )
         st.lap("rank")
     else:
@@ -268,7 +279,7 @@ def queue(
             set(fresh) | expired | recent_set | set(db.scalars(later_ids)), cfg, rcfg, gcfg,
         )
     st.lap("suggest")
-    maybe_refill(db, user, now, cfg, ready_total)
+    maybe_refill(db, user, now, cfg, ready_total, profile=profile, vote_times=votes.times)
     mark_awaiting(db, user.id, pool & {i["track"] for i in items}, statuses)
     shown = [i["track"] for i in items]
     liked = set(
