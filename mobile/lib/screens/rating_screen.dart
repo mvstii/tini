@@ -160,7 +160,9 @@ class _RatingScreenState extends State<RatingScreen> {
   }
 
   void _onState() {
-    if (mounted) setState(() {});
+    if (!mounted) return;
+    setState(() {});
+    _maybeAutoplay(); // kart/otomatik çalma değişimine olay olarak tepki (build içinde değil)
   }
 
   Future<void> _guard(Future<void> Function() action) async {
@@ -211,7 +213,10 @@ class _RatingScreenState extends State<RatingScreen> {
       _history.add(_Step(item, vote, prevVote: prev));
     });
     if (!saved) _queue.putBack(item); // kayıt başarısızsa kart geri gelir
-    if (mounted) setState(() => _busy = false);
+    if (mounted) {
+      setState(() => _busy = false);
+      _maybeAutoplay();
+    }
   }
 
   /// Sağa kaydırma: parça "Sonra dinle" listesine girer, kuyruktan çıkar.
@@ -232,6 +237,7 @@ class _RatingScreenState extends State<RatingScreen> {
     if (!saved) _queue.putBack(item);
     if (mounted) {
       setState(() => _busy = false);
+      _maybeAutoplay();
       if (saved) {
         ScaffoldMessenger.of(context)
           ..clearSnackBars()
@@ -360,7 +366,6 @@ class _RatingScreenState extends State<RatingScreen> {
   }
 
   Widget _cardArea(TiniCosmicColors c, bool canVote) {
-    _maybeAutoplay();
     final forced = _state.forced;
     final item = _current;
     if (forced == UiState.loading || _loading) return _SkeletonCard(color: c.card);
