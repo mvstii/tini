@@ -61,6 +61,8 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
   String? _releaseError;
   List<NewTrack> _tracks = const [];
   int _shuffle = 0;
+  List<NewRelease> _shown = const []; // karışım yalnızca veri/sayaç değişince hesaplanır
+  String? _tracksError;
   String? _message;
 
   @override
@@ -71,14 +73,18 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
     _loadTracks();
   }
 
-  /// Yardımcı bölüm: hata ya da boş yanıt bölümü sessizce gizler.
+  /// Yardımcı bölüm: boş yanıt bölümü gizler; hata olursa yeniden dene ile gösterilir.
   Future<void> _loadTracks() async {
+    if (_tracksError != null) setState(() => _tracksError = null);
     try {
       final t = await widget.api.newTracks();
       if (mounted) setState(() => _tracks = t);
     } on ApiException catch (e) {
-      if (e.status == 401) widget.onLogout();
-    } catch (_) {}
+      if (e.status == 401) return widget.onLogout();
+      if (mounted) setState(() => _tracksError = e.message);
+    } catch (_) {
+      if (mounted) setState(() => _tracksError = 'Sunucuya ulaşılamadı');
+    }
   }
 
   Future<void> _loadDaily() async {
@@ -107,7 +113,12 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
     if (_releaseError != null) setState(() => _releaseError = null);
     try {
       final r = await widget.api.newReleases();
-      if (mounted) setState(() => _releases = r);
+      if (mounted) {
+        setState(() {
+          _releases = r;
+          _reshuffle();
+        });
+      }
     } on ApiException catch (e) {
       if (e.status == 401) return widget.onLogout();
       if (mounted) {
@@ -148,10 +159,10 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
   }
 
   /// Aynı sıra her zaman aynı karışımı verir (tohum = sayaç); görünen 10 yayını seçer.
-  List<NewRelease> get _shown {
+  void _reshuffle() {
     final all = [...?_releases];
     if (_shuffle > 0) all.shuffle(math.Random(_shuffle));
-    return all.take(10).toList();
+    _shown = all.take(10).toList();
   }
 
   @override
@@ -211,23 +222,37 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
             _hero(context),
             if (_message != null)
               Padding(padding: const EdgeInsets.only(top: 8), child: Text(_message!)),
-            if (_tracks.isNotEmpty) ...[
+            if (_tracks.isNotEmpty || _tracksError != null) ...[
               const SizedBox(height: 28),
               const SectionLabel('BU HAFTA ÇIKANLAR'),
               const SizedBox(height: 10),
-              for (final t in _tracks.take(10)) _TrackRow(api: widget.api, track: t),
+              if (_tracksError != null)
+                StateNote.error(_tracksError!, onRetry: _loadTracks)
+              else
+                for (final t in _tracks.take(10)) _TrackRow(api: widget.api, track: t),
             ],
             const SizedBox(height: 28),
             Row(
               children: [
                 const Expanded(child: SectionLabel('YENİ ÇIKANLAR · TAZE KEŞİF')),
-                TextButton.icon(
-                  key: const ValueKey('shuffle'),
-                  onPressed: (_releases?.length ?? 0) < 2 ? null : () => setState(() => _shuffle++),
-                  style: TextButton.styleFrom(
-                      visualDensity: VisualDensity.compact, padding: const EdgeInsets.symmetric(horizontal: 8)),
-                  icon: const Icon(Icons.shuffle_rounded, size: 18),
-                  label: const Text('Yenile / Rastgele'),
+                Tooltip(
+                  message: (_releases?.length ?? 0) < 2
+                      ? 'Karıştırmak için en az 2 yayın gerekir'
+                      : '',
+                  child: TextButton.icon(
+                    key: const ValueKey('shuffle'),
+                    onPressed: (_releases?.length ?? 0) < 2
+                        ? null
+                        : () => setState(() {
+                              _shuffle++;
+                              _reshuffle();
+                            }),
+                    style: TextButton.styleFrom(
+                        visualDensity: VisualDensity.compact,
+                        padding: const EdgeInsets.symmetric(horizontal: 8)),
+                    icon: const Icon(Icons.shuffle_rounded, size: 18),
+                    label: const Text('Yenile / Rastgele'),
+                  ),
                 ),
               ],
             ),
