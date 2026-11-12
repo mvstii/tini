@@ -22,6 +22,14 @@ const queueTimeout = Duration(seconds: 15);
 /// Hatanın türü: istemci geri çekilme ve durum kararını buna göre verir.
 enum ApiFailure { timeout, offline, server, client }
 
+/// Gövdesinde okunur `detail` olmayan hata yanıtları için kullanıcıya dönük cümle.
+String friendlyStatus(int status) {
+  if (status == 429) return 'Çok hızlı gidiyoruz, biraz bekleyip tekrar dene';
+  if (status == 422) return 'Gönderilen bilgi geçerli değil, kontrol edip tekrar dene';
+  if (status >= 500) return 'Sunucu geçici olarak hazır değil, biraz sonra tekrar dene';
+  return 'Hata $status';
+}
+
 class ApiException implements Exception {
   ApiException(this.status, this.message, {ApiFailure? kind})
       : kind = kind ?? (status >= 500 ? ApiFailure.server : ApiFailure.client);
@@ -541,7 +549,7 @@ class Api {
     }
     final text = utf8.decode(res.bodyBytes);
     if (res.statusCode >= 400) {
-      var message = 'Hata ${res.statusCode}';
+      var message = friendlyStatus(res.statusCode);
       try {
         final d = (jsonDecode(text) as Map)['detail'];
         if (d is String) message = d;
