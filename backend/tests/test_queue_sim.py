@@ -15,7 +15,9 @@ from app.jobs.queue_sim import (
     overlap_cards,
     pair_seeds,
     queue_url,
+    stage_breakdown,
     sub_runs,
+    timing_summary,
 )
 
 
@@ -178,3 +180,40 @@ def test_library_state_reads_unvoted_candidates_and_voted_artists(client, db):
     assert sorted(cands) == sorted([(left.id, voted_artist.id), (new.id, other.id)])
     assert voted_artists == {voted_artist.id}
     assert pool == set()
+
+
+def test_stage_breakdown_takes_differences_of_cumulative_marks():
+    laps = [("candidates", 9, 100.0), ("uncertainty", 11, 105.5), ("rank", 21, 114.0)]
+    assert stage_breakdown(laps) == {
+        "candidates": {"queries": 9, "db_ms": 100.0},
+        "uncertainty": {"queries": 2, "db_ms": 5.5},
+        "rank": {"queries": 10, "db_ms": 8.5},
+    }
+    assert stage_breakdown([]) == {}
+
+
+def _sample(total, queries, db_ms, rank_ms):
+    return {
+        "total_ms": total, "queries": queries, "db_ms": db_ms,
+        "stages": {"rank": {"ms": rank_ms, "queries": queries - 10, "db_ms": db_ms / 2}},
+    }
+
+
+def test_timing_summary_separates_cold_request_and_estimates_non_rtt():
+    samples = [_sample(5000, 31, 4000, 900), _sample(3000, 30, 2800, 1200),
+               _sample(3400, 30, 3000, 1400), _sample(4800, 30, 4400, 2400)]
+    out = timing_summary(samples, [90.0, 100.0, 110.0])
+    assert out["rtt_ms"] == 100.0
+    assert out["requests"] == 4
+    assert out["cold"] == {"total_ms": 5000, "queries": 31, "db_ms": 4000}
+    assert out["warm_median"]["total_ms"] == 3400
+    assert out["warm_median"]["stages"]["rank"] == {"ms": 1400, "queries": 20, "db_ms": 1500}
+    assert out["warm_max_total_ms"] == 4800
+    assert out["non_rtt_ms"] == 400  # 3400 - 30 × 100
+
+
+def test_timing_summary_handles_empty_and_single_request():
+    assert timing_summary([], []) == {"rtt_ms": 0.0, "requests": 0}
+    one = timing_summary([_sample(50, 20, 10, 5)], [10.0])
+    assert one["warm_median"]["total_ms"] == 50
+    assert one["non_rtt_ms"] == 0.0  # alt sınır

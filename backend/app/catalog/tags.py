@@ -110,3 +110,20 @@ def fetch_artist_tags(
         )
         db.commit()
     return stats
+
+
+class GenrePairs:
+    """İstek ömürlü `load_genre_pairs` belleği: aynı sanatçı ikinci kez sorgulanmaz."""
+
+    def __init__(self, db: Session) -> None:
+        self._db = db
+        self._known: dict[int, tuple[str, str | None]] = {}
+        self._seen: set[int] = set()
+
+    def get(self, artist_ids: Iterable[int]) -> dict[int, tuple[str, str | None]]:
+        ids = set(artist_ids)
+        missing = ids - self._seen
+        if missing:
+            self._known.update(load_genre_pairs(self._db, missing))
+            self._seen |= missing
+        return {a: self._known[a] for a in ids if a in self._known}

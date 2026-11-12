@@ -1,4 +1,6 @@
 """Profil kurulumu için veritabanı katmanı: oy olayları -> ProfileVote -> anlık görüntü."""
+from collections.abc import Iterable, Mapping
+from dataclasses import dataclass
 from datetime import datetime
 
 from sqlalchemy import func, select
@@ -13,7 +15,49 @@ from app.profile.scoring import VoteEvt, implicit_negatives, implicit_positives,
 from app.profile.unheard import UnheardEvt, UnheardStatus, resolve
 
 
-def unheard_statuses(db: Session, user_id, cfg: ProfileSettings) -> list[UnheardStatus]:
+@dataclass(frozen=True)
+class VoteView:
+    """Bir kullanıcının oy olaylarından türetilen görünümler (tek sorgudan; `queue()` yolu)."""
+
+    track_ids: frozenset[int]  # oylanmış parçalar
+    last_at: dict[int, datetime]  # parça -> son oy zamanı
+    latest: list[tuple[int, int]]  # (parça, güncel oy), parça kimliğine göre sıralı
+    times: list[datetime]  # tüm olay zamanları
+    recent_tracks: list[int]  # olay kimliğine göre yeniden eskiye parça kimlikleri
+
+
+def vote_view(rows: Iterable[tuple[int, int, int, datetime]]) -> VoteView:
+    """(olay kimliği, parça, oy, zaman) satırlarından görünüm. Güncel oy son olaydır."""
+    ordered = sorted(rows, key=lambda r: r[0])
+    last_at: dict[int, datetime] = {}
+    latest: dict[int, int] = {}
+    for _, track, vote, at in ordered:
+        latest[track] = vote
+        if track not in last_at or at > last_at[track]:
+            last_at[track] = at
+    return VoteView(
+        track_ids=frozenset(latest),
+        last_at=last_at,
+        latest=sorted(latest.items()),
+        times=[r[3] for r in ordered],
+        recent_tracks=[r[1] for r in reversed(ordered)],
+    )
+
+
+def load_vote_view(db: Session, user_id) -> VoteView:
+    return vote_view(
+        db.execute(
+            select(VoteEvent.id, VoteEvent.track_id, VoteEvent.vote, VoteEvent.created_at).where(
+                VoteEvent.user_id == user_id
+            )
+        ).all()
+    )
+
+
+def unheard_statuses(
+    db: Session, user_id, cfg: ProfileSettings, last_vote: Mapping[int, datetime] | None = None
+) -> list[UnheardStatus]:
+    """`last_vote` (parça -> son oy zamanı) verilirse oy tablosu yeniden okunmaz."""
     events = [
         UnheardEvt(*r)
         for r in db.execute(
@@ -22,13 +66,14 @@ def unheard_statuses(db: Session, user_id, cfg: ProfileSettings) -> list[Unheard
             ).where(UnheardEvent.user_id == user_id)
         )
     ]
-    last_vote = dict(
-        db.execute(
-            select(VoteEvent.track_id, func.max(VoteEvent.created_at))
-            .where(VoteEvent.user_id == user_id)
-            .group_by(VoteEvent.track_id)
-        ).all()
-    )
+    if last_vote is None:
+        last_vote = dict(
+            db.execute(
+                select(VoteEvent.track_id, func.max(VoteEvent.created_at))
+                .where(VoteEvent.user_id == user_id)
+                .group_by(VoteEvent.track_id)
+            ).all()
+        )
     return resolve(events, last_vote, cfg.unheard_expire_after)
 
 

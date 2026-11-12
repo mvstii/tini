@@ -1,4 +1,6 @@
 """Aktif öğrenme kuyruğu için DB katmanı: sanatçı belirsizliği ve awaiting olayları."""
+from typing import Any
+
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -8,18 +10,23 @@ from app.models import TasteProfile, UnheardEvent
 from app.profile.active import uncertainty
 from app.recommend.ppr import artist_scores
 
+UNSET: Any = object()  # "ön yüklenmedi" işareti (None geçerli bir değerdir: profil yok)
+
 
 def artist_uncertainties(
     db: Session, user_id, artist_ids: set[int], pcfg: ProfileSettings, rcfg: RecommendSettings,
-    gcfg: GraphSettings,
+    gcfg: GraphSettings, profile: TasteProfile | None = UNSET,
 ) -> dict[int, float]:
-    """Profil veya graf yoksa boş sözlük döner (hepsi 'bilinmiyor' değerini alır)."""
-    row = db.scalar(
-        select(TasteProfile)
-        .where(TasteProfile.user_id == user_id)
-        .order_by(TasteProfile.version.desc())
-        .limit(1)
-    )
+    """Profil veya graf yoksa boş sözlük döner (hepsi 'bilinmiyor' değerini alır).
+    `profile` (son anlık görüntü ya da None) verilirse yeniden okunmaz."""
+    row = profile
+    if row is UNSET:
+        row = db.scalar(
+            select(TasteProfile)
+            .where(TasteProfile.user_id == user_id)
+            .order_by(TasteProfile.version.desc())
+            .limit(1)
+        )
     built = get_matrix(db, gcfg)
     if row is None or built is None:
         return {}
