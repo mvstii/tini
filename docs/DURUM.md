@@ -15,11 +15,12 @@ Son güncelleme: 13 Kasım 2026 · Her aşama (PR) sonrasında güncellenir.
 | PR | İçerik | Durum |
 |---|---|---|
 | UI-1 | Tema: `TiniTokens` + ThemeExtension, Inter (OFL, `assets/fonts/Inter.ttf`, opsz ile Inter Display), yeni oy skalası (Berbat/Kötü/İdare eder/İyi/Çok iyi/Efsane, Efsane gradyan), tek metin dosyası `lib/strings.dart`, ekranlardaki sabit renk ve yazı boyları tokenlara taşındı | Bitti (analyze temiz, 67 test geçti) |
-| UI-2 | Bileşenler + hata ayıklama galerisi + golden testler | Bekliyor |
+| UI-2 | Bileşenler + hata ayıklama galerisi + golden testler | Bitti (13 Kasım 2026): `lib/ui/components/` (16 bileşen), `ComponentGalleryScreen` (debug çubuğundan), widget + 3 golden testi (96 test) |
 | UI-3 | Oyla ve Keşfet (sekme çubuğu, mini oynatıcı, 6 daireli oy satırı) | Bekliyor |
 | UI-4 | Keşif listesi ve Gerekçe paneli (Apple Music / Spotify kaydet düğmeleri) | Bekliyor |
 | UI-5 | Profil (mod baloncukları, oy dağılımı, kaçınma bölgesi) | Bekliyor |
 
+UI-2 notları: tasarım PNG'leri sohbetten görsel referans olarak alındı (diske kaydedilemedi). Golden görselleri Windows + Inter ile üretildi, `flutter test --update-goldens test/ui/goldens_test.dart` ile yenilenir. Bileşenler henüz ekranlara bağlı değil (UI-3+).
 UI-1 notları: `Color(0x`/`fontSize:` artık yalnızca `lib/theme/` altında. Ekran kodundaki `BorderRadius.circular` yarıçapları bileşenler yazılırken (UI-2/3) tokenlara taşınır. Tasarım PNG'leri (`docs/design/`) depoda yok; ekranlar istemin yazılı değerlerine göre kurulur.
 
 **Eksik uç nokta listesi (uydurulmayacak, UI-3..5'te yer tutucu/gizli):** tahmini oy ve belirsizlik; baskın mod adı, payı ve çapa sayısı; ortak etiketler, yıl, albüm; oy dağılımı ve haftalık değişim (kısmen `/profile/history`'den türetilebilir); Apple Music adaptörü (yok, düğme "bağlı değil" durumunda kalır).

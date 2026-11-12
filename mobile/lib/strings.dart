@@ -22,4 +22,32 @@ abstract final class TiniStrings {
   static const saving = 'Kaydediliyor…';
   static const saved = 'Kaydedildi';
   static const connectService = 'Bağla';
+
+  // Bileşenler
+  static const unheardAdd = 'keşif havuzuna ekle';
+  static const unheardAdded = 'keşif havuzunda';
+  static const newBadge = 'YENİ';
+  static const predictionPrefix = 'Tahmin';
+  static const slotFit = 'Sana uyan';
+  static const slotUnheard = 'Dinlemediğin';
+  static const slotExplore = 'Keşif';
+  static const slotFresh = 'Taze';
+  static String fitPercent(int p) => '%$p';
+  static String voteSemantics(int v, String label) => '$v, $label';
+  static const play = 'Çal';
+  static const pause = 'Durdur';
+  static const close = 'Kapat';
+  static String pendingVotes(int n) => '$n bekleyen oy';
+  static String tabSemantics(String label, int badge) => badge > 0 ? '$label, $badge bekleyen' : label;
+  static const clipSemantics = '30 sn önizleme';
+  static String shareOfTaste(int p) => "zevkinin %$p'i";
+  static const votesChartTitle = 'Oy dağılımı';
+  static const serviceNotConnected = 'bağlı değil';
+  static const connectApple = "Apple Music'i bağla";
+  static const connectSpotify = "Spotify'ı bağla";
+  static const fitSuffix = 'uyum';
+  static const anchorUnit = 'çapa';
+  static const gaveSuffix = 'verdin';
+  static String gaveVote(int v) => '$v $gaveSuffix';
+  static String commonTagCount(String tag, int n) => '$tag ×$n';
 }

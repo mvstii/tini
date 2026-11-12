@@ -6,6 +6,7 @@ import '../app_state.dart';
 import '../preview_player.dart';
 import '../theme/cosmic_colors.dart';
 import '../theme/tini_tokens.dart';
+import '../ui/components/gallery_screen.dart';
 import '../theme/transitions.dart';
 import '../widgets/studio.dart';
 import 'discover_screen.dart';
@@ -323,6 +324,13 @@ class _DebugBar extends StatelessWidget {
               itemBuilder: (_) => [
                 for (final e in _names.entries) PopupMenuItem(value: e.key, child: Text(e.value)),
               ],
+            ),
+            IconButton(
+              tooltip: 'Bileşen galerisi',
+              iconSize: 20,
+              onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(builder: (_) => const ComponentGalleryScreen())),
+              icon: const Icon(Icons.grid_view_rounded),
             ),
             IconButton(
               tooltip: 'Hızlı 30 oy',
