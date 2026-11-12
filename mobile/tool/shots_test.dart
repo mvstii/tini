@@ -14,6 +14,7 @@ import 'package:http/testing.dart';
 import 'package:tini/api.dart';
 import 'package:tini/screens/login_screen.dart';
 import 'package:tini/screens/rating_screen.dart';
+import 'package:tini/screens/shell.dart';
 import 'package:tini/theme/cosmic_colors.dart';
 import 'package:tini/theme/tokens.dart';
 import 'package:tini/theme/transitions.dart';
@@ -45,7 +46,7 @@ ThemeData _theme(Brightness b) {
 
 void main() {
   final key = GlobalKey();
-  Future<void> shot(WidgetTester t, Widget app, String name) async {
+  Future<void> shot(WidgetTester t, Widget app, String name, {String dir = 'tasarim'}) async {
     t.view.physicalSize = const Size(390 * 3, 844 * 3);
     t.view.devicePixelRatio = 3;
     debugDisableShadows = false;
@@ -59,7 +60,7 @@ void main() {
       final b = key.currentContext!.findRenderObject() as RenderRepaintBoundary;
       final img = await b.toImage(pixelRatio: 1);
       final bytes = (await img.toByteData(format: ui.ImageByteFormat.png))!;
-      final f = File('../docs/tasarim/$name.png')..createSync(recursive: true);
+      final f = File('../docs/$dir/$name.png')..createSync(recursive: true);
       f.writeAsBytesSync(bytes.buffer.asUint8List());
     });
     debugDisableShadows = true;
@@ -94,6 +95,40 @@ void main() {
       final a = api();
       await a.restore();
       await shot(t, MaterialApp(debugShowCheckedModeBanner: false, theme: _theme(b), home: Scaffold(body: AmbientBackground(child: SafeArea(child: RatingScreen(api: a))))), 'oyla-${b.name}');
+    });
+  }
+  // UI-3 inceleme görüntüleri: kabuk (sekme çubuğu + Oyla / Keşfet).
+  for (final b in [Brightness.dark, Brightness.light]) {
+    testWidgets('shell ${b.name}', (t) async {
+      final a = api();
+      await a.restore();
+      t.view.physicalSize = const Size(390 * 3, 844 * 3);
+      t.view.devicePixelRatio = 3;
+      addTearDown(t.view.reset);
+      await t.pumpWidget(RepaintBoundary(
+          key: key,
+          child: MaterialApp(
+              debugShowCheckedModeBanner: false,
+              theme: _theme(b),
+              home: AppShell(api: a, onLogout: () {}))));
+      await t.pumpAndSettle();
+      Future<void> save(String name) async {
+        await t.runAsync(() async {
+          final r = key.currentContext!.findRenderObject() as RenderRepaintBoundary;
+          final img = await r.toImage(pixelRatio: 1);
+          final bytes = (await img.toByteData(format: ui.ImageByteFormat.png))!;
+          File('../docs/design/review/$name.png')
+            ..createSync(recursive: true)
+            ..writeAsBytesSync(bytes.buffer.asUint8List());
+        });
+      }
+
+      await t.tap(find.byKey(const ValueKey('tab-1')));
+      await t.pumpAndSettle();
+      await save('ui3-oyla-${b.name}');
+      await t.tap(find.byKey(const ValueKey('tab-0')));
+      await t.pumpAndSettle();
+      await save('ui3-kesfet-${b.name}');
     });
   }
   testWidgets('login dark', (t) async {

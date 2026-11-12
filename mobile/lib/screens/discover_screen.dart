@@ -7,8 +7,10 @@ import '../api.dart';
 import '../app_state.dart';
 import '../theme/cosmic_colors.dart';
 import '../theme/tini_tokens.dart';
-import '../widgets/cover_art.dart';
+import '../strings.dart';
+import '../ui/components/components.dart';
 import '../widgets/preview_button.dart';
+import '../preview_player.dart' show PreviewMeta;
 import '../widgets/studio.dart';
 import 'list_screen.dart' show reasonText;
 
@@ -45,7 +47,11 @@ String relativeDate(String iso, [DateTime? now]) {
   final d = DateTime.tryParse(iso);
   if (d == null) return iso;
   final today = now ?? DateTime.now();
-  final days = DateTime(today.year, today.month, today.day).difference(DateTime(d.year, d.month, d.day)).inDays;
+  final days = DateTime(
+    today.year,
+    today.month,
+    today.day,
+  ).difference(DateTime(d.year, d.month, d.day)).inDays;
   if (days <= 0) return 'Bugün';
   if (days == 1) return 'Dün';
   if (days < 7) return '$days gün önce';
@@ -62,7 +68,8 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
   String? _releaseError;
   List<NewTrack> _tracks = const [];
   int _shuffle = 0;
-  List<NewRelease> _shown = const []; // karışım yalnızca veri/sayaç değişince hesaplanır
+  List<NewRelease> _shown =
+      const []; // karışım yalnızca veri/sayaç değişince hesaplanır
   String? _tracksError;
   String? _message;
 
@@ -123,10 +130,12 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
     } on ApiException catch (e) {
       if (e.status == 401) return widget.onLogout();
       if (mounted) {
-        setState(() => _releaseError = switch (e.status) {
-              404 || 409 => 'Önce oylayıp profilini kur; takip ettiğin sanatçıların yayınları burada çıkar.',
-              _ => e.message,
-            });
+        setState(
+          () => _releaseError = switch (e.status) {
+            404 || 409 => 'Önce oylayıp profilini kur; takip ettiğin sanatçıların yayınları burada çıkar.',
+            _ => e.message,
+          },
+        );
       }
     } catch (_) {
       if (mounted) setState(() => _releaseError = 'Sunucuya ulaşılamadı');
@@ -141,7 +150,9 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
     try {
       await widget.api.castVote(track, vote);
       widget.state.recordVote(
-          QueueItem(track, d.entry.title ?? d.entry.name, d.artists, d.image), vote);
+        QueueItem(track, d.entry.title ?? d.entry.name, d.artists, d.image),
+        vote,
+      );
       if (mounted) setState(() => _dailyVote = vote);
     } on ApiException catch (e) {
       if (e.status == 401) return widget.onLogout();
@@ -178,7 +189,12 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
       body: SafeArea(
         bottom: false,
         child: ListView(
-          padding: EdgeInsets.fromLTRB(16, 16, 16, widget.bottomInset + 24),
+          padding: EdgeInsets.fromLTRB(
+            TiniTokens.pageMargin,
+            16,
+            TiniTokens.pageMargin,
+            widget.bottomInset + 24,
+          ),
           children: [
             ListenableBuilder(
               listenable: widget.state,
@@ -189,53 +205,81 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const SectionLabel('TINI STÜDYO'),
-                        const SizedBox(height: 4),
-                        Text('Bugünkü Frekansın',
-                            style: studioTitle(context, base: theme.textTheme.headlineSmall)),
+                        Text(
+                          TiniStrings.tabDiscover,
+                          style: TiniTokens.screenTitle.copyWith(
+                            color: TiniTokens.of(context).text,
+                          ),
+                        ),
                       ],
                     ),
                   ),
                   InkWell(
                     key: const ValueKey('level-badge'),
-                    borderRadius: BorderRadius.circular(14),
+                    borderRadius: BorderRadius.circular(TiniTokens.rPill),
                     onTap: widget.onOpenProfile,
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
                       decoration: BoxDecoration(
                         color: c.primary.withValues(alpha: 0.16),
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(color: c.primary.withValues(alpha: 0.4)),
+                        borderRadius: BorderRadius.circular(TiniTokens.rPill),
+                        border: Border.all(
+                          color: c.primary.withValues(alpha: 0.4),
+                        ),
                       ),
-                      child: Text('Seviye ${widget.state.level} · ${widget.state.total} Oy',
-                          style: theme.textTheme.labelLarge?.copyWith(
-                              color: c.primary,
-                              fontWeight: FontWeight.w700,
-                              fontFeatures: const [FontFeature.tabularFigures()])),
+                      child: Text(
+                        'Seviye ${widget.state.level} · ${widget.state.total} Oy',
+                        style: theme.textTheme.labelLarge?.copyWith(
+                          color: c.primary,
+                          fontWeight: FontWeight.w700,
+                          fontFeatures: const [FontFeature.tabularFigures()],
+                        ),
+                      ),
                     ),
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: 24),
+            ListenableBuilder(
+              listenable: widget.state,
+              builder: (_, _) => widget.state.pendingVotes > 0
+                  ? Padding(
+                      padding: const EdgeInsets.only(top: 16),
+                      child: _PendingVotesCard(
+                        count: widget.state.pendingVotes,
+                        onTap: widget.onOpenRating,
+                      ),
+                    )
+                  : const SizedBox.shrink(),
+            ),
+            const SizedBox(height: TiniTokens.sectionGap),
             const SectionLabel('GÜNÜN TINISI'),
             const SizedBox(height: 10),
             _hero(context),
             if (_message != null)
-              Padding(padding: const EdgeInsets.only(top: 8), child: Text(_message!)),
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Text(_message!),
+              ),
             if (_tracks.isNotEmpty || _tracksError != null) ...[
-              const SizedBox(height: 28),
+              const SizedBox(height: TiniTokens.sectionGap),
               const SectionLabel('BU HAFTA ÇIKANLAR'),
               const SizedBox(height: 10),
               if (_tracksError != null)
                 StateNote.error(_tracksError!, onRetry: _loadTracks)
               else
-                for (final t in _tracks.take(10)) _TrackRow(api: widget.api, track: t),
+                for (final t in _tracks.take(10))
+                  _TrackRow(api: widget.api, track: t),
             ],
-            const SizedBox(height: 28),
+            const SizedBox(height: TiniTokens.sectionGap),
             Row(
               children: [
-                const Expanded(child: SectionLabel('YENİ ÇIKANLAR · TAZE KEŞİF')),
+                const Expanded(
+                  child: SectionLabel('YENİ ÇIKANLAR · TAZE KEŞİF'),
+                ),
                 Tooltip(
                   message: (_releases?.length ?? 0) < 2
                       ? 'Karıştırmak için en az 2 yayın gerekir'
@@ -245,12 +289,13 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
                     onPressed: (_releases?.length ?? 0) < 2
                         ? null
                         : () => setState(() {
-                              _shuffle++;
-                              _reshuffle();
-                            }),
+                            _shuffle++;
+                            _reshuffle();
+                          }),
                     style: TextButton.styleFrom(
-                        visualDensity: VisualDensity.compact,
-                        padding: const EdgeInsets.symmetric(horizontal: 8)),
+                      visualDensity: VisualDensity.compact,
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                    ),
                     icon: const Icon(Icons.shuffle_rounded, size: 18),
                     label: const Text('Yenile / Rastgele'),
                   ),
@@ -259,15 +304,23 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
             ),
             const SizedBox(height: 6),
             if (_releases == null && _releaseError == null)
-              const Padding(padding: EdgeInsets.all(24), child: Center(child: CircularProgressIndicator()))
+              const Padding(
+                padding: EdgeInsets.all(24),
+                child: Center(child: CircularProgressIndicator()),
+              )
             else if (_releaseError != null)
               Padding(
-                  padding: const EdgeInsets.only(top: 6),
-                  child: StateNote.error(_releaseError!, onRetry: _loadReleases))
+                padding: const EdgeInsets.only(top: 6),
+                child: StateNote.error(_releaseError!, onRetry: _loadReleases),
+              )
             else if (_releases!.isEmpty)
               const Padding(
-                  padding: EdgeInsets.only(top: 6),
-                  child: StateNote.empty('Henüz yeni yayın yok.', icon: Icons.album_outlined))
+                padding: EdgeInsets.only(top: 6),
+                child: StateNote.empty(
+                  'Henüz yeni yayın yok.',
+                  icon: Icons.album_outlined,
+                ),
+              )
             else
               AnimatedSwitcher(
                 duration: const Duration(milliseconds: 320),
@@ -281,12 +334,16 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
                         scrollDirection: Axis.horizontal,
                         itemCount: carousel.length,
                         separatorBuilder: (_, _) => const SizedBox(width: 12),
-                        itemBuilder: (_, i) => _ReleaseCard(release: carousel[i]),
+                        itemBuilder: (_, i) =>
+                            _ReleaseCard(release: carousel[i]),
                       ),
                     ),
                     if (rest.isNotEmpty) ...[
                       const SizedBox(height: 16),
-                      const Align(alignment: Alignment.centerLeft, child: SectionLabel('HIZLI KEŞİF')),
+                      const Align(
+                        alignment: Alignment.centerLeft,
+                        child: SectionLabel('HIZLI KEŞİF'),
+                      ),
                       const SizedBox(height: 8),
                       for (final r in rest) _ReleaseRow(release: r),
                     ],
@@ -303,15 +360,19 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
     final c = TiniCosmicColors.of(context);
     final theme = Theme.of(context);
     final dark = theme.brightness == Brightness.dark;
-    final fill = dark
-        ? TiniTokens.heroFillDark
-        : TiniTokens.heroFillLight;
+    final fill = dark ? TiniTokens.heroFillDark : TiniTokens.heroFillLight;
     final edge = dark
-        ? (TiniTokens.heroEdgeDarkHi.withValues(alpha: 0.45), TiniTokens.heroEdgeDarkLo.withValues(alpha: 0.18))
-        : (TiniTokens.heroEdgeLightHi.withValues(alpha: 0.4), TiniTokens.heroEdgeLightLo.withValues(alpha: 0.18));
+        ? (
+            TiniTokens.heroEdgeDarkHi.withValues(alpha: 0.45),
+            TiniTokens.heroEdgeDarkLo.withValues(alpha: 0.18),
+          )
+        : (
+            TiniTokens.heroEdgeLightHi.withValues(alpha: 0.4),
+            TiniTokens.heroEdgeLightLo.withValues(alpha: 0.18),
+          );
     final d = _daily;
     return StudioSurface(
-      radius: 24,
+      radius: TiniTokens.rHero,
       padding: const EdgeInsets.all(16),
       fill: fill,
       edge: edge,
@@ -326,7 +387,8 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
                     child: Text(
                       !_dailyLoaded
                           ? 'Günün şarkısı hazırlanıyor…'
-                          : (_dailyNote ?? 'Günün şarkısı için önce oylayıp profilini kur.'),
+                          : (_dailyNote ??
+                                'Günün şarkısı için önce oylayıp profilini kur.'),
                       style: theme.textTheme.bodyMedium,
                     ),
                   ),
@@ -340,7 +402,9 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
   Widget _heroBody(BuildContext context, DailySong d, TiniCosmicColors c) {
     final theme = Theme.of(context);
     final title = d.entry.title ?? d.entry.name;
-    final artist = d.artists.isNotEmpty ? d.artists.join(', ') : (d.entry.title != null ? d.entry.name : null);
+    final artist = d.artists.isNotEmpty
+        ? d.artists.join(', ')
+        : (d.entry.title != null ? d.entry.name : null);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -355,16 +419,26 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            CoverArt(url: d.image, size: 88, radius: 16, gradientSeed: title, glow: true),
+            TiniCover(
+              seed: '$title|${artist ?? ''}',
+              url: d.image,
+              size: 88,
+              radius: TiniTokens.rCard,
+            ),
             const SizedBox(width: 14),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(title,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: studioTitle(context, base: theme.textTheme.titleLarge)),
+                  Text(
+                    title,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: studioTitle(
+                      context,
+                      base: theme.textTheme.titleLarge,
+                    ),
+                  ),
                   if (artist != null)
                     Text(artist, maxLines: 1, overflow: TextOverflow.ellipsis),
                   const SizedBox(height: 6),
@@ -375,10 +449,12 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
                       Icon(Icons.insights_rounded, size: 14, color: c.primary),
                       const SizedBox(width: 4),
                       Expanded(
-                        child: Text(reasonText(d.entry, top: 2),
-                            maxLines: 3,
-                            overflow: TextOverflow.ellipsis,
-                            style: theme.textTheme.bodySmall),
+                        child: Text(
+                          reasonText(d.entry, top: 2),
+                          maxLines: 3,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.bodySmall,
+                        ),
                       ),
                     ],
                   ),
@@ -408,8 +484,10 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
           if (_dailyVote != null)
             Padding(
               padding: const EdgeInsets.only(top: 6),
-              child: Text('Oyun kaydedildi: $_dailyVote · ${c.votes[_dailyVote]!.label}',
-                  style: theme.textTheme.labelSmall),
+              child: Text(
+                'Oyun kaydedildi: $_dailyVote · ${c.votes[_dailyVote]!.label}',
+                style: theme.textTheme.labelSmall,
+              ),
             ),
         ],
         const SizedBox(height: 14),
@@ -417,11 +495,18 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
           children: [
             if (d.entry.artistId != null) ...[
               PreviewButton(
-                  key: const ValueKey('daily-preview'),
-                  api: widget.api,
-                  previewKey: 'daily-${d.listId}',
-                  artistId: d.entry.artistId,
-                  trackId: d.track),
+                key: const ValueKey('daily-preview'),
+                api: widget.api,
+                previewKey: 'daily-${d.listId}',
+                artistId: d.entry.artistId,
+                trackId: d.track,
+                meta: PreviewMeta(
+                  title: title,
+                  artist: artist ?? '',
+                  image: d.image,
+                  track: d.track,
+                ),
+              ),
               const SizedBox(width: 8),
             ],
             Expanded(
@@ -455,8 +540,13 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
 
 /// Günün şarkısı için küçük 1–6 oy düğmesi (oylama ekranındaki renklerle).
 class _QuickVote extends StatelessWidget {
-  const _QuickVote(
-      {super.key, required this.vote, required this.style, required this.selected, required this.onTap});
+  const _QuickVote({
+    super.key,
+    required this.vote,
+    required this.style,
+    required this.selected,
+    required this.onTap,
+  });
   final int vote;
   final VoteStyle style;
   final bool selected;
@@ -470,24 +560,34 @@ class _QuickVote extends StatelessWidget {
       child: Hoverable(
         scale: 1.06,
         child: Material(
-        color: Colors.transparent,
-        child: Ink(
-          height: 44,
-          decoration: BoxDecoration(
-            color: selected ? style.border.withValues(alpha: 0.35) : style.fill,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: style.border, width: selected ? 2 : style.borderWidth),
-          ),
-          child: InkWell(
-            borderRadius: BorderRadius.circular(12),
-            onTap: onTap,
-            child: Center(
-              child: Text('$vote',
-                  style: TiniTokens.bodyStrong.copyWith(color: style.fg, fontWeight: FontWeight.w800)),
+          color: Colors.transparent,
+          child: Ink(
+            height: 44,
+            decoration: BoxDecoration(
+              color: selected
+                  ? style.border.withValues(alpha: 0.35)
+                  : style.fill,
+              borderRadius: BorderRadius.circular(TiniTokens.rCard),
+              border: Border.all(
+                color: style.border,
+                width: selected ? 2 : style.borderWidth,
+              ),
+            ),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(TiniTokens.rCard),
+              onTap: onTap,
+              child: Center(
+                child: Text(
+                  '$vote',
+                  style: TiniTokens.bodyStrong.copyWith(
+                    color: style.fg,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
             ),
           ),
         ),
-      ),
       ),
     );
   }
@@ -499,42 +599,39 @@ class _ReleaseCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final c = TiniCosmicColors.of(context);
     final theme = Theme.of(context);
     return SizedBox(
       width: 140,
       child: StudioSurface(
-        radius: 18,
+        radius: TiniTokens.rCard,
         padding: const EdgeInsets.all(8),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Stack(
               children: [
-                CoverArt(url: release.cover, size: 124, radius: 12, gradientSeed: release.title, glow: true),
-                Positioned(
-                  left: 6,
-                  top: 6,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: c.votes[6]!.fill,
-                      borderRadius: BorderRadius.circular(6),
-                      border: Border.all(color: c.votes[6]!.border),
-                    ),
-                    child: Text('YENİ',
-                        style: TiniTokens.badge.copyWith(color: c.votes[6]!.fg)),
-                  ),
+                TiniCover(
+                  seed: '${release.title}|${release.artist}',
+                  url: release.cover,
+                  size: 124,
+                  radius: TiniTokens.rCoverSmall,
                 ),
+                const Positioned(left: 6, top: 6, child: NewBadge()),
               ],
             ),
             const SizedBox(height: 6),
-            Text(release.title,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: studioTitle(context, base: theme.textTheme.labelLarge)),
-            Text('${release.artist} · ${relativeDate(release.released)}',
-                maxLines: 1, overflow: TextOverflow.ellipsis, style: theme.textTheme.labelSmall),
+            Text(
+              release.title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: studioTitle(context, base: theme.textTheme.labelLarge),
+            ),
+            Text(
+              '${release.artist} · ${relativeDate(release.released)}',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.labelSmall,
+            ),
           ],
         ),
       ),
@@ -554,30 +651,50 @@ class _TrackRow extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: StudioSurface(
-        radius: 16,
+        radius: TiniTokens.rCard,
         padding: const EdgeInsets.fromLTRB(8, 8, 4, 8),
         child: Row(
           children: [
-            CoverArt(url: track.cover, size: 48, radius: 10, gradientSeed: track.release, glow: true),
+            TiniCover(
+              seed: '${track.title}|${track.artist}',
+              url: track.cover,
+              size: 48,
+              radius: TiniTokens.rCoverSmall,
+            ),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(track.title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: studioTitle(context, base: theme.textTheme.titleSmall)),
-                  Text('${track.artist} · ${track.release} · ${relativeDate(track.released)}',
-                      maxLines: 1, overflow: TextOverflow.ellipsis, style: theme.textTheme.bodySmall),
+                  Text(
+                    track.title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: studioTitle(
+                      context,
+                      base: theme.textTheme.titleSmall,
+                    ),
+                  ),
+                  Text(
+                    '${track.artist} · ${track.release} · ${relativeDate(track.released)}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.bodySmall,
+                  ),
                 ],
               ),
             ),
             PreviewButton(
-                key: ValueKey('new-track-${track.deezerId}'),
-                api: api,
-                previewKey: 'new-track-${track.deezerId}',
-                deezerId: track.deezerId),
+              key: ValueKey('new-track-${track.deezerId}'),
+              api: api,
+              previewKey: 'new-track-${track.deezerId}',
+              deezerId: track.deezerId,
+              meta: PreviewMeta(
+                title: track.title,
+                artist: track.artist,
+                image: track.cover,
+              ),
+            ),
           ],
         ),
       ),
@@ -595,29 +712,82 @@ class _ReleaseRow extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: StudioSurface(
-        radius: 16,
+        radius: TiniTokens.rCard,
         padding: const EdgeInsets.all(8),
         child: Row(
           children: [
-            CoverArt(url: release.cover, size: 48, radius: 10, gradientSeed: release.title, glow: true),
+            TiniCover(
+              seed: '${release.title}|${release.artist}',
+              url: release.cover,
+              size: 48,
+              radius: TiniTokens.rCoverSmall,
+            ),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(release.title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: studioTitle(context, base: theme.textTheme.titleSmall)),
-                  Text('${release.artist} · ${release.type}',
-                      maxLines: 1, overflow: TextOverflow.ellipsis, style: theme.textTheme.bodySmall),
+                  Text(
+                    release.title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: studioTitle(
+                      context,
+                      base: theme.textTheme.titleSmall,
+                    ),
+                  ),
+                  Text(
+                    '${release.artist} · ${release.type}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.bodySmall,
+                  ),
                 ],
               ),
             ),
             const SizedBox(width: 8),
-            Text(relativeDate(release.released), style: theme.textTheme.labelSmall),
+            Text(
+              relativeDate(release.released),
+              style: theme.textTheme.labelSmall,
+            ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// Kuyrukta bekleyen oyları gösteren kart; "Oyla" Oyla sekmesine götürür.
+class _PendingVotesCard extends StatelessWidget {
+  const _PendingVotesCard({required this.count, required this.onTap});
+  final int count;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = TiniTokens.of(context);
+    return Container(
+      key: const ValueKey('pending-votes-card'),
+      padding: const EdgeInsets.fromLTRB(16, 12, 12, 12),
+      decoration: BoxDecoration(
+        color: t.surface1,
+        borderRadius: BorderRadius.circular(TiniTokens.rCard),
+        border: Border.all(color: t.line),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              TiniStrings.pendingVotesCard(count),
+              style: TiniTokens.bodyStrong.copyWith(color: t.text),
+            ),
+          ),
+          FilledButton(
+            key: const ValueKey('pending-votes-rate'),
+            onPressed: onTap,
+            child: const Text(TiniStrings.rate),
+          ),
+        ],
       ),
     );
   }

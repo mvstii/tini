@@ -384,27 +384,32 @@ class ClipPlayer extends StatelessWidget {
             Expanded(
               child: SizedBox(
                 height: 36,
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    for (var i = 0; i < bars; i++) ...[
-                      if (i > 0) const SizedBox(width: 2),
-                      Expanded(
-                        child: FractionallySizedBox(
-                          heightFactor: wave[i],
-                          child: DecoratedBox(
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(2),
-                              color: i / bars < p
-                                  ? Color.lerp(TiniVote.efsaneStart, TiniVote.efsaneEnd, i / bars)
-                                  : t.muted2.withValues(alpha: 0.55),
+                // Dar ekranda çubuk sayısı azalır (her çubuk en az 2 pt); dalga yine seed'den gelir.
+                child: LayoutBuilder(builder: (_, box) {
+                  final n = math.max(8, math.min(bars, ((box.maxWidth + 2) / 4).floor()));
+                  final w = n == bars ? wave : waveform(seed, n);
+                  return Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      for (var i = 0; i < n; i++) ...[
+                        if (i > 0) const SizedBox(width: 2),
+                        Expanded(
+                          child: FractionallySizedBox(
+                            heightFactor: w[i],
+                            child: DecoratedBox(
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(2),
+                                color: i / n < p
+                                    ? Color.lerp(TiniVote.efsaneStart, TiniVote.efsaneEnd, i / n)
+                                    : t.muted2.withValues(alpha: 0.55),
+                              ),
                             ),
                           ),
                         ),
-                      ),
+                      ],
                     ],
-                  ],
-                ),
+                  );
+                }),
               ),
             ),
             const SizedBox(width: 10),

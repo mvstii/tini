@@ -176,7 +176,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('Beta'), findsOneWidget);
       expect(find.byType(Image), findsNothing);
-      expect(find.byIcon(Icons.album_rounded), findsOneWidget); // gradyan yer tutucu
+      expect(find.byIcon(Icons.music_note_rounded), findsOneWidget); // gradyan yer tutucu
     });
 
     testWidgets('autoplay on plays each new top card; off plays nothing', (tester) async {
@@ -808,7 +808,7 @@ void main() {
       var rated = 0;
       await tester.pumpWidget(host(api, s, opened: opened, rate: () => rated++));
       await tester.pumpAndSettle();
-      expect(find.text('Bugünkü Frekansın'), findsOneWidget);
+      expect(find.text('Keşfet'), findsOneWidget);
       expect(find.text('Şarkı Adı'), findsOneWidget);
       expect(find.textContaining('★ Seed %60'), findsOneWidget);
       await tester.tap(find.byKey(const ValueKey('daily-vote-5')));
@@ -849,7 +849,8 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const ValueKey('level-badge')));
       expect(profile, 1);
-      await tester.scrollUntilVisible(find.byKey(const ValueKey('shuffle')), 200);
+      await tester.scrollUntilVisible(find.byKey(const ValueKey('shuffle')), 200,
+          scrollable: find.byType(Scrollable).first);
       await tester.tap(find.byKey(const ValueKey('shuffle')));
       await tester.pumpAndSettle();
       for (final n in [1, 2, 3]) {
@@ -898,7 +899,7 @@ void main() {
 
       await tester.tap(find.byKey(const ValueKey('tab-0')));
       await tester.pumpAndSettle();
-      expect(find.text('Bugünkü Frekansın'), findsOneWidget);
+      expect(find.byKey(const ValueKey('level-badge')), findsOneWidget);
       expect(tester.takeException(), isNull);
 
       await tester.tap(find.byKey(const ValueKey('tab-2')));
@@ -956,12 +957,10 @@ void main() {
       }
       expect(tester.takeException(), isNull);
       expect(find.text('Profili Kur'), findsOneWidget);
-      expect(find.byKey(const ValueKey('recs-badge')), findsOneWidget);
 
       await tester.tap(find.byKey(const ValueKey('tab-2')));
       await tester.pumpAndSettle();
       expect(find.text('Oylamaya Devam Et'), findsNothing);
-      expect(find.byKey(const ValueKey('recs-badge')), findsNothing);
 
       await tester.tap(find.byKey(const ValueKey('tab-3')));
       await tester.pumpAndSettle();

@@ -17,6 +17,7 @@ class PreviewButton extends StatefulWidget {
     this.artistId,
     this.trackId,
     this.deezerId,
+    this.meta,
   });
   final Api api;
   final String previewKey;
@@ -25,6 +26,9 @@ class PreviewButton extends StatefulWidget {
 
   /// Yeni çıkan parçalar: Deezer kimliğiyle doğrudan çözülür.
   final int? deezerId;
+
+  /// Mini oynatıcıda gösterilecek parça bilgisi.
+  final PreviewMeta? meta;
 
   @override
   State<PreviewButton> createState() => _PreviewButtonState();
@@ -105,7 +109,8 @@ class _PreviewButtonState extends State<PreviewButton> {
                   : () => ctl.toggle(
                       previewKey,
                       () => api.previewUrl(
-                          artistId: artistId, trackId: trackId, deezerId: deezerId)),
+                          artistId: artistId, trackId: trackId, deezerId: deezerId),
+                      meta: widget.meta),
               child: SizedBox(
                 width: 44,
                 height: 44,

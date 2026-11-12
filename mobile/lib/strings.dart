@@ -34,6 +34,9 @@ abstract final class TiniStrings {
   static const slotFresh = 'Taze';
   static String fitPercent(int p) => '%$p';
   static String voteSemantics(int v, String label) => '$v, $label';
+  static const previewUnavailable = 'Bu şarkı için önizleme yok';
+  static String pendingVotesCard(int n) => '$n şarkı oyunu bekliyor';
+  static const rate = 'Oyla';
   static const play = 'Çal';
   static const pause = 'Durdur';
   static const close = 'Kapat';

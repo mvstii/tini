@@ -164,6 +164,7 @@ class TiniTabBar extends StatelessWidget {
                   for (var i = 0; i < 4; i++)
                     Expanded(
                       child: _TabItem(
+                        key: ValueKey('tab-$i'),
                         label: _labels[i],
                         icon: index == i ? _iconsActive[i] : _icons[i],
                         active: index == i,
@@ -183,6 +184,7 @@ class TiniTabBar extends StatelessWidget {
 
 class _TabItem extends StatelessWidget {
   const _TabItem({
+    super.key,
     required this.label,
     required this.icon,
     required this.active,

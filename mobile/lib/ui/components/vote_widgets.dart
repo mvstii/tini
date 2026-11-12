@@ -94,29 +94,52 @@ class VoteButton extends StatelessWidget {
 
 /// Altı oy düğmesi yan yana; dokunuşta hafif titreşim verir. Seçili oy varsa diğerleri pasifleşir.
 class VoteRow extends StatelessWidget {
-  const VoteRow({super.key, this.selected, required this.onVote, this.enabled = true});
+  const VoteRow({super.key, this.selected, required this.onVote, this.enabled = true, this.showLabels = false});
   final int? selected;
   final ValueChanged<int> onVote;
   final bool enabled;
 
+  /// Her düğmenin altına oy adını (Berbat … Efsane) yazar.
+  final bool showLabels;
+
   @override
   Widget build(BuildContext context) {
+    final t = TiniTokens.of(context);
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         for (var v = 1; v <= 6; v++)
-          VoteButton(
-            key: ValueKey('vote-$v'),
-            value: v,
-            state: selected == null
-                ? VoteButtonState.normal
-                : (selected == v ? VoteButtonState.selected : VoteButtonState.passive),
-            onTap: enabled
-                ? () {
-                    HapticFeedback.selectionClick();
-                    onVote(v);
-                  }
-                : null,
+          SizedBox(
+            width: 54,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                VoteButton(
+                  key: ValueKey('vote-$v'),
+                  value: v,
+                  state: selected == null
+                      ? VoteButtonState.normal
+                      : (selected == v ? VoteButtonState.selected : VoteButtonState.passive),
+                  onTap: enabled
+                      ? () {
+                          HapticFeedback.selectionClick();
+                          onVote(v);
+                        }
+                      : null,
+                ),
+                if (showLabels) ...[
+                  const SizedBox(height: 6),
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(TiniStrings.voteLabels[v - 1],
+                        maxLines: 1,
+                        style: TiniTokens.caption.copyWith(
+                            color: selected == v ? t.text : t.muted, fontWeight: FontWeight.w600)),
+                  ),
+                ],
+              ],
+            ),
           ),
       ],
     );

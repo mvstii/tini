@@ -66,6 +66,15 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Oylama kuyruğunda bekleyen şarkı sayısı (tab çubuğundaki rozet); Oyla ekranı yazar.
+  int pendingVotes = 0;
+
+  void setPendingVotes(int n) {
+    if (n == pendingVotes) return;
+    pendingVotes = n;
+    notifyListeners();
+  }
+
   void recordUnheard() {
     unheardSession++;
     notifyListeners();
