@@ -109,6 +109,17 @@ class _ListScreenState extends State<ListScreen> {
   final Map<int, String?> _photos = {};
   final Map<int, String> _titles = {};
 
+  @override
+  void initState() {
+    super.initState();
+    // Sekme olarak açılınca ölü ekran yerine ilk listeyi kendiliğinden üret.
+    if (widget.embedded) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && _list == null && !_busy) _generate();
+      });
+    }
+  }
+
   /// Önbellekte olmayan sanatçı portrelerini arka planda ister; kartlar geldikçe güncellenir.
   void _loadPhotos(DiscoveryList l) {
     final missing = [
