@@ -266,6 +266,7 @@ class VoteEvent(Base):
     )
     track_id: Mapped[int] = mapped_column(ForeignKey("track.id"), index=True)
     vote: Mapped[int] = mapped_column(SmallInteger)
+    source: Mapped[str | None] = mapped_column(String(16), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=_now)
 
 
@@ -285,6 +286,7 @@ class UnheardEvent(Base):
     )
     track_id: Mapped[int] = mapped_column(ForeignKey("track.id"), index=True)
     state: Mapped[str] = mapped_column(String(16))
+    source: Mapped[str | None] = mapped_column(String(16), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=_now)
 
 

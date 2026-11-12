@@ -196,10 +196,10 @@ class _RatingScreenState extends State<RatingScreen> {
     var saved = false;
     await _guard(() async {
       if (vote != null) {
-        await widget.api.castVote(item.track, vote);
+        await widget.api.castVote(item.track, vote, source: item.sourceLabel);
         _state.recordVote(item, vote);
       } else {
-        await widget.api.markUnheard(item.track);
+        await widget.api.markUnheard(item.track, source: item.sourceLabel);
         _state.recordUnheard();
       }
       saved = true;
