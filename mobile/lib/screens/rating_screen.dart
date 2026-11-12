@@ -1102,8 +1102,18 @@ class _SkeletonCard extends StatefulWidget {
 
 class _SkeletonCardState extends State<_SkeletonCard> with SingleTickerProviderStateMixin {
   late final AnimationController _ctl = AnimationController(
-      vsync: this, duration: const Duration(milliseconds: 900))
-    ..repeat(reverse: true);
+      vsync: this, duration: const Duration(milliseconds: 900));
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (MediaQuery.disableAnimationsOf(context)) {
+      _ctl.stop();
+      _ctl.value = 1;
+    } else if (!_ctl.isAnimating) {
+      _ctl.repeat(reverse: true);
+    }
+  }
 
   @override
   void dispose() {

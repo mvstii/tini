@@ -47,4 +47,16 @@ void main() {
     expect(retried, 1);
     expect(find.text('Henüz oy yok.'), findsOneWidget);
   });
+
+  testWidgets('SkeletonCard breathes normally but stands still with reduced motion', (tester) async {
+    Widget app({required bool reduce}) => MediaQuery(
+          data: MediaQueryData(disableAnimations: reduce),
+          child: const MaterialApp(home: Scaffold(body: SkeletonCard())),
+        );
+    await tester.pumpWidget(app(reduce: false));
+    expect(tester.hasRunningAnimations, isTrue);
+    await tester.pumpWidget(app(reduce: true));
+    await tester.pump();
+    expect(tester.hasRunningAnimations, isFalse);
+  });
 }

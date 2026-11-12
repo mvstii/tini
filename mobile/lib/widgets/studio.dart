@@ -336,8 +336,19 @@ class SkeletonCard extends StatefulWidget {
 
 class _SkeletonCardState extends State<SkeletonCard> with SingleTickerProviderStateMixin {
   late final AnimationController _c =
-      AnimationController(vsync: this, duration: const Duration(milliseconds: 1100))
-        ..repeat(reverse: true);
+      AnimationController(vsync: this, duration: const Duration(milliseconds: 1100));
+
+  /// Hareketi azalt açıkken sonsuz nefes durur, sabit bir kareye çekilir.
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (MediaQuery.disableAnimationsOf(context)) {
+      _c.stop();
+      _c.value = 1;
+    } else if (!_c.isAnimating) {
+      _c.repeat(reverse: true);
+    }
+  }
 
   @override
   void dispose() {
@@ -393,7 +404,9 @@ class StaggerIn extends StatelessWidget {
     final delay = index.clamp(0, 8) * 45;
     return TweenAnimationBuilder<double>(
       tween: Tween(begin: 0, end: 1),
-      duration: Duration(milliseconds: 280 + delay),
+      duration: MediaQuery.disableAnimationsOf(context)
+          ? Duration.zero
+          : Duration(milliseconds: 280 + delay),
       curve: Curves.easeOutCubic,
       builder: (_, t, c) => Opacity(
         opacity: t,
