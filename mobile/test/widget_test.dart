@@ -109,7 +109,7 @@ void main() {
 
   group('rating screen', () {
     // Sunucu sahtesi: kuyruk, oy listesi ve sayaç.
-    ({Api api, List<Map<String, int>> votes, List<String> calls}) fake({
+    ({Api api, List<Map<String, int>> votes, List<String> calls, List<Map> bodies}) fake({
       int total = 0,
       List<Map<String, Object>>? items,
       int stale = 0,
@@ -117,6 +117,7 @@ void main() {
     }) {
       final votes = <Map<String, int>>[];
       final calls = <String>[];
+      final bodies = <Map>[]; // /votes ve /votes/unheard gövdeleri (kaynak alanı için)
       final queue = [
         ...(items ??
             [
@@ -129,6 +130,7 @@ void main() {
       final api = _api((req) async {
         calls.add('${req.method} ${req.url.path}');
         if (req.method == 'POST' && req.url.path.startsWith('/votes')) {
+          bodies.add(jsonDecode(req.body) as Map);
           await Future<void>.delayed(delay);
         }
         switch (req.url.path) {
@@ -151,7 +153,7 @@ void main() {
         }
         return http.Response('{}', 200);
       }, _MemoryStorage()..data['session'] = 'T');
-      return (api: api, votes: votes, calls: calls);
+      return (api: api, votes: votes, calls: calls, bodies: bodies);
     }
 
     Future<void> open(WidgetTester tester, Api api) async {
@@ -207,6 +209,24 @@ void main() {
       expect(find.text('Beta'), findsOneWidget);
       expect(find.text('B, C'), findsOneWidget);
       expect(find.text('Başlangıç Turu · 1 / $tourVotes'), findsOneWidget);
+    });
+
+    testWidgets('vote and unheard carry the card source (library when absent)', (tester) async {
+      final f = fake(items: [
+        {'track': 1, 'title': 'Alpha', 'artists': ['A'], 'source': 'probe'},
+        {'track': 2, 'title': 'Beta', 'artists': ['B']},
+      ]);
+      await open(tester, f.api);
+
+      await tester.tap(find.byKey(const ValueKey('vote-5')));
+      await tester.pumpAndSettle();
+      await tester.drag(find.text('Beta'), const Offset(-600, 0));
+      await tester.pumpAndSettle();
+
+      expect(f.bodies, [
+        {'track': 1, 'vote': 5, 'source': 'probe'},
+        {'track': 2, 'source': 'library'},
+      ]);
     });
 
     testWidgets('swipe right adds to listen-later (no vote), swipe left skips', (tester) async {

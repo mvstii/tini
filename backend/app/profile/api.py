@@ -55,13 +55,23 @@ router = APIRouter(prefix="/votes")
 profile_router = APIRouter(prefix="/profile")
 
 
+# Kuyruk kartının kaynağı (kalite koruması ölçümü). Bilinmeyen değer NULL olur, reddedilmez.
+CARD_SOURCES = frozenset({"library", "suggested", "probe", "joker"})
+
+
+def _card_source(raw: str | None) -> str | None:
+    return raw if raw in CARD_SOURCES else None
+
+
 class VoteIn(BaseModel):
     track: int
     vote: int = Field(ge=1, le=6)
+    source: str | None = Field(default=None, max_length=32)
 
 
 class UnheardIn(BaseModel):
     track: int
+    source: str | None = Field(default=None, max_length=32)
 
 
 def _events(db: Session, user_id) -> list[VoteEvt]:
@@ -107,7 +117,9 @@ def cast_vote(
         )
     if owned is None and not _presented(db, user.id, body.track, gcfg):
         raise HTTPException(404, "Parça kütüphanede ya da listelerinde yok")
-    ev = VoteEvent(user_id=user.id, track_id=body.track, vote=body.vote)
+    ev = VoteEvent(
+        user_id=user.id, track_id=body.track, vote=body.vote, source=_card_source(body.source)
+    )
     db.add(ev)
     db.commit()
     if gcfg.auto_expand:
@@ -145,7 +157,10 @@ def mark_unheard(
         .select_from(UnheardEvent)
         .where(UnheardEvent.user_id == user.id, UnheardEvent.track_id == body.track)
     )
-    ev = UnheardEvent(user_id=user.id, track_id=body.track, state=next_state(prior))
+    ev = UnheardEvent(
+        user_id=user.id, track_id=body.track, state=next_state(prior),
+        source=_card_source(body.source),
+    )
     db.add(ev)
     db.commit()
     status = next(

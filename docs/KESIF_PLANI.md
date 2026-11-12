@@ -389,7 +389,7 @@ Program, aşağıdaki ölçütler sınırlı yerel ortamda (`rapid_vote_bench`, 
 | Kapsama | İlk 50 oyda ≥ 10 ana tür; ilk 200 oyda ≥ 30 alt tür (sert kaçınılanlar hariç: o türdeki oy ortalaması ≤ 2; karar 12 Kasım 2026) | `queue_sim`, `coverage_sim` (12 Kasım: staging, 5 tohum, ana tür 11–13, alt tür 30–36 → geçti; sonda/joker katkısı ölçülmez) | PR-4–6 |
 | Çeşitlilik | 20 kartta ≥ 5 ana tür; aynı sanatçı 20 kartta ≤ 2, son 4'te 0; aynı şarkı sürümü 0; en uzun aynı alt tür serisi 1 | `queue_sim` | PR-6 |
 | Tazelik | İki ardışık oturumun ilk 20 kartı örtüşmesi < %20 (ölçüm: ikinci oturumdan önce ilk oturumun ilk 10 kartı görülmüş sayılır, `recent` ile; karar 11 Kasım 2026. Örtüşme 5 örtüşmeyen tohum çiftinin ortalamasıdır; karar 12 Kasım 2026); aynı tohumla %100 | `queue_sim`, birim test | PR-6 |
-| Kalite koruması | Sonda/joker kartlarında Good+ oranı genel ortalamanın ≥ %60'ı; "Dinlemedim" < %50 | `evaluate` | PR-6–7 |
+| Kalite koruması | Sonda/joker kartlarında Good+ oranı genel ortalamanın ≥ %60'ı; "Dinlemedim" < %50 | `evaluate` (12 Kasım: `vote_event.source`/`unheard_event.source` ile ölçülebilir; veri yeni APK'dan sonra birikir) | PR-6–7 |
 | Bütçe | Neon CU < 60/ay, OOM 0, Last.fm verisi < 100 MB, DB < 1 GB | Neon/Render panelleri, `graph_stats` | Tümü |
 
 Kalite koruması altına düşülürse ε, τ ve sonda payı otomatik değil, geliştirici onayıyla düşürülür.

@@ -52,10 +52,14 @@ class QueueItem {
   final List<String> artists;
 
   /// Sunucu önerisi ise "suggested"; kütüphane parçalarında null (rozet gösterilmez).
+  /// Oy ve "Dinlemedim" isteğine `sourceLabel` olarak eklenir (null = kütüphane).
   final String? source;
 
   /// Öneri gerekçesinin ana çapası (sanatçı adı); yoksa null.
   final String? reasonSeed;
+
+  /// Sunucuya bildirilen kart kaynağı: library | suggested | probe | joker.
+  String get sourceLabel => source ?? 'library';
 
   /// Albüm kapağı URL'si (yoksa null); sunucu kullanıcıya özel önbellekten verir.
   final String? image;
@@ -295,9 +299,9 @@ class Api {
     return true;
   }
 
-  /// Oy silinmez; her çağrı yeni bir olaydır.
-  Future<void> castVote(int track, int vote) =>
-      _send('POST', '/votes', {'track': track, 'vote': vote});
+  /// Oy silinmez; her çağrı yeni bir olaydır. `source`: kuyruk kartının kaynağı (kalite ölçümü).
+  Future<void> castVote(int track, int vote, {String? source}) => _send('POST', '/votes',
+      {'track': track, 'vote': vote, 'source': ?source});
 
   /// "Sonra dinle" listesine ekler / çıkarır (oy değildir).
   Future<void> addLater(int track) => _send('POST', '/later', {'track': track});
@@ -357,7 +361,8 @@ class Api {
   Future<void> deleteComment(int id) => _send('DELETE', '/comments/$id');
 
   /// Sola kaydırma: Unheard olayı yazar (silinmez; 3 sunumda oy gelmezse zayıf negatif olur).
-  Future<void> markUnheard(int track) => _send('POST', '/votes/unheard', {'track': track});
+  Future<void> markUnheard(int track, {String? source}) =>
+      _send('POST', '/votes/unheard', {'track': track, 'source': ?source});
 
   Future<int> voteTotal() async {
     final body = await _send('GET', '/votes/history?limit=1');

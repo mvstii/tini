@@ -151,6 +151,82 @@ def evaluate_unheard(
     rep.unheard_good = sum(1 for v in last.values() if v.vote >= good)
 
 
+@dataclass
+class SourceStat:
+    voted: int = 0  # kaynağı bilinen kartlarda, parça başına son oy
+    good: int = 0
+    unheard: int = 0  # "Dinlemedim" denen ayrı parça
+
+    @property
+    def good_rate(self) -> float | None:
+        return self.good / self.voted if self.voted else None
+
+    @property
+    def unheard_rate(self) -> float | None:
+        total = self.voted + self.unheard
+        return self.unheard / total if total else None
+
+
+OVERALL = "genel"
+
+
+def evaluate_sources(
+    votes: Iterable[tuple[int, int, int, str | None]],
+    unheard: Iterable[tuple[int, str | None]],
+    good: int = 4,
+) -> dict[str, SourceStat]:
+    """Kuyruk kartı kaynağına göre Good+ ve Dinlemedim oranı (kalite koruması ölçütü).
+
+    `votes`: (olay id, parça, oy, kaynak); `unheard`: (parça, kaynak). Kaynağı NULL olan
+    (eski istemci) olaylar sayılmaz. `OVERALL` anahtarı tüm kaynaklı kartların toplamıdır.
+    Parça başına son oy sayılır; aynı kaynaktan aynı parçaya birden çok Dinlemedim tek sayılır.
+    """
+    last: dict[int, tuple[int, str]] = {}
+    for _, track, vote, source in sorted(votes, key=lambda v: v[0]):
+        if source is not None:
+            last[track] = (vote, source)
+    out: dict[str, SourceStat] = {}
+    for vote, source in last.values():
+        for key in (source, OVERALL):
+            st = out.setdefault(key, SourceStat())
+            st.voted += 1
+            st.good += 1 if vote >= good else 0
+    pairs = {(t, s) for t, s in unheard if s is not None}
+    for source in (s for _, s in pairs):
+        out.setdefault(source, SourceStat()).unheard += 1
+    if pairs:
+        out.setdefault(OVERALL, SourceStat()).unheard += len({t for t, _ in pairs})
+    return out
+
+
+def format_sources(stats: dict[str, SourceStat], min_sample: int) -> list[str]:
+    """Kalite koruması: sonda+joker Good+ oranı genel ortalamanın >= %60'ı; Dinlemedim < %50."""
+    if not stats:
+        return ["Kaynak bazlı ölçüm: veri yok (kaynağı kayıtlı oy yok)"]
+    lines = ["Kuyruk kartı kaynağına göre (kaynağı kayıtlı olaylar):"]
+    for name in sorted(stats, key=lambda k: (k == OVERALL, k)):
+        s = stats[name]
+        warn = " (yetersiz veri)" if s.voted + s.unheard < min_sample else ""
+        lines.append(
+            f"  {name:<10} oylanan {s.voted}; Good+ {_pct(s.good_rate)}; "
+            f"Dinlemedim {_pct(s.unheard_rate)} ({s.unheard}){warn}"
+        )
+    pj = SourceStat()
+    for k in ("probe", "joker"):
+        if k in stats:
+            pj.voted += stats[k].voted
+            pj.good += stats[k].good
+            pj.unheard += stats[k].unheard
+    overall = stats.get(OVERALL)
+    if pj.voted and overall and overall.good_rate:
+        ratio = (pj.good_rate or 0.0) / overall.good_rate
+        lines.append(
+            f"  sonda+joker Good+ / genel: {_pct(ratio)} (eşik >= %60); "
+            f"Dinlemedim {_pct(pj.unheard_rate)} (eşik < %50)"
+        )
+    return lines
+
+
 def _pct(x: float | None) -> str:
     return "—" if x is None else f"%{x * 100:.0f}"
 

@@ -1,9 +1,9 @@
 from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import func, select
-from test_lists_api import client, db, library_track, setup_user  # noqa: F401
+from test_lists_api import client, db, library_track, mk_artist, register, setup_user  # noqa: F401
 
-from app.jobs.evaluate import collect
+from app.jobs.evaluate import collect, collect_sources
 from app.models import (
     GeneratedList,
     ListFeedback,
@@ -17,8 +17,10 @@ from app.recommend.metrics import (
     PoolEvent,
     TrackVote,
     evaluate_items,
+    evaluate_sources,
     evaluate_unheard,
     format_report,
+    format_sources,
     spearman,
 )
 from app.recommend.outcomes import ArtistVote
@@ -120,3 +122,51 @@ def test_collect_is_read_only_and_counts_events(client, db):  # noqa: F811
     assert counts() == before
     assert rep.overall.presented == len(lst["items"]) and rep.overall.objected == 1
     assert rep.unheard_pooled == 1 and rep.unheard_good == 1
+
+
+def test_evaluate_sources_rates_last_vote_per_track_and_skips_null():
+    votes = [
+        (1, 10, 2, "probe"), (2, 10, 5, "probe"),  # son oy 5 -> Good+
+        (3, 11, 3, "probe"), (4, 12, 6, "library"), (5, 13, 4, "library"),
+        (6, 14, 1, None),  # eski istemci: sayılmaz
+    ]
+    unheard = [(20, "probe"), (20, "probe"), (21, "joker"), (22, None)]
+    st = evaluate_sources(votes, unheard)
+    assert (st["probe"].voted, st["probe"].good, st["probe"].unheard) == (2, 1, 1)
+    assert (st["library"].voted, st["library"].good) == (2, 2)
+    assert st["joker"].voted == 0 and st["joker"].unheard == 1
+    assert (st["genel"].voted, st["genel"].good, st["genel"].unheard) == (4, 3, 2)
+    assert st["probe"].unheard_rate == 1 / 3
+    assert evaluate_sources([], [(1, None)]) == {}
+
+
+def test_format_sources_reports_quality_protection_ratio():
+    votes = [(1, 1, 5, "probe"), (2, 2, 1, "probe"), (3, 3, 5, "library"), (4, 4, 5, "library")]
+    lines = format_sources(evaluate_sources(votes, []), min_sample=10)
+    text = "\n".join(lines)
+    assert "sonda+joker Good+ / genel: %67" in text and "yetersiz veri" in text
+    assert format_sources({}, 10) == ["Kaynak bazlı ölçüm: veri yok (kaynağı kayıtlı oy yok)"]
+
+
+def test_collect_sources_reads_stored_source(client, db):  # noqa: F811
+    h = register(client, "src-eval@example.com")
+    u = db.scalar(select(User).where(User.email == "src-eval@example.com"))
+    t = library_track(db, "src-eval@example.com", "ZZSRC0000001", mk_artist(db, "SrcArtist"))
+    assert client.post(
+        "/votes", json={"track": t.id, "vote": 5, "source": "probe"}, headers=h
+    ).status_code in (200, 201)
+    assert client.post(
+        "/votes/unheard", json={"track": t.id, "source": "joker"}, headers=h
+    ).status_code == 201
+    st = collect_sources(db, u.id)
+    assert st["probe"].good == 1 and st["joker"].unheard == 1
+
+
+def test_unknown_source_is_stored_as_null(client, db):  # noqa: F811
+    h = register(client, "src-null@example.com")
+    t = library_track(db, "src-null@example.com", "ZZSRC0000002", mk_artist(db, "SrcNull"))
+    client.post("/votes", json={"track": t.id, "vote": 4, "source": "nonsense"}, headers=h)
+    client.post("/votes", json={"track": t.id, "vote": 4}, headers=h)
+    assert db.scalars(select(VoteEvent.source).where(VoteEvent.track_id == t.id)).all() == [
+        None, None,
+    ]

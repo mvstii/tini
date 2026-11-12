@@ -24,10 +24,13 @@ from app.recommend.metrics import (
     EvalItem,
     PoolEvent,
     Report,
+    SourceStat,
     TrackVote,
     evaluate_items,
+    evaluate_sources,
     evaluate_unheard,
     format_report,
+    format_sources,
 )
 from app.recommend.outcomes import ArtistVote
 
@@ -87,13 +90,28 @@ def collect(db: Session, user_id) -> Report:
     return rep
 
 
+def collect_sources(db: Session, user_id) -> dict[str, SourceStat]:
+    votes = db.execute(
+        select(VoteEvent.id, VoteEvent.track_id, VoteEvent.vote, VoteEvent.source).where(
+            VoteEvent.user_id == user_id
+        )
+    ).all()
+    unheard = db.execute(
+        select(UnheardEvent.track_id, UnheardEvent.source).where(UnheardEvent.user_id == user_id)
+    ).all()
+    return evaluate_sources(votes, unheard)
+
+
 def run(email: str) -> list[str]:
     cfg = get_recommend_settings()
     with Session(make_engine()) as db:
         user = db.scalar(select(User).where(User.email == email))
         if user is None:
             raise SystemExit(f"Kullanıcı yok: {email}")
-        return format_report(collect(db, user.id), cfg.eval_min_sample)
+        return [
+            *format_report(collect(db, user.id), cfg.eval_min_sample),
+            *format_sources(collect_sources(db, user.id), cfg.eval_min_sample),
+        ]
 
 
 if __name__ == "__main__":
