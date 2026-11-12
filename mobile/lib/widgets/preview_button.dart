@@ -55,7 +55,11 @@ class _PreviewButtonState extends State<PreviewButton> {
         final st = ctl.statusOf(previewKey);
         final unavailable = st == PreviewStatus.unavailable;
         return Tooltip(
-          message: unavailable ? 'Önizleme bulunamadı' : '30 sn önizleme',
+          message: unavailable
+              ? 'Önizleme bulunamadı'
+              : st == PreviewStatus.error
+                  ? 'Önizleme yüklenemedi, tekrar dene'
+                  : '30 sn önizleme',
           child: Hoverable(
             enabled: !unavailable,
             scale: 1.1,
@@ -88,6 +92,8 @@ class _PreviewButtonState extends State<PreviewButton> {
                           key: const ValueKey('off'),
                           size: 20,
                           color: c.primary.withValues(alpha: 0.4)),
+                      PreviewStatus.error => Icon(Icons.refresh_rounded,
+                          key: const ValueKey('retry'), color: c.primary),
                       PreviewStatus.idle => Icon(Icons.play_arrow_rounded,
                           key: const ValueKey('play'), color: c.primary),
                     },

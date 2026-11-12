@@ -329,7 +329,11 @@ class _RatingScreenState extends State<RatingScreen> {
               const SizedBox(height: 8),
               Expanded(child: _cardArea(c, canVote)),
               const SizedBox(height: 10),
-              _VoteGrid(enabled: canVote, onVote: _answer),
+              // Kayıt sürerken dokunma kapalı ama düğmeler solmaz (her oyda titreme olmasın).
+              _VoteGrid(
+                  enabled: canVote,
+                  dimmed: _loading || _current == null || _state.forced != UiState.normal,
+                  onVote: _answer),
             ],
           ),
         ),
@@ -938,8 +942,9 @@ class _SkipPill extends StatelessWidget {
 }
 
 class _VoteGrid extends StatelessWidget {
-  const _VoteGrid({required this.enabled, required this.onVote});
+  const _VoteGrid({required this.enabled, required this.dimmed, required this.onVote});
   final bool enabled;
+  final bool dimmed;
   final ValueChanged<int> onVote;
 
   @override
@@ -959,6 +964,7 @@ class _VoteGrid extends StatelessWidget {
                     value: ids[i],
                     style: c.votes[ids[i]]!,
                     enabled: enabled,
+                    dimmed: dimmed,
                     onTap: () => onVote(ids[i]),
                   ),
                 ),
@@ -980,10 +986,15 @@ class _VoteGrid extends StatelessWidget {
 
 class _VoteButton extends StatefulWidget {
   const _VoteButton(
-      {required this.value, required this.style, required this.enabled, required this.onTap});
+      {required this.value,
+      required this.style,
+      required this.enabled,
+      required this.dimmed,
+      required this.onTap});
   final int value;
   final VoteStyle style;
   final bool enabled;
+  final bool dimmed;
   final VoidCallback onTap;
 
   @override
@@ -1004,7 +1015,7 @@ class _VoteButtonState extends State<_VoteButton> {
       excludeSemantics: true,
       onTap: widget.enabled ? widget.onTap : null,
       child: Opacity(
-      opacity: widget.enabled ? 1 : 0.45,
+      opacity: widget.dimmed ? 0.45 : 1,
       child: AnimatedScale(
         scale: _pressed ? 0.95 : (_hover && widget.enabled ? 1.05 : 1),
         duration: const Duration(milliseconds: 90),
