@@ -17,6 +17,7 @@ import 'package:tini/screens/rating_screen.dart';
 import 'package:tini/theme/cosmic_colors.dart';
 import 'package:tini/theme/tokens.dart';
 import 'package:tini/theme/transitions.dart';
+import 'package:tini/widgets/studio.dart';
 
 class _Mem extends FlutterSecureStorage {
   final data = <String, String>{'session': 'T'};
@@ -47,7 +48,11 @@ void main() {
   Future<void> shot(WidgetTester t, Widget app, String name) async {
     t.view.physicalSize = const Size(390 * 3, 844 * 3);
     t.view.devicePixelRatio = 3;
-    addTearDown(t.view.reset);
+    debugDisableShadows = false;
+    addTearDown(() {
+      t.view.reset();
+      debugDisableShadows = true;
+    });
     await t.pumpWidget(RepaintBoundary(key: key, child: app));
     await t.pumpAndSettle();
     await t.runAsync(() async {
@@ -57,6 +62,7 @@ void main() {
       final f = File('../docs/tasarim/$name.png')..createSync(recursive: true);
       f.writeAsBytesSync(bytes.buffer.asUint8List());
     });
+    debugDisableShadows = true;
   }
 
   setUpAll(() async {
@@ -87,7 +93,7 @@ void main() {
     testWidgets('rating ${b.name}', (t) async {
       final a = api();
       await a.restore();
-      await shot(t, MaterialApp(debugShowCheckedModeBanner: false, theme: _theme(b), home: RatingScreen(api: a)), 'oyla-${b.name}');
+      await shot(t, MaterialApp(debugShowCheckedModeBanner: false, theme: _theme(b), home: Scaffold(body: AmbientBackground(child: SafeArea(child: RatingScreen(api: a))))), 'oyla-${b.name}');
     });
   }
   testWidgets('login dark', (t) async {

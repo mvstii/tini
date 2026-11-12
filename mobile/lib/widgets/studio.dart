@@ -1,10 +1,13 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import '../theme/cosmic_colors.dart';
 import '../theme/tokens.dart';
 
-/// Tüm ekranların arkasındaki yumuşak ışık zemini. `BackdropFilter` yok: yalnızca iki
-/// `RadialGradient` katmanı (sağ üst mor, sol alt macenta), bu yüzden ucuz.
+/// Tüm ekranların arkasındaki galaksi zemini: simsiyah-mor taban, iki nebula ışığı ve sabit bir
+/// yıldız tozu katmanı (tek `CustomPaint`, animasyonsuz; `BackdropFilter` yok, bu yüzden ucuz).
+/// Açık temada aynı kurgu pastel: lavanta zemin, pembe/mor nebula, ince parıltılar.
 class AmbientBackground extends StatelessWidget {
   const AmbientBackground({super.key, required this.child});
   final Widget child;
@@ -12,39 +15,32 @@ class AmbientBackground extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final dark = Theme.of(context).brightness == Brightness.dark;
-    final base = dark ? const Color(0xFF08060E) : const Color(0xFFF7F4FC);
-    final top = dark ? const Color(0xFF3E1F5E) : const Color(0xFFB9A4E8);
-    final bottom = dark ? const Color(0xFF59184A) : const Color(0xFFF2B5D4);
+    final base = dark ? const Color(0xFF050309) : const Color(0xFFF3EEFC);
+    final top = dark ? const Color(0xFF4B1F8C) : const Color(0xFFB9A4E8);
+    final bottom = dark ? const Color(0xFF7A1B6B) : const Color(0xFFF2B5D4);
+    Widget glow(Alignment at, double radius, Color color, double alpha) => Positioned.fill(
+          child: IgnorePointer(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: RadialGradient(
+                    center: at,
+                    radius: radius,
+                    colors: [color.withValues(alpha: alpha), color.withValues(alpha: 0)]),
+              ),
+            ),
+          ),
+        );
     return ColoredBox(
       color: base,
       child: Stack(
         children: [
+          glow(const Alignment(1.0, -1.0), 1.3, top, dark ? 0.34 : 0.26),
+          glow(const Alignment(-1.0, 1.0), 1.1, bottom, 0.20),
+          glow(const Alignment(-0.9, -0.3), 0.7, top, dark ? 0.10 : 0.08),
           Positioned.fill(
             child: IgnorePointer(
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  gradient: RadialGradient(
-                    center: const Alignment(1.0, -1.0),
-                    radius: 1.2,
-                    colors: [top.withValues(alpha: dark ? 0.12 : 0.22), top.withValues(alpha: 0)],
-                  ),
-                ),
-              ),
-            ),
-          ),
-          Positioned.fill(
-            child: IgnorePointer(
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  gradient: RadialGradient(
-                    center: const Alignment(-1.0, 1.0),
-                    radius: 1.0,
-                    colors: [
-                      bottom.withValues(alpha: dark ? 0.07 : 0.18),
-                      bottom.withValues(alpha: 0),
-                    ],
-                  ),
-                ),
+              child: RepaintBoundary(
+                child: CustomPaint(painter: _StarDust(dark: dark)),
               ),
             ),
           ),
@@ -53,6 +49,31 @@ class AmbientBackground extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Sabit tohumdan üretilen yıldız tozu: aynı ekran her seferinde aynı gökyüzünü çizer.
+class _StarDust extends CustomPainter {
+  const _StarDust({required this.dark});
+  final bool dark;
+
+  static final List<(double, double, double, double)> _stars = () {
+    final r = math.Random(7);
+    return List.generate(90,
+        (_) => (r.nextDouble(), r.nextDouble(), 0.4 + r.nextDouble() * 1.1, 0.25 + r.nextDouble() * 0.6));
+  }();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final p = Paint();
+    for (final (x, y, rad, a) in _stars) {
+      p.color = (dark ? const Color(0xFFE9DEFF) : const Color(0xFF8B6FD6))
+          .withValues(alpha: dark ? a : a * 0.35);
+      canvas.drawCircle(Offset(x * size.width, y * size.height), rad, p);
+    }
+  }
+
+  @override
+  bool shouldRepaint(_StarDust old) => old.dark != dark;
 }
 
 /// Üstten aydınlatmalı kart yüzeyi: dikey gradyan dolgu + 1 dp'lik, üstü parlak alt kenarı sönük
@@ -94,7 +115,13 @@ class StudioSurface extends StatelessWidget {
         borderRadius: BorderRadius.circular(radius),
         // Açık temada kart gölgeyle zeminden ayrılır; koyuda ışık kenarı yeterli.
         boxShadow: dark
-            ? null
+            ? [
+                BoxShadow(
+                    color: tok.primary.withValues(alpha: 0.10),
+                    blurRadius: 28,
+                    offset: const Offset(0, 10)),
+                const BoxShadow(color: Color(0x99000000), blurRadius: 14, offset: Offset(0, 4)),
+              ]
             : [
                 BoxShadow(
                     color: const Color(0xFF4A3A8C).withValues(alpha: 0.10),
@@ -233,15 +260,20 @@ class StudioButton extends StatefulWidget {
 
 class _StudioButtonState extends State<StudioButton> {
   bool _down = false;
+  bool _hover = false;
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final tok = TiniCosmicColors.of(context);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final enabled = widget.onPressed != null && !widget.busy;
+    final lit = enabled && (_down || _hover);
     final radius = BorderRadius.circular(widget.dense ? 12 : 16);
     final gradient = [
       scheme.primary,
-      Color.lerp(scheme.primary, const Color(0xFFE0479E), 0.55)!,
+      Color.lerp(scheme.primary, const Color(0xFFE0479E), 0.35)!,
+      Color.lerp(scheme.primary, const Color(0xFFE0479E), 0.75)!,
     ];
     // Karanlık temada birincil renk açık lavantadır; beyaz yazı okunmaz. Gradyanın en açık
     // ucuna göre kontrastı yüksek olan yazı rengi seçilir.
@@ -259,20 +291,23 @@ class _StudioButtonState extends State<StudioButton> {
               end: Alignment.bottomRight,
               colors: gradient,
             ),
-            boxShadow: enabled
-                ? [
-                    BoxShadow(
-                        color: scheme.primary.withValues(alpha: 0.35),
-                        blurRadius: 16,
-                        offset: const Offset(0, 6))
-                  ]
-                : null,
           )
         : BoxDecoration(
             borderRadius: radius,
-            color: scheme.surfaceContainerHighest.withValues(alpha: 0.35),
-            border: Border.all(color: scheme.outlineVariant),
+            // Dolu yüzey: içi boş (saydam) düğme açık temada kaybolur.
+            color: isDark ? tok.raised : tok.card,
+            border: Border.all(color: tok.primary.withValues(alpha: isDark ? 0.35 : 0.45)),
           );
+    // Işıma: dinlenirken yumuşak, basılı/üzerindeyken parlar (animasyonlu).
+    final glow = !enabled
+        ? <BoxShadow>[]
+        : [
+            BoxShadow(
+                color: (widget.primary ? scheme.primary : tok.primary)
+                    .withValues(alpha: widget.primary ? (lit ? 0.6 : 0.32) : (lit ? 0.30 : 0.12)),
+                blurRadius: lit ? 26 : 16,
+                offset: Offset(0, lit ? 4 : 7)),
+          ];
     return Semantics(
       button: true,
       enabled: enabled,
@@ -281,11 +316,17 @@ class _StudioButtonState extends State<StudioButton> {
         enabled: enabled,
         scale: 1.02,
         child: AnimatedScale(
-        scale: _down && enabled ? 0.97 : 1,
-        duration: const Duration(milliseconds: 90),
+        scale: _down && enabled ? 0.96 : 1,
+        // Basarken hızlı çöker, bırakınca yaylanarak geri gelir.
+        duration: Duration(milliseconds: _down ? 90 : 260),
+        curve: _down ? Curves.easeOut : Curves.easeOutBack,
         child: Opacity(
           opacity: widget.onPressed == null && !widget.busy ? 0.45 : 1,
-          child: Material(
+          child: AnimatedContainer(
+           duration: const Duration(milliseconds: 220),
+           curve: Curves.easeOutCubic,
+           decoration: BoxDecoration(borderRadius: radius, boxShadow: glow),
+           child: Material(
             color: Colors.transparent,
             child: Ink(
               height: h,
@@ -293,6 +334,7 @@ class _StudioButtonState extends State<StudioButton> {
               child: InkWell(
                 borderRadius: radius,
                 onTap: enabled ? widget.onPressed : null,
+                onHover: (v) => setState(() => _hover = v),
                 onHighlightChanged: (v) => setState(() => _down = v),
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 18),
@@ -321,6 +363,7 @@ class _StudioButtonState extends State<StudioButton> {
                 ),
               ),
             ),
+           ),
           ),
         ),
       ),

@@ -45,12 +45,12 @@ class TiniCosmicColors extends ThemeExtension<TiniCosmicColors> {
   final VoteStyle skip;
 
   static const dark = TiniCosmicColors(
-    scaffold: Color(0xFF0C0914),
-    card: Color(0xFF171326),
-    raised: Color(0xFF1F1A32),
-    highlight: Color(0xFF2A2342),
-    textSecondary: Color(0xFFB9B3C9),
-    textTertiary: Color(0xFF767087),
+    scaffold: Color(0xFF050309),
+    card: Color(0xFF110B22),
+    raised: Color(0xFF1A1233),
+    highlight: Color(0xFF2B1D50),
+    textSecondary: Color(0xFFBCB4D2),
+    textTertiary: Color(0xFF7B7396),
     primary: Color(0xFFD0BCFF),
     votes: {
       1: VoteStyle(Color(0xFF162030), Color(0xFF99B8F0), Color(0xFF2E4566),
@@ -72,10 +72,10 @@ class TiniCosmicColors extends ThemeExtension<TiniCosmicColors> {
   );
 
   static const light = TiniCosmicColors(
-    scaffold: Color(0xFFF7F4FC),
-    card: Color(0xFFF0ECF9),
-    raised: Color(0xFFE8E2F5),
-    highlight: Color(0xFFDDD5EE),
+    scaffold: Color(0xFFF3EEFC),
+    card: Color(0xFFFFFFFF),
+    raised: Color(0xFFEAE2F8),
+    highlight: Color(0xFFDCD0F2),
     textSecondary: Color(0xFF4F495E),
     textTertiary: Color(0xFF7A7489),
     primary: Color(0xFF6750A4),

@@ -603,16 +603,24 @@ class _ProfileBand extends StatelessWidget {
 
 BoxDecoration _cardDecoration(BuildContext context, Color color) {
   final dark = Theme.of(context).brightness == Brightness.dark;
+  final tok = TiniCosmicColors.of(context);
   return BoxDecoration(
     borderRadius: BorderRadius.circular(24),
     gradient: LinearGradient(
       begin: Alignment.topCenter,
       end: Alignment.bottomCenter,
-      colors: dark
-          ? const [Color(0xFF1B1730), Color(0xFF171329)]
-          : [Colors.white, color],
+      // Dolu, katmanlı yüzey: açık temada da beyaz boşluk yerine lavanta geçiş.
+      colors: dark ? [tok.raised, tok.card] : [Colors.white, tok.raised],
     ),
-    border: Border.all(color: (dark ? Colors.white : Colors.black).withValues(alpha: dark ? 0.08 : 0.06)),
+    border: Border.all(
+        color: dark ? Colors.white.withValues(alpha: 0.10) : tok.primary.withValues(alpha: 0.18)),
+    boxShadow: [
+      BoxShadow(
+          color: tok.primary.withValues(alpha: dark ? 0.16 : 0.14),
+          blurRadius: 30,
+          offset: const Offset(0, 12)),
+      if (dark) const BoxShadow(color: Color(0x99000000), blurRadius: 14, offset: Offset(0, 4)),
+    ],
   );
 }
 
@@ -1035,12 +1043,20 @@ class _VoteButtonState extends State<_VoteButton> {
       child: Opacity(
       opacity: widget.dimmed ? 0.45 : 1,
       child: AnimatedScale(
-        scale: _pressed ? 0.95 : (_hover && widget.enabled ? 1.05 : 1),
-        duration: const Duration(milliseconds: 90),
+        scale: _pressed ? 0.94 : (_hover && widget.enabled ? 1.05 : 1),
+        duration: Duration(milliseconds: _pressed ? 90 : 240),
+        curve: _pressed ? Curves.easeOut : Curves.easeOutBack,
         child: Ink(
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(14),
             border: Border.all(color: s.border, width: s.borderWidth),
+            boxShadow: widget.enabled && !widget.dimmed && Theme.of(context).brightness == Brightness.dark
+                ? [
+                    BoxShadow(
+                        color: s.border.withValues(alpha: _pressed || _hover ? 0.55 : 0.22),
+                        blurRadius: _pressed || _hover ? 18 : 10)
+                  ]
+                : null,
             // Sol üstten gelen ışık: üstte açılmış, altta kendi rengine inen dikey geçiş.
             gradient: LinearGradient(
               begin: const Alignment(-0.6, -1),
