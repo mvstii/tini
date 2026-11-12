@@ -6,7 +6,6 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.config import GraphSettings
-from app.db import make_engine
 from app.graph.expand import expand, load_anchors
 from app.graph.expansion import plan_expansion
 from app.graph.store import enforce_size_cap, store_edges
@@ -27,8 +26,8 @@ NOW = datetime(2026, 10, 30, tzinfo=UTC)
 
 
 @pytest.fixture
-def db():
-    engine = make_engine()
+def db(test_engine):
+    engine = test_engine
     try:
         conn = engine.connect()
     except Exception:

@@ -1,5 +1,7 @@
 import pytest
+from sqlalchemy import create_engine
 
+from app.config import get_settings
 from app.ratelimit import get_auth_limits
 from app.sources.http import reset_limiters
 
@@ -24,3 +26,23 @@ def _fresh_source_limiters():
     reset_limiters()
     yield
     reset_limiters()
+
+
+@pytest.fixture(scope="session")
+def test_engine():
+    """Tüm testler için tek engine/havuz (her fixture'ın kendi engine'i bağlantı sızdırıyordu).
+
+    İzolasyon test başına bağlantı + dış işlem + ROLLBACK ile sürer. Sızan açık işlem ya da
+    kilit diğer testleri sonsuza dek kilitlemesin diye oturum başına süre sınırları konur.
+    Hiçbir test `DATABASE_URL`'i değiştirmez; URL oturum başında bir kez okunur."""
+    engine = create_engine(
+        get_settings().database_url,
+        pool_pre_ping=True,
+        pool_size=2,
+        max_overflow=3,
+        connect_args={
+            "options": "-c lock_timeout=15000 -c idle_in_transaction_session_timeout=300000"
+        },
+    )
+    yield engine
+    engine.dispose()

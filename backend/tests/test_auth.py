@@ -5,7 +5,6 @@ from fastapi.testclient import TestClient
 from sqlalchemy import update
 from sqlalchemy.orm import Session
 
-from app.db import make_engine
 from app.deps import get_db
 from app.main import app
 from app.models import UserSession
@@ -21,8 +20,8 @@ PW = "uzun-bir-parola-1"
 
 
 @pytest.fixture
-def client():
-    engine = make_engine()
+def client(test_engine):
+    engine = test_engine
     try:
         conn = engine.connect()
     except Exception:

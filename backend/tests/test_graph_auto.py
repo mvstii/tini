@@ -7,7 +7,6 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.config import GraphSettings
-from app.db import make_engine
 from app.graph import scheduler
 from app.graph.auto import TRACKS_SOURCE, artists_needing_tracks, fill_tracks
 from app.graph.expand import load_anchors
@@ -29,8 +28,8 @@ NOW = datetime(2026, 11, 4, tzinfo=UTC)
 
 
 @pytest.fixture
-def db():
-    engine = make_engine()
+def db(test_engine):
+    engine = test_engine
     try:
         conn = engine.connect()
     except Exception:

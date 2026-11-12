@@ -7,7 +7,6 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.config import Settings
-from app.db import make_engine
 from app.deps import get_db
 from app.main import app
 from app.models import Artist, Track, User, UserTrackLink, UserTrackMeta
@@ -31,8 +30,8 @@ def test_unvoted_artists_first_and_one_track_per_artist_per_round():
 
 
 @pytest.fixture
-def db():
-    engine = make_engine()
+def db(test_engine):
+    engine = test_engine
     try:
         conn = engine.connect()
     except Exception:

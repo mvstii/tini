@@ -1,13 +1,12 @@
 import pytest
 from sqlalchemy.orm import Session
 
-from app.db import make_engine
 from app.graph.store import neighbor_artist_id
 
 
 @pytest.fixture
-def db():
-    engine = make_engine()
+def db(test_engine):
+    engine = test_engine
     try:
         conn = engine.connect()
     except Exception:

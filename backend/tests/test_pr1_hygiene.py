@@ -9,7 +9,6 @@ from sqlalchemy.orm import Session
 
 from app import db as db_mod
 from app.config import GraphSettings
-from app.db import make_engine
 from app.graph.expand import expand
 from app.models import Artist, FetchLog
 from app.sources.http import SourceClient, SourceError, get_limiter
@@ -88,8 +87,8 @@ def test_get_json_non_json_body_is_source_error(body):
 
 
 @pytest.fixture
-def db():
-    engine = make_engine()
+def db(test_engine):
+    engine = test_engine
     try:
         conn = engine.connect()
     except Exception:

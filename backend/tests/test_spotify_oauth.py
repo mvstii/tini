@@ -12,7 +12,6 @@ from sqlalchemy.orm import Session
 from app.adapters.spotify import oauth
 from app.config import Settings, get_settings
 from app.connect import get_http
-from app.db import make_engine
 from app.deps import get_db
 from app.main import app
 from app.models import ServiceConnection
@@ -49,8 +48,8 @@ def _spotify_mock(request: httpx.Request) -> httpx.Response:
 
 
 @pytest.fixture
-def client():
-    engine = make_engine()
+def client(test_engine):
+    engine = test_engine
     try:
         conn = engine.connect()
     except Exception:
