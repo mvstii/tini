@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/semantics.dart' show CustomSemanticsAction;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -718,7 +719,14 @@ class _SwipeCardState extends State<_SwipeCard> with SingleTickerProviderStateMi
       _width = box.maxWidth;
       final compact = box.maxHeight < 250;
       final hintStyle = theme.textTheme.labelSmall?.copyWith(color: theme.colorScheme.onSurface);
-      return GestureDetector(
+      return Semantics(
+        customSemanticsActions: widget.enabled
+            ? {
+                const CustomSemanticsAction(label: 'Sonra dinle'): widget.onLater,
+                const CustomSemanticsAction(label: 'Dinlemedim, geç'): widget.onSkip,
+              }
+            : const {},
+        child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onHorizontalDragUpdate: _update,
         onHorizontalDragEnd: _end,
@@ -858,7 +866,7 @@ class _SwipeCardState extends State<_SwipeCard> with SingleTickerProviderStateMi
             ),
           ),
         ),
-      );
+      ));
     });
   }
 }
