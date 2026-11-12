@@ -473,18 +473,6 @@ class _TopBar extends StatelessWidget {
       height: 48,
       child: Row(
         children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            decoration: BoxDecoration(
-              color: c.card,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: c.primary.withValues(alpha: 0.5)),
-            ),
-            child: Text('Seviye ${state.level}',
-                style: theme.textTheme.labelMedium
-                    ?.copyWith(color: c.primary, fontFeatures: _tabular)),
-          ),
-          const SizedBox(width: 12),
           Expanded(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -514,7 +502,7 @@ class _TopBar extends StatelessWidget {
             ),
           ),
           SizedBox(
-            width: 40,
+            width: 48,
             height: 48,
             child: IconButton(
               key: const ValueKey('toggle-autoplay'),
@@ -527,7 +515,7 @@ class _TopBar extends StatelessWidget {
             ),
           ),
           SizedBox(
-            width: 40,
+            width: 48,
             height: 48,
             child: IconButton(
               key: const ValueKey('open-search'),
@@ -538,7 +526,7 @@ class _TopBar extends StatelessWidget {
             ),
           ),
           SizedBox(
-            width: 40,
+            width: 48,
             height: 48,
             child: IconButton(
               key: const ValueKey('open-later'),
