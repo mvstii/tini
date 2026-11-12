@@ -76,10 +76,13 @@ class RatingScreen extends StatefulWidget {
 /// Geri alınabilir tek adım. Oy olayı silinmez; geri alınan kart yeniden gösterilir ve
 /// verilecek yeni oy, yeni bir olay olarak öncekinin yerini alır.
 class _Step {
-  _Step(this.item, this.vote, {this.later = false});
+  _Step(this.item, this.vote, {this.later = false, this.prevVote});
   final QueueItem item;
   final int? vote; // null: Unheard (later değilse)
   final bool later; // "Sonra dinle" listesine eklendi
+
+  /// Bu adımdan önceki güncel oy (bilinmiyorsa null). Geri alınca yeni bir olay olarak yazılır.
+  final int? prevVote;
 }
 
 class _RatingScreenState extends State<RatingScreen> {
@@ -193,6 +196,7 @@ class _RatingScreenState extends State<RatingScreen> {
       _error = null;
     });
     _queue.pop();
+    final prev = _state.votes[item.track];
     var saved = false;
     await _guard(() async {
       if (vote != null) {
@@ -203,7 +207,7 @@ class _RatingScreenState extends State<RatingScreen> {
         _state.recordUnheard();
       }
       saved = true;
-      _history.add(_Step(item, vote));
+      _history.add(_Step(item, vote, prevVote: prev));
     });
     if (!saved) _queue.putBack(item); // kayıt başarısızsa kart geri gelir
     if (mounted) setState(() => _busy = false);
@@ -236,11 +240,24 @@ class _RatingScreenState extends State<RatingScreen> {
     }
   }
 
-  void _undo() {
+  /// Geri al: kart kuyruğa döner. Parça daha önce oylanmışsa önceki oy yeni bir olay olarak
+  /// yazılır (olay silinmez; güncel oy son olaydır). İlk kez oylanan parçada sunucudaki oy,
+  /// kullanıcı yeniden oylayana kadar kalır (oyu temizleme olayı yok).
+  Future<void> _undo() async {
     if (_history.isEmpty || _busy) return;
     final step = _history.removeLast();
     if (step.later) unawaited(widget.api.removeLater(step.item.track).catchError((_) {}));
     _queue.putBack(step.item);
+    final prev = step.prevVote;
+    final cur = step.vote;
+    if (step.later || cur == null || prev == null || prev == cur) return;
+    setState(() => _busy = true); // geri yazma bitmeden yeni oy gitmesin (sıra bozulmasın)
+    await _guard(() async {
+      await widget.api.castVote(step.item.track, prev);
+      _state.recordChange(
+          HistoryItem(step.item.track, cur, step.item.title, step.item.artists), prev);
+    });
+    if (mounted) setState(() => _busy = false);
   }
 
   /// Keşif listesine geçer (kabukta Öneriler sekmesi; yoksa liste ekranı).
