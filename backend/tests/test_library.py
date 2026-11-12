@@ -12,7 +12,6 @@ from app import library as lib_mod
 from app.adapters.base import Library, LibraryTrack
 from app.config import Settings
 from app.connect import get_http
-from app.db import make_engine
 from app.deps import get_db
 from app.library import store_library
 from app.main import app
@@ -24,8 +23,8 @@ TTL = timedelta(hours=24)
 
 
 @pytest.fixture
-def db():
-    engine = make_engine()
+def db(test_engine):
+    engine = test_engine
     try:
         conn = engine.connect()
     except Exception:

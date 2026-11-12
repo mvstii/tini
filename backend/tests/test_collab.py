@@ -5,7 +5,6 @@ from sqlalchemy.orm import Session
 
 from app.catalog.collab import detect_collabs, split_parts
 from app.config import GraphSettings, ProfileSettings, RecommendSettings
-from app.db import make_engine
 from app.graph.service import clear_cache
 from app.jobs.detect_collabs import run as detect_run
 from app.models import (
@@ -47,8 +46,8 @@ def test_name_is_not_its_own_member():
 
 
 @pytest.fixture
-def db():
-    engine = make_engine()
+def db(test_engine):
+    engine = test_engine
     try:
         conn = engine.connect()
     except Exception:

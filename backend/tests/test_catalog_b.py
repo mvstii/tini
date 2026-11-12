@@ -8,7 +8,6 @@ from sqlalchemy.orm import Session
 from app.catalog.resolve import resolve_pending
 from app.catalog.resolve_b import resolve_pending_b, resolve_track_b
 from app.config import GraphSettings
-from app.db import make_engine
 from app.models import (
     Artist,
     ArtistRef,
@@ -26,8 +25,8 @@ NOW = datetime(2026, 10, 30, tzinfo=UTC)
 
 
 @pytest.fixture
-def db():
-    engine = make_engine()
+def db(test_engine):
+    engine = test_engine
     try:
         conn = engine.connect()
     except Exception:

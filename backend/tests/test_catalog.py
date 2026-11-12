@@ -8,7 +8,6 @@ from sqlalchemy.orm import Session
 from app.catalog.names import normalize_name
 from app.catalog.resolve import resolve_pending, resolve_track, upsert_artist
 from app.config import GraphSettings
-from app.db import make_engine
 from app.models import Artist, ArtistRef, FetchLog, Track, User, UserTrackMeta
 from app.sources.http import SourceError
 from app.sources.musicbrainz import MbArtist, MbRecording
@@ -18,8 +17,8 @@ NOW = datetime(2026, 10, 30, tzinfo=UTC)
 
 
 @pytest.fixture
-def db():
-    engine = make_engine()
+def db(test_engine):
+    engine = test_engine
     try:
         conn = engine.connect()
     except Exception:

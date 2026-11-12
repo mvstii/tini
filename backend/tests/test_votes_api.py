@@ -5,15 +5,14 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.config import Settings
-from app.db import make_engine
 from app.deps import get_db
 from app.main import app
 from app.models import Track, User, UserTrackLink, VoteEvent
 
 
 @pytest.fixture
-def db():
-    engine = make_engine()
+def db(test_engine):
+    engine = test_engine
     try:
         conn = engine.connect()
     except Exception:

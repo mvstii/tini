@@ -3,13 +3,12 @@ from sqlalchemy import delete, select, text
 from sqlalchemy.exc import DBAPIError, IntegrityError
 from sqlalchemy.orm import Session
 
-from app.db import make_engine
 from app.models import Track, User, UserTrackLink, VoteEvent
 
 
 @pytest.fixture
-def session():
-    engine = make_engine()
+def session(test_engine):
+    engine = test_engine
     try:
         conn = engine.connect()
     except Exception:

@@ -7,7 +7,6 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.config import Settings
-from app.db import make_engine
 from app.deps import get_db
 from app.graph.service import clear_cache
 from app.main import app
@@ -17,8 +16,8 @@ NOW = datetime(2026, 10, 31, tzinfo=UTC)
 
 
 @pytest.fixture
-def db():
-    engine = make_engine()
+def db(test_engine):
+    engine = test_engine
     try:
         conn = engine.connect()
     except Exception:

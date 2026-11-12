@@ -8,7 +8,6 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.config import ReleasesSettings, Settings
-from app.db import make_engine
 from app.deps import get_db
 from app.main import app
 from app.models import Artist, FetchLog, FollowedArtist, Release, ReleaseArtist, TasteProfile, User
@@ -56,8 +55,8 @@ def test_parse_keeps_full_dates_and_allowed_types_only():
 
 
 @pytest.fixture
-def db():
-    engine = make_engine()
+def db(test_engine):
+    engine = test_engine
     try:
         conn = engine.connect()
     except Exception:
