@@ -341,12 +341,12 @@ Amaç: aynı ilkeleri Keşfet ekranındaki öneri listesine indirmek; uzak öner
 
 **Yapılacaklar**
 
-- [ ] `recommend/diverse.pick_far`: iki kademe — önce eğilimi düşük ama sıfır olmayan türler (bitişik olası), sonra tek bir gerçekten uzak yuva.
-- [ ] `recommend/bandit.py` / `service.generate_list`: `far` payı tür-bandit sonuçlarına bağlanır (sabit %20 yerine taban + öğrenilen pay).
-- [ ] `max_cluster_share` 0,5 → 0,35.
-- [ ] Temsil şarkıları (PR-4) liste öğelerinde de kullanılır.
-- [ ] "Yeniden üret": Gumbel-top-k ile tohumlu tazelik; `list_algo_version` → `list-6`; parametreler `generated_list.params`'a yazılır.
-- [ ] `generate_list` için far/tür uçtan uca testi (DURUM S1-25'teki açık).
+- [x] `recommend/diverse.pick_far`: iki kademe — önce eğilimi düşük ama sıfır olmayan türler (bitişik olası), sonra tek bir gerçekten uzak yuva.
+- [x] `recommend/bandit.py` / `service.generate_list`: `far` payı tür-bandit sonuçlarına bağlanır (sabit %20 yerine taban + öğrenilen pay).
+- [x] `max_cluster_share` 0,5 → 0,35.
+- [x] Temsil şarkıları (PR-4) liste öğelerinde de kullanılır.
+- [x] "Yeniden üret": Gumbel-top-k ile tohumlu tazelik; `list_algo_version` → `list-6`; parametreler `generated_list.params`'a yazılır.
+- [x] `generate_list` için far/tür uçtan uca testi (DURUM S1-25'teki açık).
 
 **Testler:** bitişik olası sırası, tavan, bandit bağlantısı, determinizm, uçtan uca liste testi; `evaluate` raporunda slot başına Good+ oranı.
 
@@ -491,6 +491,6 @@ python -m app.jobs.queue_sim --email <e-posta>   # PR-6 sonrası
 | PR-4 | Evren: tür omurgası | Uygulandı (staging omurga raporu geliştiricide) | `feat/pr4-genre-spine` | Backend 370 geçti/11 atlandı/0 hata, ruff temiz; ayrı `genre_seed` + `track_popularity` (göç 0021), 77 alt tür; bayrak kapalı; omurga raporu ölçülmedi |
 | PR-5 | Kullanıcı modeli | Birleşti (#86, `866b9f1`) | `feat/pr5-user-model` | Backend 381 geçti/11 atlandı/0 hata, ruff temiz; göç yok, davranış değişmez (bandit PR-6 bağlar) |
 | PR-6 | Örnekleyici `queue-8` | Birleşti (#87, #88 `fa401cb`); `queue_sim` 7/7 (12 Kasım); canlıda bayrak kapalı | `feat/pr6-sampler` | Staging, 100 kart: ana tür 5 (sınırda), aynı sanatçı 1, aralık 0, şarkı 0, alt tür serisi 1, tazelik 0,16 (5 tohum çifti ortalaması; 4/5 çift geçiyor), özdeşlik doğru. Düzeltmeler: 5c-3 (`queue-7` + `queue-8`), tohumlu Gumbel, tohumlu öneri sırası + tür kalibrasyon kayması (`queue_genre_jitter`), çok çiftli tazelik kapısı. Yerel tam paket 426 geçti/18 atlandı/0 hata. Göç yok, bayrak `queue_sampler_enabled` kapalı. Ölçülmedi: Kapsama, Kalite koruması. Borç: `queue-8` isteği staging'de 3,2–4,8 sn, keşif payı 0,04, türsüz kart 0,35 |
-| PR-7 | Liste tarafı `list-6` | Başlamadı | | |
+| PR-7 | Liste tarafı `list-6` | Uygulandı (dalda, birleşmedi) | `feat/pr7-list6` | Bayrak `RECOMMEND_LIST6_ENABLED` kapalı; `far` payı slot sonucuna bağlı (A); staging ölçümü yok |
 
 Durum değerleri: Başlamadı · Analiz/onay bekliyor · Uygulanıyor · Canlıda (bayrak kapalı) · Tamamlandı

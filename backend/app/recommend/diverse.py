@@ -41,10 +41,14 @@ def home_weights(
 
 def pick_far(
     cands: list[Candidate], labels: dict[int, int], home: dict[int, float], n: int,
-    exclude_top: int,
+    exclude_top: int, true_far: int | None = None,
 ) -> list[Candidate]:
     """En çok sevilen `exclude_top` topluluk dışından, ev ağırlığı en düşük topluluktan başlayıp
-    sırayla topluluk başına en iyi aday. Yeterli topluluk yoksa turlar tekrarlanır."""
+    sırayla topluluk başına en iyi aday. Yeterli topluluk yoksa turlar tekrarlanır.
+
+    `true_far` verilirse iki kademe (list-6): önce ev ağırlığı sıfırdan büyük topluluklar (bitişik
+    olası), sonra ev ağırlığı sıfır olan tek topluluktan en çok `true_far` aday. Bitişik topluluk
+    yetmezse kalan yer tüm topluluklardan aynı sırayla dolar."""
     if n <= 0:
         return []
     top = set(sorted(home, key=lambda c: (-home[c], c))[:exclude_top])
@@ -54,12 +58,24 @@ def pick_far(
         if comm is not None and comm not in top:
             by_comm.setdefault(comm, []).append(c)
     order = sorted(by_comm, key=lambda c: (home.get(c, 0.0), c))
-    out: list[Candidate] = []
-    while len(out) < n and any(by_comm.values()):
-        for comm in order:
-            if by_comm[comm] and len(out) < n:
-                out.append(by_comm[comm].pop(0))
-    return out
+
+    def take(comms: list[int], k: int) -> list[Candidate]:
+        got: list[Candidate] = []
+        while len(got) < k and any(by_comm[c] for c in comms):
+            for comm in comms:
+                if by_comm[comm] and len(got) < k:
+                    got.append(by_comm[comm].pop(0))
+        return got
+
+    if true_far is None:
+        return take(order, n)
+    near = [c for c in order if home.get(c, 0.0) > 0]
+    distant = [c for c in order if home.get(c, 0.0) <= 0]
+    far_comm = sorted(distant, key=lambda c: (-by_comm[c][0].score, c))[:1]
+    far_n = min(max(true_far, 0), n) if far_comm else 0
+    out = take(near, n - far_n)
+    out += take(far_comm, far_n)
+    return out + take(order, n - len(out))
 
 
 def cap_share(

@@ -251,6 +251,15 @@ class RecommendSettings(BaseSettings):
     far_pool_size: int = 1000  # uzak adaylar için geniş skor havuzu
     far_home_exclude: int = 2  # en çok sevilen bu kadar topluluk uzak sayılmaz
     max_cluster_share: float = 0.5
+    # list-6 (PR-7): bitişik olası uzak yuva, öğrenilen uzak payı, tohumlu tazelik.
+    # Bayrak kapalıyken liste list-5 ile birebir aynı üretilir.
+    list6_enabled: bool = False
+    list6_algo_version: str = "list-6"
+    list6_max_cluster_share: float = 0.35
+    far_floor_share: float = 0.10  # öğrenilen uzak payının tabanı
+    far_max_share: float = 0.30  # ve tavanı; pay = taban + (tavan - taban) × theta_far
+    far_true_count: int = 1  # ev ağırlığı sıfır olan tek yuvadan alınacak aday sayısı
+    list_gumbel_tau: float = 0.1  # "Yeniden üret" sarsıntısı (alaka 0-1 ölçeğinde); 0 = kapalı
     use_genre_labels: bool = True  # etiketi olan sanatçıda topluluk yerine ana tür kullanılır
     community_count: int = 12
     community_seed: int = 0

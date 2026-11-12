@@ -25,7 +25,7 @@ from app.models import (
     VoteEvent,
 )
 from app.profile.service import load_profile_votes, unheard_statuses
-from app.recommend.bandit import SLOTS, allocate, slot_shares
+from app.recommend.bandit import SLOTS, allocate, far_share, slot_shares
 from app.recommend.diverse import cached_labels, cap_share, home_weights, pick_far
 from app.recommend.fresh import FreshRelease, rank_fresh
 from app.recommend.genres import blend_labels
@@ -209,9 +209,16 @@ def split_slots(
 
 def generate_list(
     db: Session, user_id, now: datetime, cfg: RecommendSettings, pcfg: ProfileSettings,
-    gcfg: GraphSettings,
+    gcfg: GraphSettings, nonce: int = 0,
 ) -> GeneratedList:
+    """`nonce` (list-6): "Yeniden üret" sayacı. 0 iken liste yalnız profile bağlıdır; > 0 iken
+    slot içi seçim (profil sürümü, nonce) tohumuyla sarsılır. Aynı girdi + nonce = aynı liste."""
     sc = compute_candidates(db, user_id, now, cfg, pcfg, gcfg)
+    v6 = cfg.list6_enabled
+    outcomes = slot_outcomes(db, user_id)
+    far_frac = far_share(outcomes, cfg, sc.profile.version) if v6 else cfg.far_share
+    cluster_cap = cfg.list6_max_cluster_share if v6 else cfg.max_cluster_share
+    tau = cfg.list_gumbel_tau if v6 and nonce > 0 else 0.0
     fresh, _ = fresh_ranked(db, user_id, sc.profile, sc.gm, now.date(), cfg, sc.prop)
     fresh = fresh[: round(cfg.list_size * cfg.fresh_share)]
     fresh_artists = {i.artist_id for i in fresh}
@@ -229,7 +236,8 @@ def generate_list(
     far = [
         c for c in pick_far(
             [c for c in wide if c.artist_id not in fresh_artists], labels, home,
-            round(cfg.list_size * cfg.far_share), cfg.far_home_exclude,
+            round(cfg.list_size * far_frac), cfg.far_home_exclude,
+            cfg.far_true_count if v6 else None,
         )
     ]
     far_ids = {c.artist_id for c in far}
@@ -237,19 +245,21 @@ def generate_list(
         [c for c in sc.cands if c.artist_id not in fresh_artists | far_ids], pool,
         cfg.familiar_fraction,
     )
-    outcomes = slot_outcomes(db, user_id)
     shares = slot_shares(outcomes, cfg, sc.profile.version)
     room = cfg.list_size - len(fresh) - len(far)
     counts = allocate(room, shares, {s: len(pools[s]) for s in SLOTS})
     slot_of: dict[int, str] = {c.artist_id: "far" for c in far}
     chosen = list(far)
     for slot in SLOTS:
-        for c in select_mmr(pools[slot], sc.gm, counts[slot], cfg.mmr_lambda):
+        picked = select_mmr(
+            pools[slot], sc.gm, counts[slot], cfg.mmr_lambda, tau, sc.profile.version * 1000 + nonce
+        )
+        for c in picked:
             slot_of[c.artist_id] = slot
             chosen.append(c)
     chosen.sort(key=lambda c: (-c.score, c.artist_id))
     spare = [c for c in sc.cands if c.artist_id not in fresh_artists]
-    kept = cap_share(chosen, spare, labels, cfg.list_size, cfg.max_cluster_share)
+    kept = cap_share(chosen, spare, labels, cfg.list_size, cluster_cap)
     for c in kept:
         slot_of.setdefault(c.artist_id, "explore")  # tavan sonrası dolgu adayları
     chosen = kept
@@ -262,7 +272,7 @@ def generate_list(
     tracks.update({a: t for a, t in pool.items() if slot_of.get(a) == "unheard"})
     lst = GeneratedList(
         user_id=user_id,
-        algo_version=cfg.list_algo_version,
+        algo_version=cfg.list6_algo_version if v6 else cfg.list_algo_version,
         candidate_algo_version=cfg.recommend_algo_version,
         profile_version=sc.profile.version,
         graph_version=sc.graph_version,
@@ -273,8 +283,13 @@ def generate_list(
             "novelty_gamma": cfg.novelty_gamma, "candidate_top_n": cfg.candidate_top_n,
             "slot_shares": {k: round(v, 6) for k, v in shares.items()},
             "slot_counts": counts,
-            "far_count": len(far), "far_share": cfg.far_share,
-            "max_cluster_share": cfg.max_cluster_share, "community_count": cfg.community_count,
+            "far_count": len(far), "far_share": round(far_frac, 6),
+            "max_cluster_share": cluster_cap, "community_count": cfg.community_count,
+            **(
+                {"nonce": nonce, "gumbel_tau": tau, "far_true_count": cfg.far_true_count,
+                 "far_floor_share": cfg.far_floor_share, "far_max_share": cfg.far_max_share}
+                if v6 else {}
+            ),
             "genre_labeled": len(genre_of),
             "fresh_share": cfg.fresh_share, "fresh_count": len(fresh),
             "slot_outcomes": {k: list(v) for k, v in outcomes.items()},

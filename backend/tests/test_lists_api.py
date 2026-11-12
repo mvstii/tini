@@ -11,7 +11,15 @@ from app.db import make_engine
 from app.deps import get_db
 from app.graph.service import clear_cache
 from app.main import app
-from app.models import Artist, ArtistEdge, GraphSnapshot, Track, User, UserTrackLink
+from app.models import (
+    Artist,
+    ArtistEdge,
+    ArtistTag,
+    GraphSnapshot,
+    Track,
+    User,
+    UserTrackLink,
+)
 
 NOW = datetime(2026, 10, 31, tzinfo=UTC)
 
@@ -300,3 +308,62 @@ def test_generate_assigns_slots_and_unheard_uses_pooled_track(client, db):
     assert items[c1.id]["slot"] in ("familiar", "explore")
     assert sum(body["params"]["slot_counts"].values()) == 2
     assert body["params"]["slot_outcomes"] == {}
+
+
+def far_world(client, db, email, tag):
+    """Rock evi (Amazing), caz bitişik (Good), elektronik ve rap hiç oylanmamış."""
+    h = register(client, email)
+    names = ("SeedR", "SeedJ", "R1", "R2", "J1", "J2", "E1", "H1")
+    a = {n: mk_artist(db, f"{tag}{n}") for n in names}
+    genre = {"R": "rock", "J": "jazz", "E": "electronic", "H": "hip hop"}
+    for n, art in a.items():
+        key = n[4] if n.startswith("Seed") else n[0]
+        db.add(ArtistTag(artist_id=art.id, tag=genre[key], weight=100, source="musicbrainz"))
+    pairs = [("SeedR", "R1"), ("SeedR", "R2"), ("SeedJ", "J1"), ("SeedJ", "J2"),
+             ("R1", "E1"), ("J1", "H1")]
+    db.add_all([edge(a[x], a[y]) for x, y in pairs])
+    db.add(GraphSnapshot(edge_count=len(pairs), params={}))
+    db.flush()
+    for i, (seed, vote) in enumerate((("SeedR", 6), ("SeedJ", 4))):
+        t = library_track(db, email, f"ZZ{tag}0000000{i}", a[seed])
+        r = client.post("/votes", json={"track": t.id, "vote": vote}, headers=h)
+        assert r.status_code == 201
+    client.post("/profile/rebuild", headers=h)
+    return h, a
+
+
+def far_ids(body):
+    return {i["artist_id"] for i in body["items"] if i["slot"] == "far"}
+
+
+def test_generate_list5_far_slot_starts_from_unvoted_genres(client, db):
+    cfg = RecommendSettings(_env_file=None, list_size=10, far_home_exclude=1)
+    app.dependency_overrides[get_recommend_settings] = lambda: cfg
+    h, a = far_world(client, db, "l6@example.com", "LF")
+    body = client.post("/lists/generate", headers=h).json()
+    assert body["algo_version"] == "list-5" and "nonce" not in body["params"]
+    assert far_ids(body) == {a["E1"].id, a["H1"].id}
+    assert body["params"]["max_cluster_share"] == 0.5
+
+
+def test_generate_list6_far_slot_is_adjacent_plus_one_truly_far(client, db):
+    cfg = RecommendSettings(
+        _env_file=None, list6_enabled=True, list_size=10, far_home_exclude=1
+    )
+    app.dependency_overrides[get_recommend_settings] = lambda: cfg
+    h, a = far_world(client, db, "l7@example.com", "LG")
+    body = client.post("/lists/generate", headers=h).json()
+    assert body["algo_version"] == "list-6"
+    far = far_ids(body)
+    assert len(far) == 2
+    assert len(far & {a["J1"].id, a["J2"].id}) == 1  # bitişik olası: caz
+    assert len(far & {a["E1"].id, a["H1"].id}) == 1  # tek gerçek uzak yuva
+    p = body["params"]
+    assert p["nonce"] == 0 and p["gumbel_tau"] == 0.0 and p["far_true_count"] == 1
+    assert p["max_cluster_share"] == 0.35 and p["far_share"] == 0.2
+    rock = sum(1 for i in body["items"] if i["artist_id"] in {a["R1"].id, a["R2"].id})
+    assert rock <= 3  # tavan: int(10 × 0,35)
+
+    again = client.post("/lists/generate", headers=h).json()
+    assert again["params"]["nonce"] == 1 and again["params"]["gumbel_tau"] == cfg.list_gumbel_tau
+    assert far_ids(again) == far  # uzak yuva seçimi nonce'tan bağımsız

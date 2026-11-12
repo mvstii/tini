@@ -32,6 +32,21 @@ def slot_shares(
     return {s: cfg.slot_floor_share + free * theta[s] / norm for s in SLOTS}
 
 
+def far_share(
+    outcomes: Mapping[str, tuple[int, int]], cfg: RecommendSettings, seed: int
+) -> float:
+    """Uzak yuvanın liste payı (list-6). Toplam sonuç eşiğin altındayken sabit `far_share`;
+    sonra taban + (tavan - taban) × theta, theta ~ Beta(a0 + Good+, b0 + Bad-) (uzak yuva)."""
+    total = sum(s + f for s, f in outcomes.values())
+    if total < cfg.bandit_min_outcomes:
+        return cfg.far_share
+    succ, fail = outcomes.get("far", (0, 0))
+    theta = random.Random(f"far:{seed}").betavariate(
+        cfg.slot_prior_a + succ, cfg.slot_prior_b + fail
+    )
+    return cfg.far_floor_share + (cfg.far_max_share - cfg.far_floor_share) * theta
+
+
 def _largest_remainder(total: int, weights: dict[str, float]) -> dict[str, int]:
     norm = sum(weights.values())
     raw = {s: total * w / norm for s, w in weights.items()}

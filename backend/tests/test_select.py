@@ -63,3 +63,15 @@ def test_first_pick_is_top_scorer_for_any_lambda():
     cs = [cand(1, 3.0), cand(2, 2.9), cand(3, 2.0)]
     for lam in (0.2, 0.7, 1.0):
         assert select_mmr(cs, gm, 1, lam)[0].artist_id == pytest.approx(1)
+
+
+def test_gumbel_noise_is_seeded_and_changes_pick_across_seeds():
+    edges = [(a, 100 + a, 0.9) for a in range(1, 13)]  # birbirine benzemeyen 12 aday
+    gm = graph(edges)
+    cands = [cand(a, 1.0 - 0.01 * a) for a in range(1, 13)]
+    base = ids(select_mmr(cands, gm, 4, 0.6))
+    assert ids(select_mmr(cands, gm, 4, 0.6, tau=0.0, seed=9)) == base  # tau=0: gürültü yok
+    a = ids(select_mmr(cands, gm, 4, 0.6, tau=0.1, seed=1))
+    assert a == ids(select_mmr(cands, gm, 4, 0.6, tau=0.1, seed=1))
+    picks = {tuple(ids(select_mmr(cands, gm, 4, 0.6, tau=0.1, seed=s))) for s in range(1, 9)}
+    assert len(picks) > 1

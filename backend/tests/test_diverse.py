@@ -57,3 +57,34 @@ def test_cap_share_limits_one_community_and_backfills_from_others():
 def test_cap_share_noop_when_under_cap():
     chosen = [cand(1, 3), cand(11, 2), cand(21, 1)]
     assert cap_share(chosen, [], LABELS, size=6, max_share=0.5) == chosen
+
+
+def test_pick_far_two_tier_starts_adjacent_then_one_truly_far_community():
+    # ev: A (hariç), B düşük ama sıfır değil (bitişik olası), C ve D hiç oylanmamış (gerçek uzak)
+    labels = {**LABELS, 31: 3, 32: 3}
+    home = {0: 5.0, 1: 0.3}
+    cands = [cand(1, 9), cand(11, 7), cand(12, 6), cand(21, 5), cand(22, 4), cand(31, 3)]
+    got = pick_far(cands, labels, home, 3, exclude_top=1, true_far=1)
+    # önce B'den iki aday, sonra en iyi adayı en yüksek uzak topluluktan (C) tek aday
+    assert [c.artist_id for c in got] == [11, 12, 21]
+    assert got == pick_far(cands, labels, home, 3, exclude_top=1, true_far=1)
+
+
+def test_pick_far_two_tier_falls_back_when_no_adjacent_community():
+    cands = [cand(1, 9), cand(21, 5), cand(22, 4), cand(11, 3)]
+    got = pick_far(cands, LABELS, {0: 5.0}, 3, exclude_top=1, true_far=1)
+    # bitişik topluluk yok: tek uzak yuvadan 1, kalan yer eski sırayla dolar
+    assert [c.artist_id for c in got] == [21, 11, 22]
+
+
+def test_pick_far_two_tier_without_far_community_fills_from_adjacent():
+    cands = [cand(1, 9), cand(11, 7), cand(12, 6)]
+    got = pick_far(cands, LABELS, {0: 5.0, 1: 0.3}, 2, exclude_top=1, true_far=1)
+    assert [c.artist_id for c in got] == [11, 12]
+
+
+def test_cap_share_list6_cap_is_seven_of_twenty():
+    chosen = [cand(a, 30 - a) for a in range(10)]  # hepsi topluluk A
+    spare = [cand(a, 5) for a in range(10, 20)]
+    out = cap_share(chosen, spare, LABELS, size=20, max_share=0.35)
+    assert sum(1 for c in out if c.artist_id < 10) == 7 and len(out) == 10
