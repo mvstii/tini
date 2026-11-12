@@ -304,13 +304,24 @@ class _RatingScreenState extends State<RatingScreen> {
                     if (_state.unlocked)
                       _ProfileBand(
                           built: _state.profileBuilt, busy: _busy, onBuild: _buildProfile),
-                    if (_error != null && _current != null)
+                    // Profil/özet yüklenemediyse seviye 0 görünür; hata ve yeniden deneme göster.
+                    if (_error != null && (_current != null || !_state.loaded))
                       Padding(
                         padding: const EdgeInsets.only(top: 4),
-                        child: Text(_error!,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(color: Theme.of(context).colorScheme.error)),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Text(_error!,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(color: Theme.of(context).colorScheme.error)),
+                            ),
+                            if (!_state.loaded)
+                              TextButton(
+                                  onPressed: _loading ? null : _init,
+                                  child: const Text('Yeniden dene')),
+                          ],
+                        ),
                       ),
                   ],
                 ),
@@ -934,10 +945,13 @@ class _VoteGrid extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = TiniCosmicColors.of(context);
-    Widget row(List<int> ids, double h) => SizedBox(
-          height: h,
-          child: Row(
-            children: [
+    // Sabit yükseklik yerine alt sınır: büyük yazı ölçeğinde düğmeler büyür, taşmaz.
+    Widget row(List<int> ids, double h) => ConstrainedBox(
+          constraints: BoxConstraints(minHeight: h),
+          child: IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
               for (var i = 0; i < ids.length; i++) ...[
                 if (i > 0) const SizedBox(width: 8),
                 Expanded(
@@ -950,6 +964,7 @@ class _VoteGrid extends StatelessWidget {
                 ),
               ],
             ],
+            ),
           ),
         );
     return Column(
@@ -982,7 +997,13 @@ class _VoteButtonState extends State<_VoteButton> {
   @override
   Widget build(BuildContext context) {
     final s = widget.style;
-    return Opacity(
+    return Semantics(
+      button: true,
+      enabled: widget.enabled,
+      label: '${widget.value}, ${s.label}',
+      excludeSemantics: true,
+      onTap: widget.enabled ? widget.onTap : null,
+      child: Opacity(
       opacity: widget.enabled ? 1 : 0.45,
       child: AnimatedScale(
         scale: _pressed ? 0.95 : (_hover && widget.enabled ? 1.05 : 1),
@@ -1028,6 +1049,7 @@ class _VoteButtonState extends State<_VoteButton> {
                   ),
                   Text(s.label,
                       maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                           fontSize: 12, fontWeight: FontWeight.w600, color: s.fg, height: 1.1)),
                 ],
@@ -1035,6 +1057,7 @@ class _VoteButtonState extends State<_VoteButton> {
             ),
           ),
         ),
+      ),
       ),
     );
   }
