@@ -40,6 +40,7 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
   late final AppState _state = AppState(widget.api);
   int _tab = 1; // açılışta Oylama; Keşfet solda (0)
   bool _seenRecs = false;
+  final _visited = <int>{1}; // sekmeler ilk açıldıklarında kurulur (açılışta yalnızca Oylama)
 
   @override
   void initState() {
@@ -64,6 +65,7 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
   void _go(int i) => setState(() {
         if (i != _tab) PreviewController.instance.stop();
         _tab = i;
+        _visited.add(i);
         if (i == 2) _seenRecs = true;
       });
 
@@ -105,7 +107,10 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
               onThemeChanged: widget.onThemeChanged,
             ),
             ].indexed)
-              TabPane(active: _tab == i, child: w),
+              TabPane(
+                active: _tab == i,
+                child: _visited.contains(i) ? w : const SizedBox.shrink(),
+              ),
           ],
         ),
         Positioned(
