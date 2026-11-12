@@ -1,0 +1,97 @@
+// Tasarım önizlemesi: gerçek ekranları gömülü yazı tipiyle PNG'ye çizer.
+// Çalıştır: flutter test tool/shots_test.dart  → ../docs/tasarim/*.png
+import 'dart:convert';
+import 'dart:io';
+import 'dart:ui' as ui;
+
+import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
+import 'package:tini/api.dart';
+import 'package:tini/screens/login_screen.dart';
+import 'package:tini/screens/rating_screen.dart';
+import 'package:tini/theme/cosmic_colors.dart';
+import 'package:tini/theme/tokens.dart';
+import 'package:tini/theme/transitions.dart';
+
+class _Mem extends FlutterSecureStorage {
+  final data = <String, String>{'session': 'T'};
+  @override
+  Future<String?> read({required String key, iOptions, aOptions, lOptions, webOptions, mOptions, wOptions}) async => data[key];
+  @override
+  Future<void> write({required String key, required String? value, iOptions, aOptions, lOptions, webOptions, mOptions, wOptions}) async {}
+  @override
+  Future<void> delete({required String key, iOptions, aOptions, lOptions, webOptions, mOptions, wOptions}) async {}
+}
+
+ThemeData _theme(Brightness b) {
+  final c = b == Brightness.dark ? TiniCosmicColors.dark : TiniCosmicColors.light;
+  return ThemeData(
+    colorSchemeSeed: Colors.deepPurple,
+    brightness: b,
+    useMaterial3: true,
+    fontFamily: 'PlusJakartaSans',
+    scaffoldBackgroundColor: c.scaffold,
+    pageTransitionsTheme: tiniPageTransitions,
+    textTheme: tiniTextTheme(ThemeData(brightness: b).textTheme, c),
+    extensions: [c],
+  );
+}
+
+void main() {
+  final key = GlobalKey();
+  Future<void> shot(WidgetTester t, Widget app, String name) async {
+    t.view.physicalSize = const Size(390 * 3, 844 * 3);
+    t.view.devicePixelRatio = 3;
+    addTearDown(t.view.reset);
+    await t.pumpWidget(RepaintBoundary(key: key, child: app));
+    await t.pumpAndSettle();
+    await t.runAsync(() async {
+      final b = key.currentContext!.findRenderObject() as RenderRepaintBoundary;
+      final img = await b.toImage(pixelRatio: 1);
+      final bytes = (await img.toByteData(format: ui.ImageByteFormat.png))!;
+      final f = File('../docs/tasarim/$name.png')..createSync(recursive: true);
+      f.writeAsBytesSync(bytes.buffer.asUint8List());
+    });
+  }
+
+  setUpAll(() async {
+    final l = FontLoader('PlusJakartaSans')
+      ..addFont(Future.value(ByteData.view(File('assets/fonts/PlusJakartaSans.ttf').readAsBytesSync().buffer)));
+    await l.load();
+    final mi = FontLoader('MaterialIcons')
+      ..addFont(Future.value(ByteData.view(
+          File('C:/dev/flutter/bin/cache/artifacts/material_fonts/MaterialIcons-Regular.otf').readAsBytesSync().buffer)));
+    await mi.load();
+  });
+
+  Api api() => Api(
+      client: MockClient((r) async {
+        switch (r.url.path) {
+          case '/votes/history':
+            return http.Response('{"total": 12, "items": []}', 200);
+          case '/votes/queue':
+            return http.Response.bytes(
+                utf8.encode('{"remaining": 9, "stale": 0, "items": [{"track": 1, "title": "Gece Yarısı", "artists": ["Gama", "Ekin"]}, {"track": 2, "title": "Beta", "artists": ["B"]}]}'),
+                200);
+        }
+        return http.Response('{}', 200);
+      }),
+      storage: _Mem());
+
+  for (final b in [Brightness.dark, Brightness.light]) {
+    testWidgets('rating ${b.name}', (t) async {
+      final a = api();
+      await a.restore();
+      await shot(t, MaterialApp(debugShowCheckedModeBanner: false, theme: _theme(b), home: RatingScreen(api: a)), 'oyla-${b.name}');
+    });
+  }
+  testWidgets('login dark', (t) async {
+    final a = api();
+    await shot(t, MaterialApp(debugShowCheckedModeBanner: false, theme: _theme(Brightness.dark), home: LoginScreen(api: a, onDone: () {})), 'giris-dark');
+  });
+}

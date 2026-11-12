@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 
+import '../theme/cosmic_colors.dart';
+import '../theme/tokens.dart';
+
 /// Tüm ekranların arkasındaki yumuşak ışık zemini. `BackdropFilter` yok: yalnızca iki
 /// `RadialGradient` katmanı (sağ üst mor, sol alt macenta), bu yüzden ucuz.
 class AmbientBackground extends StatelessWidget {
@@ -58,7 +61,7 @@ class StudioSurface extends StatelessWidget {
   const StudioSurface({
     super.key,
     required this.child,
-    this.radius = 20,
+    this.radius = TiniShape.card + 4,
     this.padding = EdgeInsets.zero,
     this.fill,
     this.edge,
@@ -76,9 +79,10 @@ class StudioSurface extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final dark = Theme.of(context).brightness == Brightness.dark;
+    final tok = TiniCosmicColors.of(context);
     final fillColors = fill ??
         (dark
-            ? const [Color(0xFF1B1730), Color(0xFF171329)]
+            ? [tok.raised, tok.card]
             : const [Color(0xFFFFFFFF), Color(0xFFFAF8FF)]);
     final (hi, lo) = edge ??
         (dark

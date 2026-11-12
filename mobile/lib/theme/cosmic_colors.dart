@@ -18,6 +18,10 @@ class TiniCosmicColors extends ThemeExtension<TiniCosmicColors> {
   const TiniCosmicColors({
     required this.scaffold,
     required this.card,
+    required this.raised,
+    required this.highlight,
+    required this.textSecondary,
+    required this.textTertiary,
     required this.primary,
     required this.votes,
     required this.skip,
@@ -25,6 +29,15 @@ class TiniCosmicColors extends ThemeExtension<TiniCosmicColors> {
 
   final Color scaffold;
   final Color card;
+
+  /// Yüzey kademeleri: zemin < [card] < [raised] < [highlight]. Yükseklik gölgeyle değil,
+  /// daha açık yüzeyle verilir (Spotify/Apple Music kuralı).
+  final Color raised;
+  final Color highlight;
+
+  /// Metin kademeleri: birincil renk temadan, ikincil ve soluk buradan gelir.
+  final Color textSecondary;
+  final Color textTertiary;
   final Color primary;
 
   /// Anahtar 1..6.
@@ -32,8 +45,12 @@ class TiniCosmicColors extends ThemeExtension<TiniCosmicColors> {
   final VoteStyle skip;
 
   static const dark = TiniCosmicColors(
-    scaffold: Color(0xFF08060E),
+    scaffold: Color(0xFF0C0914),
     card: Color(0xFF171326),
+    raised: Color(0xFF1F1A32),
+    highlight: Color(0xFF2A2342),
+    textSecondary: Color(0xFFB9B3C9),
+    textTertiary: Color(0xFF767087),
     primary: Color(0xFFD0BCFF),
     votes: {
       1: VoteStyle(Color(0xFF162030), Color(0xFF99B8F0), Color(0xFF2E4566),
@@ -57,6 +74,10 @@ class TiniCosmicColors extends ThemeExtension<TiniCosmicColors> {
   static const light = TiniCosmicColors(
     scaffold: Color(0xFFF7F4FC),
     card: Color(0xFFF0ECF9),
+    raised: Color(0xFFE8E2F5),
+    highlight: Color(0xFFDDD5EE),
+    textSecondary: Color(0xFF4F495E),
+    textTertiary: Color(0xFF7A7489),
     primary: Color(0xFF6750A4),
     votes: {
       1: VoteStyle(Color(0xFFDCE6F7), Color(0xFF0D1B33), Color(0xFF7A99C9),
@@ -88,6 +109,10 @@ class TiniCosmicColors extends ThemeExtension<TiniCosmicColors> {
   TiniCosmicColors copyWith({Color? scaffold, Color? card, Color? primary}) => TiniCosmicColors(
         scaffold: scaffold ?? this.scaffold,
         card: card ?? this.card,
+        raised: raised,
+        highlight: highlight,
+        textSecondary: textSecondary,
+        textTertiary: textTertiary,
         primary: primary ?? this.primary,
         votes: votes,
         skip: skip,
