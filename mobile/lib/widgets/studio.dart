@@ -463,3 +463,185 @@ class StaggerIn extends StatelessWidget {
     );
   }
 }
+
+/// Yuvarlak, katmanlı ikon düğmesi (üst çubuk eylemleri). Dolu yüzey, ince kenar; seçiliyken
+/// birincil renkte ışır. Basınca çöker, bırakınca yaylanır; ikon değişimi ölçekle geçer.
+class StudioIconButton extends StatefulWidget {
+  const StudioIconButton({
+    super.key,
+    required this.icon,
+    required this.tooltip,
+    required this.onPressed,
+    this.selectedIcon,
+    this.selected = false,
+    this.size = 38,
+  });
+  final IconData icon;
+  final IconData? selectedIcon;
+  final bool selected;
+  final String tooltip;
+  final VoidCallback? onPressed;
+  final double size;
+
+  @override
+  State<StudioIconButton> createState() => _StudioIconButtonState();
+}
+
+class _StudioIconButtonState extends State<StudioIconButton> {
+  bool _down = false;
+  bool _hover = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final tok = TiniCosmicColors.of(context);
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final enabled = widget.onPressed != null;
+    final lit = enabled && (_down || _hover);
+    final on = widget.selected;
+    final fg = on ? tok.primary : Theme.of(context).colorScheme.onSurface;
+    return Tooltip(
+      message: widget.tooltip,
+      child: AnimatedScale(
+        scale: _down && enabled ? 0.88 : 1,
+        duration: Duration(milliseconds: _down ? 80 : 260),
+        curve: _down ? Curves.easeOut : Curves.easeOutBack,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeOutCubic,
+          width: widget.size,
+          height: widget.size,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: on
+                ? Color.alphaBlend(tok.primary.withValues(alpha: dark ? 0.22 : 0.16),
+                    dark ? tok.raised : tok.card)
+                : (dark ? tok.raised : tok.card),
+            border: Border.all(
+                color: on
+                    ? tok.primary.withValues(alpha: 0.6)
+                    : (lit ? tok.primary.withValues(alpha: 0.45) : tok.highlight)),
+            boxShadow: [
+              if (enabled && (on || lit))
+                BoxShadow(
+                    color: tok.primary.withValues(alpha: lit ? 0.45 : 0.28),
+                    blurRadius: lit ? 16 : 12),
+              if (!dark && enabled)
+                BoxShadow(
+                    color: tok.primary.withValues(alpha: 0.10),
+                    blurRadius: 8,
+                    offset: const Offset(0, 3)),
+            ],
+          ),
+          child: Opacity(
+            opacity: enabled ? 1 : 0.38,
+            child: Material(
+              color: Colors.transparent,
+              shape: const CircleBorder(),
+              child: InkWell(
+                customBorder: const CircleBorder(),
+                onTap: widget.onPressed,
+                onHover: (v) => setState(() => _hover = v),
+                onHighlightChanged: (v) => setState(() => _down = v),
+                child: Center(
+                  child: AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 200),
+                    transitionBuilder: (c, a) => ScaleTransition(
+                        scale: CurvedAnimation(parent: a, curve: Curves.easeOutBack),
+                        child: FadeTransition(opacity: a, child: c)),
+                    child: Icon(
+                      on && widget.selectedIcon != null ? widget.selectedIcon : widget.icon,
+                      key: ValueKey(on),
+                      size: widget.size * 0.5,
+                      color: fg,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Hap biçimli ikincil bağlantı düğmesi ("Spotify'da aç"): dolu yüzey, vurgu renkli ince kenar
+/// ve ikon; basınca çöker, üzerine gelince ışır.
+class StudioLinkPill extends StatefulWidget {
+  const StudioLinkPill({
+    super.key,
+    required this.icon,
+    required this.label,
+    required this.accent,
+    required this.onPressed,
+  });
+  final IconData icon;
+  final String label;
+  final Color accent;
+  final VoidCallback? onPressed;
+
+  @override
+  State<StudioLinkPill> createState() => _StudioLinkPillState();
+}
+
+class _StudioLinkPillState extends State<StudioLinkPill> {
+  bool _down = false;
+  bool _hover = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final tok = TiniCosmicColors.of(context);
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final enabled = widget.onPressed != null;
+    final lit = enabled && (_down || _hover);
+    return AnimatedScale(
+      scale: _down && enabled ? 0.95 : 1,
+      duration: Duration(milliseconds: _down ? 80 : 260),
+      curve: _down ? Curves.easeOut : Curves.easeOutBack,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.easeOutCubic,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(20),
+          color: dark ? tok.raised : tok.card,
+          border: Border.all(color: widget.accent.withValues(alpha: lit ? 0.85 : 0.45)),
+          boxShadow: [
+            if (enabled)
+              BoxShadow(
+                  color: widget.accent.withValues(alpha: lit ? 0.35 : (dark ? 0.12 : 0.10)),
+                  blurRadius: lit ? 16 : 10,
+                  offset: const Offset(0, 3)),
+          ],
+        ),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(20),
+            onTap: widget.onPressed,
+            onHover: (v) => setState(() => _hover = v),
+            onHighlightChanged: (v) => setState(() => _down = v),
+            child: SizedBox(
+              height: 40,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 10),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(widget.icon, size: 16, color: widget.accent),
+                    const SizedBox(width: 5),
+                    Text(widget.label,
+                        maxLines: 1,
+                        style: Theme.of(context)
+                            .textTheme
+                            .labelMedium
+                            ?.copyWith(fontWeight: FontWeight.w600)),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}

@@ -508,50 +508,35 @@ class _TopBar extends StatelessWidget {
               ],
             ),
           ),
-          SizedBox(
-            width: 48,
-            height: 48,
-            child: IconButton(
-              key: const ValueKey('toggle-autoplay'),
-              padding: EdgeInsets.zero,
-              onPressed: onAutoplay,
-              isSelected: autoplay,
-              icon: const Icon(Icons.volume_off_rounded),
-              selectedIcon: const Icon(Icons.volume_up_rounded),
-              tooltip: autoplay ? 'Otomatik çalma açık' : 'Otomatik çalma kapalı',
-            ),
+          const SizedBox(width: 8),
+          StudioIconButton(
+            key: const ValueKey('toggle-autoplay'),
+            onPressed: onAutoplay,
+            selected: autoplay,
+            icon: Icons.volume_off_rounded,
+            selectedIcon: Icons.volume_up_rounded,
+            tooltip: autoplay ? 'Otomatik çalma açık' : 'Otomatik çalma kapalı',
           ),
-          SizedBox(
-            width: 48,
-            height: 48,
-            child: IconButton(
-              key: const ValueKey('open-search'),
-              padding: EdgeInsets.zero,
-              onPressed: onSearch,
-              icon: const Icon(Icons.search_rounded),
-              tooltip: 'Şarkı ara',
-            ),
+          const SizedBox(width: 6),
+          StudioIconButton(
+            key: const ValueKey('open-search'),
+            onPressed: onSearch,
+            icon: Icons.search_rounded,
+            tooltip: 'Şarkı ara',
           ),
-          SizedBox(
-            width: 48,
-            height: 48,
-            child: IconButton(
-              key: const ValueKey('open-later'),
-              padding: EdgeInsets.zero,
-              onPressed: onLater,
-              icon: const Icon(Icons.bookmark_border_rounded),
-              tooltip: 'Sonra dinle',
-            ),
+          const SizedBox(width: 6),
+          StudioIconButton(
+            key: const ValueKey('open-later'),
+            onPressed: onLater,
+            icon: Icons.bookmark_border_rounded,
+            selectedIcon: Icons.bookmark_rounded,
+            tooltip: 'Sonra dinle',
           ),
-          SizedBox(
-            width: 40,
-            height: 48,
-            child: IconButton(
-              padding: EdgeInsets.zero,
-              onPressed: canUndo ? onUndo : null,
-              icon: const Icon(Icons.undo_rounded),
-              tooltip: 'Geri al',
-            ),
+          const SizedBox(width: 6),
+          StudioIconButton(
+            onPressed: canUndo ? onUndo : null,
+            icon: Icons.undo_rounded,
+            tooltip: 'Geri al',
           ),
         ],
       ),
@@ -851,18 +836,17 @@ class _SwipeCardState extends State<_SwipeCard> with SingleTickerProviderStateMi
                         api: widget.api,
                         previewKey: 'vote-${item.track}',
                         trackId: item.track),
-                    const SizedBox(width: 4),
-                    TextButton.icon(
+                    const SizedBox(width: 8),
+                    StudioLinkPill(
                       key: const ValueKey('open-spotify'),
                       onPressed: () => openInSpotify(item.title, item.artistLine),
-                      icon: const Icon(Icons.open_in_new_rounded, size: 18),
-                      label: const Text("Spotify'da aç"),
-                      style: TextButton.styleFrom(
-                          foregroundColor: theme.colorScheme.onSurfaceVariant,
-                          textStyle: theme.textTheme.labelMedium,
-                          padding: const EdgeInsets.symmetric(horizontal: 8)),
+                      icon: Icons.open_in_new_rounded,
+                      label: "Spotify'da aç",
+                      accent: Theme.of(context).brightness == Brightness.dark
+                          ? const Color(0xFF1DB954)
+                          : const Color(0xFF138A3D),
                     ),
-                    const SizedBox(width: 4),
+                    const SizedBox(width: 6),
                     Expanded(
                       child: Align(
                         alignment: Alignment.centerRight,

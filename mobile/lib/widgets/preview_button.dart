@@ -30,6 +30,7 @@ class PreviewButton extends StatefulWidget {
 }
 
 class _PreviewButtonState extends State<PreviewButton> {
+  bool _down = false;
   Api get api => widget.api;
   String get previewKey => widget.previewKey;
   int? get artistId => widget.artistId;
@@ -54,6 +55,31 @@ class _PreviewButtonState extends State<PreviewButton> {
       builder: (_, _) {
         final st = ctl.statusOf(previewKey);
         final unavailable = st == PreviewStatus.unavailable;
+        final playing = st == PreviewStatus.playing;
+        final dark = Theme.of(context).brightness == Brightness.dark;
+        final scheme = Theme.of(context).colorScheme;
+        // Dolu gradyan: çalarken daha parlak ve çevresinde ince halka; bulunamazsa sönük yüzey.
+        final decoration = unavailable
+            ? BoxDecoration(
+                shape: BoxShape.circle,
+                color: dark ? c.raised : c.card,
+                border: Border.all(color: c.highlight))
+            : BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [scheme.primary, Color.lerp(scheme.primary, const Color(0xFFE0479E), 0.7)!],
+                ),
+                border: Border.all(color: Colors.white.withValues(alpha: playing ? 0.55 : 0.0), width: 2),
+                boxShadow: [
+                  BoxShadow(
+                      color: scheme.primary.withValues(alpha: playing ? 0.65 : 0.35),
+                      blurRadius: playing ? 22 : 14,
+                      offset: const Offset(0, 4)),
+                ],
+              );
+        const onFill = Colors.white;
         return Tooltip(
           message: unavailable
               ? 'Önizleme bulunamadı'
@@ -63,11 +89,20 @@ class _PreviewButtonState extends State<PreviewButton> {
           child: Hoverable(
             enabled: !unavailable,
             scale: 1.1,
+            child: AnimatedScale(
+            scale: _down && !unavailable ? 0.9 : 1,
+            duration: Duration(milliseconds: _down ? 80 : 260),
+            curve: _down ? Curves.easeOut : Curves.easeOutBack,
+            child: AnimatedContainer(
+            duration: const Duration(milliseconds: 220),
+            curve: Curves.easeOutCubic,
+            decoration: decoration,
             child: Material(
-            color: c.primary.withValues(alpha: st == PreviewStatus.playing ? 0.28 : 0.14),
+            color: Colors.transparent,
             shape: const CircleBorder(),
             child: InkWell(
               customBorder: const CircleBorder(),
+              onHighlightChanged: (v) => setState(() => _down = v),
               onTap: unavailable
                   ? null
                   : () => ctl.toggle(
@@ -80,27 +115,32 @@ class _PreviewButtonState extends State<PreviewButton> {
                 child: Center(
                   child: AnimatedSwitcher(
                     duration: const Duration(milliseconds: 180),
+                    transitionBuilder: (w, a) => ScaleTransition(
+                        scale: CurvedAnimation(parent: a, curve: Curves.easeOutBack),
+                        child: FadeTransition(opacity: a, child: w)),
                     child: switch (st) {
                       PreviewStatus.loading => SizedBox(
                           key: const ValueKey('loading'),
                           width: 18,
                           height: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2, color: c.primary)),
+                          child: CircularProgressIndicator(strokeWidth: 2, color: onFill)),
                       PreviewStatus.playing =>
-                        Icon(Icons.pause_rounded, key: const ValueKey('pause'), color: c.primary),
+                        Icon(Icons.pause_rounded, key: const ValueKey('pause'), color: onFill),
                       PreviewStatus.unavailable => Icon(Icons.music_off_rounded,
                           key: const ValueKey('off'),
                           size: 20,
-                          color: c.primary.withValues(alpha: 0.4)),
+                          color: scheme.onSurfaceVariant.withValues(alpha: 0.6)),
                       PreviewStatus.error => Icon(Icons.refresh_rounded,
-                          key: const ValueKey('retry'), color: c.primary),
+                          key: const ValueKey('retry'), color: onFill),
                       PreviewStatus.idle => Icon(Icons.play_arrow_rounded,
-                          key: const ValueKey('play'), color: c.primary),
+                          key: const ValueKey('play'), size: 28, color: onFill),
                     },
                   ),
                 ),
               ),
             ),
+          ),
+          ),
           ),
           ),
         );
