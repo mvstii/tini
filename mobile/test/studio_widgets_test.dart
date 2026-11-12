@@ -1,6 +1,8 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tini/api.dart';
+import 'package:tini/screens/list_screen.dart' show reasonText;
 import 'package:tini/widgets/studio.dart';
 
 void main() {
@@ -58,5 +60,11 @@ void main() {
     await tester.pumpWidget(app(reduce: true));
     await tester.pump();
     expect(tester.hasRunningAnimations, isFalse);
+  });
+
+  test('reasonText never fabricates a reason for an empty reason list', () {
+    final e = ListEntry(1, 'X', null, const []);
+    expect(reasonText(e), isNot(contains('benzediği için')));
+    expect(reasonText(e), contains('hesaplanamadı'));
   });
 }

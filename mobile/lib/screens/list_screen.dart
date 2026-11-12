@@ -12,6 +12,8 @@ import '../widgets/studio.dart';
 
 /// Gerekçe cümlesi: en büyük paylı çapalar, yüzdeyle (hesabın kendisinden gelir).
 String reasonText(ListEntry e, {int top = 3}) {
+  // Gerekçe uydurulmaz: hesap çapa döndürmediyse bunu açıkça söyleriz.
+  if (e.reasons.isEmpty) return 'Bu öneri için çapa gerekçesi hesaplanamadı';
   final sorted = [...e.reasons]..sort((a, b) => b.share.compareTo(a.share));
   final parts = sorted
       .take(top)
@@ -29,7 +31,15 @@ class _ReasonChips extends StatelessWidget {
     final c = TiniCosmicColors.of(context);
     final theme = Theme.of(context);
     final top = ([...entry.reasons]..sort((a, b) => b.share.compareTo(a.share))).take(3);
-    if (top.isEmpty) return const SizedBox.shrink();
+    if (top.isEmpty) {
+      return Row(children: [
+        Icon(Icons.insights_rounded, size: 14, color: c.primary),
+        const SizedBox(width: 6),
+        Flexible(
+            child: Text('Bu öneri için çapa gerekçesi hesaplanamadı',
+                style: theme.textTheme.bodySmall)),
+      ]);
+    }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
