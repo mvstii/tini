@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 import 'package:flutter/semantics.dart' show CustomSemanticsAction;
 
 import 'package:flutter/material.dart';
@@ -1027,13 +1028,42 @@ class _VoteButton extends StatefulWidget {
   State<_VoteButton> createState() => _VoteButtonState();
 }
 
-class _VoteButtonState extends State<_VoteButton> {
+class _VoteButtonState extends State<_VoteButton> with SingleTickerProviderStateMixin {
   bool _pressed = false;
   bool _hover = false;
+
+  /// Dokunuşta bir kez oynar (tekrarlı değil): halka dışa yayılır, ikon zıplar, yüzey parlar.
+  late final AnimationController _burst =
+      AnimationController(vsync: this, duration: const Duration(milliseconds: 520));
+
+  @override
+  void dispose() {
+    _burst.dispose();
+    super.dispose();
+  }
+
+  void _tap() {
+    HapticFeedback.selectionClick();
+    if (!MediaQuery.disableAnimationsOf(context)) _burst.forward(from: 0);
+    widget.onTap();
+  }
 
   @override
   Widget build(BuildContext context) {
     final s = widget.style;
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final live = widget.enabled && !widget.dimmed;
+    final lit = live && (_pressed || _hover);
+    // Yüksek oylar daha sıcak ışır: 6 en güçlü, 1 en sönük.
+    final heat = 0.6 + 0.4 * (widget.value / 6);
+    final glow = !live
+        ? <BoxShadow>[]
+        : [
+            BoxShadow(
+                color: s.border.withValues(alpha: (lit ? 0.55 : (dark ? 0.24 : 0.20)) * heat),
+                blurRadius: lit ? 20 : 12,
+                offset: Offset(0, lit ? 3 : 5)),
+          ];
     return Semantics(
       button: true,
       enabled: widget.enabled,
@@ -1041,68 +1071,115 @@ class _VoteButtonState extends State<_VoteButton> {
       excludeSemantics: true,
       onTap: widget.enabled ? widget.onTap : null,
       child: Opacity(
-      opacity: widget.dimmed ? 0.45 : 1,
-      child: AnimatedScale(
-        scale: _pressed ? 0.94 : (_hover && widget.enabled ? 1.05 : 1),
-        duration: Duration(milliseconds: _pressed ? 90 : 240),
-        curve: _pressed ? Curves.easeOut : Curves.easeOutBack,
-        child: Ink(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: s.border, width: s.borderWidth),
-            boxShadow: widget.enabled && !widget.dimmed && Theme.of(context).brightness == Brightness.dark
-                ? [
-                    BoxShadow(
-                        color: s.border.withValues(alpha: _pressed || _hover ? 0.55 : 0.22),
-                        blurRadius: _pressed || _hover ? 18 : 10)
-                  ]
-                : null,
-            // Sol üstten gelen ışık: üstte açılmış, altta kendi rengine inen dikey geçiş.
-            gradient: LinearGradient(
-              begin: const Alignment(-0.6, -1),
-              end: const Alignment(0.4, 1),
-              colors: [Color.alphaBlend(Colors.white.withValues(alpha: 0.10), s.fill), s.fill],
-            ),
-          ),
-          child: InkWell(
-            key: ValueKey('vote-${widget.value}'),
-            customBorder: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-            onHighlightChanged: (v) => setState(() => _pressed = v),
-            onHover: (v) => setState(() => _hover = v),
-            onTap: widget.enabled
-                ? () {
-                    HapticFeedback.selectionClick();
-                    widget.onTap();
-                  }
-                : null,
-            child: Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text('${widget.value}',
-                          style: TextStyle(
-                              fontSize: 15,
-                              color: s.fg,
-                              fontWeight: FontWeight.w700,
-                              fontFeatures: _tabular)),
-                      const SizedBox(width: 4),
-                      Icon(s.icon, size: 18, color: s.fg),
-                    ],
+        opacity: widget.dimmed ? 0.45 : 1,
+        child: AnimatedScale(
+          scale: _pressed ? 0.93 : (_hover && widget.enabled ? 1.05 : 1),
+          duration: Duration(milliseconds: _pressed ? 90 : 280),
+          curve: _pressed ? Curves.easeOut : Curves.easeOutBack,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 220),
+            curve: Curves.easeOutCubic,
+            decoration: BoxDecoration(borderRadius: BorderRadius.circular(14), boxShadow: glow),
+            child: Ink(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: s.border, width: s.borderWidth),
+                // Sol üstten gelen ışık: üstte açılmış, altta kendi rengine inen geçiş.
+                gradient: LinearGradient(
+                  begin: const Alignment(-0.6, -1),
+                  end: const Alignment(0.4, 1),
+                  colors: [
+                    Color.alphaBlend(Colors.white.withValues(alpha: lit ? 0.18 : 0.12), s.fill),
+                    s.fill,
+                    Color.alphaBlend(s.border.withValues(alpha: dark ? 0.10 : 0.06), s.fill),
+                  ],
+                  stops: const [0, 0.55, 1],
+                ),
+              ),
+              child: InkWell(
+                key: ValueKey('vote-${widget.value}'),
+                customBorder: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                onHighlightChanged: (v) => setState(() => _pressed = v),
+                onHover: (v) => setState(() => _hover = v),
+                onTap: widget.enabled ? _tap : null,
+                child: AnimatedBuilder(
+                  animation: _burst,
+                  builder: (_, child) {
+                    final t = _burst.value;
+                    final active = _burst.isAnimating;
+                    return Stack(
+                      alignment: Alignment.center,
+                      clipBehavior: Clip.none,
+                      children: [
+                        if (active) ...[
+                          // Parlama: yüzey kısa süre aydınlanıp söner.
+                          Positioned.fill(
+                            child: DecoratedBox(
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(14),
+                                color: s.fg.withValues(alpha: 0.28 * (1 - Curves.easeOut.transform(t))),
+                              ),
+                            ),
+                          ),
+                          // Halka: düğme çevresinden dışa yayılıp solar.
+                          Positioned.fill(
+                            child: Transform.scale(
+                              scale: 1 + 0.35 * Curves.easeOutCubic.transform(t),
+                              child: DecoratedBox(
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(14),
+                                  border: Border.all(
+                                      color: s.fg.withValues(alpha: 0.7 * (1 - t)), width: 2),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                        child!,
+                      ],
+                    );
+                  },
+                  child: Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text('${widget.value}',
+                                style: TextStyle(
+                                    fontSize: 15,
+                                    color: s.fg,
+                                    fontWeight: FontWeight.w700,
+                                    fontFeatures: _tabular)),
+                            const SizedBox(width: 4),
+                            // İkon: dokunuşta yaylanarak büyüyüp döner, sonra yerine oturur.
+                            AnimatedBuilder(
+                              animation: _burst,
+                              builder: (_, child) {
+                                final k = math.sin(math.pi * Curves.easeOut.transform(_burst.value));
+                                return Transform.rotate(
+                                  angle: 0.35 * k * (widget.value.isEven ? -1 : 1),
+                                  child: Transform.scale(scale: 1 + 0.55 * k, child: child),
+                                );
+                              },
+                              child: Icon(s.icon, size: 18, color: s.fg),
+                            ),
+                          ],
+                        ),
+                        Text(s.label,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                                fontSize: 12, fontWeight: FontWeight.w600, color: s.fg, height: 1.1)),
+                      ],
+                    ),
                   ),
-                  Text(s.label,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                          fontSize: 12, fontWeight: FontWeight.w600, color: s.fg, height: 1.1)),
-                ],
+                ),
               ),
             ),
           ),
         ),
-      ),
       ),
     );
   }
