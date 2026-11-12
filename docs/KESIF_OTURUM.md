@@ -2,11 +2,15 @@
 
 Bu dosya Claude Code oturumları arasında köprüdür. **Her oturumun başında okunur; her aşama bitiminde ve oturum kapanmadan önce güncellenir.** Program planı ve kapsam: `docs/KESIF_PLANI.md`. Kalıcı proje kayıtları: `docs/DURUM.md`.
 
-Son güncelleme: 2026-11-12 (PR-6: 19. ölçüm, kabul kapısı 7/7 GEÇTİ; push ve birleştirme geliştirici onayında)
+Son güncelleme: 2026-11-12 (PR-7 uygulandı, dal `feat/pr7-list6`; push ve birleştirme onay bekler)
 
 ## Aktif durum
 
-- **SIRADAKİ OTURUM BURADAN BAŞLAR (12 Kasım 2026, kapı geçti).** Dal `feat/pr6-sampler`, kod son commit `f0eb0d1`; push yok. **PR-6 kabul kapısı (Çeşitlilik + Tazelik) 7/7 GEÇTİ** (19. ölçüm, staging `ep-patient-star`, `queue-8`, 100 kart, yeni kapı koduyla, geliştirici koşturdu).
+- **SIRADAKİ OTURUM BURADAN BAŞLAR (12 Kasım 2026, PR-6 birleşti).** PR-6 tamamlandı: ilk parça #87 (10 Kasım, `f03ee5a`), kabul kapısı düzeltmeleri #88 (12 Kasım, `fa401cb`; geliştirici "Sen birleştirebilirsin"). `main` = `fa401cb`. Önceki notlardaki "push yok / `main`'de değil" ifadeleri yalnız #87 sonrası 34 commit için doğruydu.
+  - **Aktif PR:** PR-7 (Liste tarafı `list-6`), dal `feat/pr7-list6`; push yok. **Aşama 4 bitti (12 Kasım 2026); push + birleştirme için geliştirici onayı beklenir.** ONAY: 12 Kasım 2026, geliştirici "Onaylıyorum (A)" — iki kademeli `pick_far`, slot düzeyinde öğrenen `far` payı, nonce tohumlu Gumbel tazelik; göç ve APK yok. Yanıtlanmayan iki soru için varsayılan uygulandı: tüm `list-6` davranışı `RECOMMEND_LIST6_ENABLED` arkasında (varsayılan kapalı; kapalıyken `list-5` birebir), nonce = kullanıcının önceki `main` liste sayısı (yalnız `POST /lists/generate`; günlük uç ve kuyruk yolu nonce=0). **Yapılan:** `diverse.pick_far(true_far=)` iki kademe; `bandit.far_share()` (eşik altında sabit 0,20, sonra 0,10–0,30 arası Beta örneği); `select_mmr(tau, seed)` Gumbel gürültüsü (yalnız nonce > 0); `list6_max_cluster_share` 0,35; `algo_version` `list-6`; `params`'a `nonce`, `gumbel_tau`, `far_true_count`, `far_floor_share`, `far_max_share`. Temsil şarkıları ve `evaluate` slot raporu zaten vardı, kod eklenmedi. **Test:** yerel tam paket 436 geçti / 18 atlandı / 0 kaldı (önce 426); `ruff check app tests` temiz. Yeni 9 test: `test_diverse` 4 (tavan dahil), `test_bandit` 2, `test_select` 1, `test_lists_api` 2 (uçtan uca `list-5` / `list-6` far yuvası); onuncu fark, temel çizgide hariç tutulan bir testin bu koşuda dahil olmasıdır. **Ölçülmeyen:** gerçek veride tazelik, Good+ oranı ve gecikme ölçülmedi (staging'de `list-6` hiç koşmadı). Uzak yuva seçimi nonce'tan bağımsız; tazelik yalnız familiar/unheard/explore slotlarında. `far` payı tür-bandit'ine değil slot sonucuna bağlı (plan metninden bilinçli daraltma, onaylı A). **Sıradaki adım:** geliştirici onayıyla push + PR; sonra staging'de `RECOMMEND_LIST6_ENABLED=true` ile `evaluate` ve elle "Yeniden üret" denemesi.
+  - **Canlı etkisi (doğrulanmadı):** `main` dağıtılınca 5c-3 ile `queue-7` sırası değişir; `queue_sampler_enabled` kapalı. Canlıda gözlem yapılmadı.
+  - **Açık borçlar:** `queue-8` isteği staging'de 3,2–4,8 sn (bayrak açılmadan önce); Kapsama ve Kalite koruması ölçülmedi; testler ortam dosyasındaki veritabanına gidiyor (koruma yok); staging'de `@example.com` artığı kontrolü; ortamdaki `PROFILE_QUEUE_*` ezmeleri (geliştirici).
+- **(Geçmiş) 12 Kasım 2026, kapı geçti.** Dal `feat/pr6-sampler`, kod son commit `f0eb0d1`; push yok. **PR-6 kabul kapısı (Çeşitlilik + Tazelik) 7/7 GEÇTİ** (19. ölçüm, staging `ep-patient-star`, `queue-8`, 100 kart, yeni kapı koduyla, geliştirici koşturdu).
   - **Değerler:** `main_genres_per_20` 5 / ≥ 5 (sınırda, yalnız tohum 1'de ölçülür), `same_artist_per_20` 1, `artist_gap` 0, `duplicate_songs` 0, `sub_genre_run` 1, tazelik ortalama **0,16** / < 0,20 (çiftler 0,35 / 0,10 / 0,15 / 0,10 / 0,10; 4/5 çift eşiği geçiyor), özdeşlik doğru.
   - **Testler:** yerel tam paket 426 geçti / 18 atlandı / 0 kaldı (+ `test_tags` testi tek başına geçti); ruff temiz (kuyruk paketleriyle son koşu).
   - **Ölçülmeyen / sınırlar:** Kapsama ölçütü (ilk 50/200 oy) ve Kalite koruması ölçülmedi; tek kullanıcı, tek kütüphane, 5 tohum çifti (küçük örnek). Gözlemler: türsüz kart payı 0,35; keşif payı 0,04; `queue-8` isteği staging'de 3,2–4,8 sn (`rank` 1,1–2,4 sn) — Hız ölçütünün (p95 < 800 ms) çok üstünde, canlıda bayrak açılmadan önce ele alınmalı; `suggested` kartı 12→12 sabit; havuz kartı 614 kalıcı.
@@ -91,7 +95,7 @@ Son güncelleme: 2026-11-12 (PR-6: 19. ölçüm, kabul kapısı 7/7 GEÇTİ; pus
 | PR-3 | `feat/pr3-queue-controller` | Uygulandı, emülatör ölçümü bekliyor | Evet (`origin/main` `33e9d96`) |
 | PR-4 | `feat/pr4-genre-spine` | Birleşti (#84, #85); tam omurga koşusu sürüyor | Evet |
 | PR-5 | `feat/pr5-user-model` | Birleşti (#86, `866b9f1`) | Evet |
-| PR-6 | `feat/pr6-sampler` (`f0eb0d1` + kayıtlar) | Kabul kapısı 7/7 geçti (12 Kasım); push ve birleştirme onayı bekliyor | Hayır |
+| PR-6 | `feat/pr6-sampler` | Birleşti (#87 `f03ee5a`, #88 `fa401cb`); kabul kapısı 7/7 | Evet |
 
 ## PR-0'dan PR-4'e taşınacak bulgular (ayrıntı: PR-0 dalındaki `docs/ARCHITECTURE.md`)
 

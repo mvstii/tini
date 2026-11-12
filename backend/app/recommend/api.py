@@ -8,7 +8,7 @@ from typing import Literal
 import httpx
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.catalog.artist_images import cached_images
@@ -244,8 +244,14 @@ def generate(
     pcfg: ProfileSettings = Depends(get_profile_settings),
     gcfg: GraphSettings = Depends(get_graph_settings),
 ) -> dict:
+    # "Yeniden üret" sayacı: önceki ana liste sayısı, tazelik tohumuna girer (list-6)
+    nonce = db.scalar(
+        select(func.count()).select_from(GeneratedList).where(
+            GeneratedList.user_id == user.id, GeneratedList.kind == "main"
+        )
+    ) or 0
     try:
-        lst = generate_list(db, user.id, datetime.now(UTC), cfg, pcfg, gcfg)
+        lst = generate_list(db, user.id, datetime.now(UTC), cfg, pcfg, gcfg, nonce)
     except NoProfile:
         raise HTTPException(404, "Henüz profil üretilmedi") from None
     except NoGraph:

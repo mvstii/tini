@@ -1,7 +1,7 @@
 from datetime import UTC, datetime, timedelta
 
 from app.config import RecommendSettings
-from app.recommend.bandit import SLOTS, allocate, slot_shares
+from app.recommend.bandit import SLOTS, allocate, far_share, slot_shares
 from app.recommend.outcomes import ArtistVote, ItemRef, derive_outcomes
 from app.recommend.ppr import Candidate
 from app.recommend.service import split_slots
@@ -77,3 +77,19 @@ def test_split_slots_pool_first_then_top_fraction_familiar():
     assert [c.artist_id for c in out["unheard"]] == [3]
     assert [c.artist_id for c in out["familiar"]] == [1, 2]
     assert [c.artist_id for c in out["explore"]] == [4, 5]
+
+
+def test_far_share_is_fixed_below_threshold():
+    assert far_share({"far": (2, 1)}, CFG, seed=1) == CFG.far_share
+    assert far_share({}, CFG, seed=5) == CFG.far_share
+
+
+def test_far_share_bounded_deterministic_and_follows_far_outcomes():
+    liked = {"familiar": (5, 5), "far": (30, 0)}
+    disliked = {"familiar": (5, 5), "far": (0, 30)}
+    a = far_share(liked, CFG, seed=3)
+    assert a == far_share(liked, CFG, seed=3)
+    assert any(far_share(liked, CFG, seed=s) != a for s in range(4, 12))
+    for s in range(20):
+        hi, lo = far_share(liked, CFG, seed=s), far_share(disliked, CFG, seed=s)
+        assert CFG.far_floor_share <= lo < hi <= CFG.far_max_share
