@@ -6,6 +6,7 @@ Sanatçının ana türü, etiket ağırlıklarının tür başına toplamının 
 """
 import re
 from collections.abc import Iterable
+from functools import lru_cache
 
 GENRES: dict[str, tuple[str, ...]] = {
     "rap": ("hip hop", "hiphop", "rap", "trap", "drill", "grime", "boom bap"),
@@ -37,14 +38,19 @@ def _norm(tag: str) -> str:
     return re.sub(r"[\s_\-/]+", " ", tag.lower()).strip()
 
 
+@lru_cache(maxsize=8192)
+def _main_matches(tag: str) -> tuple[str, ...]:
+    """Etiketin eşleştiği ana türler (`GENRES` sırasıyla). Saf; etiket başına bir kez hesaplanır."""
+    t = _norm(tag)
+    return tuple(g for g, rx in _RE.items() if rx.search(t))
+
+
 def main_genre(tags: Iterable[tuple[str, int]]) -> str | None:
     """(etiket, ağırlık) listesinden ana tür; eşleşme yoksa None."""
     score: dict[str, int] = {}
     for tag, weight in tags:
-        t = _norm(tag)
-        for g, rx in _RE.items():
-            if rx.search(t):
-                score[g] = score.get(g, 0) + max(int(weight), 1)
+        for g in _main_matches(tag):
+            score[g] = score.get(g, 0) + max(int(weight), 1)
     if not score:
         return None
     return max(score, key=lambda g: (score[g], -_ORDER.index(g)))
@@ -155,6 +161,20 @@ _SUB_RE = {
 _SUB_ORDER = list(SUB_GENRES)
 
 
+@lru_cache(maxsize=8192)
+def _sub_match(tag: str) -> tuple[int, str] | None:
+    """Etiketin oy verdiği alt tür: (eşleşen kalıp uzunluğu, alt tür). Saf."""
+    t = _norm(tag)
+    best: tuple[int, int, str] | None = None
+    for i, (g, rx) in enumerate(_SUB_RE.items()):
+        m = rx.search(t)
+        if m:
+            cand = (len(m.group(0)), -i, g)
+            if best is None or cand > best:
+                best = cand
+    return None if best is None else (best[0], best[2])
+
+
 def sub_genre(tags: Iterable[tuple[str, int]]) -> str | None:
     """(etiket, ağırlık) listesinden alt tür; eşleşme yoksa None.
 
@@ -164,16 +184,9 @@ def sub_genre(tags: Iterable[tuple[str, int]]) -> str | None:
     score: dict[str, int] = {}
     spec: dict[str, int] = {}
     for tag, weight in tags:
-        t = _norm(tag)
-        best: tuple[int, int, str] | None = None
-        for i, (g, rx) in enumerate(_SUB_RE.items()):
-            m = rx.search(t)
-            if m:
-                cand = (len(m.group(0)), -i, g)
-                if best is None or cand > best:
-                    best = cand
+        best = _sub_match(tag)
         if best is not None:
-            g = best[2]
+            g = best[1]
             score[g] = score.get(g, 0) + max(int(weight), 1)
             spec[g] = max(spec.get(g, 0), best[0])
     if not score:
