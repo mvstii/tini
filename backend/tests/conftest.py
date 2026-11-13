@@ -2,7 +2,7 @@ import pytest
 from sqlalchemy import create_engine
 
 from app.config import get_settings
-from app.ratelimit import get_auth_limits
+from app.ratelimit import get_auth_limits, get_photo_limiter
 from app.sources.http import reset_limiters
 
 
@@ -10,8 +10,10 @@ from app.sources.http import reset_limiters
 def _fresh_auth_limits():
     """Testler aynı sahte IP'den çok kayıt yapar; sayaçlar her testte sıfırlanır."""
     get_auth_limits().clear()
+    get_photo_limiter().clear()
     yield
     get_auth_limits().clear()
+    get_photo_limiter().clear()
 
 
 @pytest.fixture(autouse=True)

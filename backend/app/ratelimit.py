@@ -7,7 +7,7 @@ from math import ceil
 
 from fastapi import HTTPException, Request
 
-from app.config import AuthSettings
+from app.config import AuthSettings, PhotoSettings
 
 
 class SlidingWindowLimiter:
@@ -65,6 +65,13 @@ class AuthLimits:
 @lru_cache
 def get_auth_limits() -> AuthLimits:
     return AuthLimits(AuthSettings())
+
+
+@lru_cache
+def get_photo_limiter() -> SlidingWindowLimiter:
+    """Profil fotoğrafı yüklemeleri: kullanıcı başına pencere içinde en çok `put_limit`."""
+    s = PhotoSettings()
+    return SlidingWindowLimiter(s.put_limit, s.put_window_seconds)
 
 
 def client_ip(request: Request) -> str:
