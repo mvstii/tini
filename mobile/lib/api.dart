@@ -132,16 +132,21 @@ class HistoryItem {
   final List<String> artists;
 }
 
-/// Zevk profilinin arayüzün kullandığı özeti (kimlik/ağırlık düzeyi; ad ve etiket yok).
+/// Zevk profilinin arayüzün kullandığı özeti. Mod adları/etiketleri sunucudan gelir; eski
+/// sunucu ya da etiketsiz küme için ad null kalır ve arayüz "Mod N" gösterir.
 class TasteProfile {
   const TasteProfile({
     required this.voteCount,
     required this.clusterWeights,
     required this.avoidCount,
     required this.hardAvoidCount,
+    this.clusterNames = const [],
+    this.clusterTags = const [],
   });
   final int voteCount;
   final List<double> clusterWeights;
+  final List<String?> clusterNames;
+  final List<List<String>> clusterTags;
   final int avoidCount;
   final int hardAvoidCount;
 }
@@ -416,6 +421,20 @@ class Api {
         voteCount: (b['vote_count'] as num?)?.toInt() ?? 0,
         clusterWeights: [
           for (final c in clusters) ((c as Map)['weight'] as num?)?.toDouble() ?? 0.0,
+        ],
+        clusterNames: [
+          for (final c in clusters)
+            switch ((c as Map)['name']) {
+              final String n when n.isNotEmpty => n,
+              _ => null,
+            },
+        ],
+        clusterTags: [
+          for (final c in clusters)
+            [
+              for (final t in ((c as Map)['tags'] as List?) ?? const [])
+                if (t is String) t,
+            ],
         ],
         avoidCount: avoid.length,
         hardAvoidCount: avoid.where((a) => (a as Map)['hard'] == true).length,

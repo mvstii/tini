@@ -310,7 +310,7 @@ class ArtworkSettings(BaseSettings):
     deezer_min_interval_seconds: float = 0.25
     ttl_days: int = 14  # bulunan fotoğraf URL'sinin tazelik süresi
     miss_ttl_days: int = 3  # bulunamayanı yeniden deneme aralığı
-    fill_limit: int = 8  # tek istekte en çok kaç sanatçı sorgulanır
+    fill_limit: int = 16  # tek istekte en çok kaç sanatçı sorgulanır
     preview_enabled: bool = True  # kapalıysa /preview boş döner; istemci dinle düğmesini gizler
 
 
