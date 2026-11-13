@@ -46,23 +46,25 @@ class TiniCover extends StatelessWidget {
     return (a, b);
   }
 
+  /// Yedek kapak tonu: renk özü korunur, parlaklık düşürülür; koyu ve doygun, göz yormaz.
+  static Color _deep(Color c, double lightness) {
+    final h = HSLColor.fromColor(c);
+    return h.withLightness(lightness).withSaturation((h.saturation * 0.85).clamp(0.0, 1.0)).toColor();
+  }
+
   @override
   Widget build(BuildContext context) {
-    final t = TiniTokens.of(context);
     final (a, b) = colorsFor(seed);
     final fallback = DecoratedBox(
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [
-            Color.alphaBlend(a.withValues(alpha: 0.75), t.surface2),
-            Color.alphaBlend(b.withValues(alpha: 0.55), t.surface1),
-          ],
+          colors: [_deep(a, 0.40), _deep(b, 0.26)],
         ),
       ),
       child: Center(
-        child: Icon(Icons.music_note_rounded, size: size * 0.42, color: Colors.white.withValues(alpha: 0.85)),
+        child: Icon(Icons.music_note_rounded, size: size * 0.42, color: Colors.white.withValues(alpha: 0.8)),
       ),
     );
     final u = url;

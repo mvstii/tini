@@ -35,9 +35,9 @@ class AmbientBackground extends StatelessWidget {
       color: base,
       child: Stack(
         children: [
-          glow(const Alignment(1.0, -1.0), 1.3, top, dark ? 0.34 : 0.26),
-          glow(const Alignment(-1.0, 1.0), 1.1, bottom, 0.20),
-          glow(const Alignment(-0.9, -0.3), 0.7, top, dark ? 0.10 : 0.08),
+          glow(const Alignment(1.0, -1.0), 1.3, top, dark ? 0.22 : 0.26),
+          glow(const Alignment(-1.0, 1.0), 1.1, bottom, dark ? 0.12 : 0.20),
+          glow(const Alignment(-0.9, -0.3), 0.7, top, dark ? 0.06 : 0.08),
           Positioned.fill(
             child: IgnorePointer(
               child: RepaintBoundary(
