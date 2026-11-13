@@ -19,6 +19,11 @@ const maxAttempts = 5;
 
 const backoffCap = Duration(seconds: 30);
 
+/// "Tükendi" ekranında kullanıcı beklemeden, sunucu tarafı doldurma yetişsin diye ara ara
+/// sessizce yeniden bakılır (en çok [slowPollMax] kez).
+const slowPollEvery = Duration(seconds: 45);
+const slowPollMax = 4;
+
 /// Kütüphane sessiz yenileme aralığı (kuyruk kuruyorsa ve parçaların bilgisi eskiyse).
 const autoRefreshEvery = Duration(minutes: 10);
 
@@ -69,7 +74,9 @@ class QueueController extends ChangeNotifier {
     DateTime Function()? now,
     Future<void> Function(Duration)? delay,
     this.onUnauthorized,
-  })  : _seed = seed ?? DateTime.now().millisecondsSinceEpoch % 100000,
+    Duration slowPoll = slowPollEvery,
+  })  : _slowEvery = slowPoll,
+        _seed = seed ?? DateTime.now().millisecondsSinceEpoch % 100000,
         _rng = random ?? math.Random(),
         _now = now ?? DateTime.now,
         // ignore: prefer_initializing_formals
@@ -81,6 +88,9 @@ class QueueController extends ChangeNotifier {
   final DateTime Function() _now;
   final Future<void> Function(Duration)? _delay; // testte sahtelenir; yoksa iptal edilebilir Timer
   final void Function()? onUnauthorized;
+  final Duration _slowEvery;
+  Timer? _slowTimer;
+  int _slowPolls = 0;
 
   final List<QueueItem> _cards = [];
   final Set<int> _handled = {}; // oylanan/atlanan/sonra'ya eklenen (yanıtlardan süzülür)
@@ -113,6 +123,7 @@ class QueueController extends ChangeNotifier {
 
   /// İlk doldurma (ekran açılışı). Uçuş bitince döner.
   Future<void> start() {
+    _slowPolls = 0;
     _attempts = 0;
     _gaveUp = false;
     return _run();
@@ -143,6 +154,7 @@ class QueueController extends ChangeNotifier {
 
   /// "Yeniden dene": yalnızca doldurmayı yeniden çalıştırır.
   Future<void> retry() {
+    _slowPolls = 0;
     _attempts = 0;
     _gaveUp = false;
     _message = null;
@@ -153,6 +165,7 @@ class QueueController extends ChangeNotifier {
 
   /// "Kütüphaneyi yenile": aktarımı çalıştırır, ardından doldurur.
   Future<void> refreshLibrary() async {
+    _slowPolls = 0;
     _attempts = 0;
     _gaveUp = false;
     if (_cards.isEmpty) _set(QueueStatus.filling);
@@ -196,7 +209,10 @@ class QueueController extends ChangeNotifier {
   /// Bir deneme. Döndürdüğü değer: döngü sürsün mü.
   Future<bool> _step() async {
     _consumed = 0;
-    if (_cards.isEmpty && _status != QueueStatus.waking && _status != QueueStatus.offline) {
+    if (_cards.isEmpty &&
+        _status != QueueStatus.waking &&
+        _status != QueueStatus.offline &&
+        _status != QueueStatus.exhausted) {
       _set(QueueStatus.filling);
     }
     try {
@@ -204,11 +220,13 @@ class QueueController extends ChangeNotifier {
       if (_disposed) return false;
       if (added > 0) {
         _attempts = 0;
+        _slowPolls = 0;
         _gaveUp = false;
         _message = null;
         _set(QueueStatus.ready);
-        // Uçuş sırasında kartlar tüketildiyse ve ihtiyaç sürüyorsa bir kez daha.
-        return _consumed > 0 && _cards.length < prefetchBelow;
+        // Uçuş sırasında kartlar tüketildiyse ve ihtiyaç sürüyorsa bir kez daha; kart kalmadıysa
+        // döngü durmaz (aksi halde ekran "hazır" ama kartsız takılırdı).
+        return _cards.isEmpty || (_consumed > 0 && _cards.length < prefetchBelow);
       }
       _attempts++;
       if (_cards.isNotEmpty) {
@@ -221,6 +239,7 @@ class QueueController extends ChangeNotifier {
       if (_attempts >= maxAttempts) {
         _gaveUp = true;
         _set(QueueStatus.exhausted);
+        _scheduleSlowPoll();
         return false;
       }
       await _sleep(backoffFor(_attempts - 1, _rng));
@@ -303,6 +322,18 @@ class QueueController extends ChangeNotifier {
     return added;
   }
 
+  void _scheduleSlowPoll() {
+    _slowTimer?.cancel();
+    if (_disposed || _slowPolls >= slowPollMax) return;
+    _slowTimer = Timer(_slowEvery, () {
+      if (_disposed || _cards.isNotEmpty || _flight != null) return;
+      _slowPolls++;
+      _attempts = maxAttempts - 1; // tek sessiz deneme; boşsa yine "tükendi"
+      _gaveUp = false;
+      unawaited(_run());
+    });
+  }
+
   Future<void> _sleep(Duration d) {
     final kick = _kick = Completer<void>();
     final injected = _delay;
@@ -341,6 +372,7 @@ class QueueController extends ChangeNotifier {
   @override
   void dispose() {
     _disposed = true;
+    _slowTimer?.cancel();
     _wake();
     super.dispose();
   }

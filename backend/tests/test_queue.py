@@ -131,6 +131,7 @@ def test_history_returns_latest_vote_per_track(client, db):
     votes = {i["track"]: i["vote"] for i in body["items"]}
     assert votes == {t1.id: 5, t2.id: 6}
     assert {i["title"] for i in body["items"]} == {"Bir", "Iki"}
+    assert all("image" in i for i in body["items"])
     assert body["items"][0]["track"] == t1.id  # en son oy en üstte
     assert client.get("/votes/history?limit=1&offset=1", headers=h).json()["items"][0][
         "track"

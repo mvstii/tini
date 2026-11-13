@@ -274,8 +274,9 @@ def refill_buffer(
 
 def _refresh_metas(db: Session, user: User, service, now: datetime, ttl: timedelta,
                    cfg: ProfileSettings) -> bool:
-    """Süresi dolmadan, TTL'in `meta_refresh_at` oranını geçen oylanmamış meta kayıtlarını
-    yeniler (G6). Hata olursa kayda dokunmadan keser ve False döner."""
+    """TTL'in `meta_refresh_at` oranını geçen ya da süresi dolmuş oylanmamış meta kayıtlarını
+    yeniler (G6); en tazeden başlanır, böylece kuyruğa hızla kart döner.
+    Hata olursa kayda dokunmadan keser ve False döner."""
     from app.recommend.api import _names
 
     soon = now + ttl * (1 - cfg.meta_refresh_at)
@@ -285,11 +286,10 @@ def _refresh_metas(db: Session, user: User, service, now: datetime, ttl: timedel
         .join(Track, Track.id == UserTrackMeta.track_id)
         .where(
             UserTrackMeta.user_id == user.id,
-            UserTrackMeta.expires_at > now,
-            UserTrackMeta.expires_at <= soon,
+            UserTrackMeta.expires_at <= soon,  # süresi dolmuşlar da dahil (TTL dolunca yenilenir)
             UserTrackMeta.track_id.not_in(voted),
         )
-        .order_by(UserTrackMeta.expires_at)
+        .order_by(UserTrackMeta.expires_at.desc())
         .limit(cfg.meta_refresh_batch)
     ).all()
     if not rows:

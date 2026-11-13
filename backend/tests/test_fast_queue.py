@@ -142,6 +142,24 @@ def test_meta_refresh_before_expiry_and_untouched_on_503(db, monkeypatch):
     assert meta.title.startswith("Parca") and meta.expires_at >= now + TTL - timedelta(seconds=5)
 
 
+def test_expired_metas_are_refreshed_and_trigger_refill(db, monkeypatch):
+    register_user(db, "f7@example.com")
+    art = mk_artist(db, "ExpiredArt")
+    t = lib_track(db, "f7@example.com", "ZZF700000001", art, "Bayat Baslik")
+    u = user_of(db, "f7@example.com")
+    now = datetime.now(UTC)
+    meta = db.get(UserTrackMeta, (u.id, t.id))
+    meta.expires_at = now - timedelta(hours=3)  # süresi dolmuş
+    db.flush()
+    monkeypatch.setattr(suggest, "ensure_fresh_list", lambda *a, **k: [])
+    cfg = fast_cfg()
+    assert refill_needed(db, u, now, cfg) is True
+    assert refill_buffer(db, u, lambda: FakeAdapter(), now, cfg, RecommendSettings(),
+                         GraphSettings()) is True
+    db.refresh(meta)
+    assert meta.expires_at >= now + TTL - timedelta(seconds=5)
+
+
 def test_advisory_lock_allows_only_one_holder():
     engine = get_engine()
     key = lock_key(uuid.uuid4())

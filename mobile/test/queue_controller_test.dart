@@ -194,6 +194,24 @@ void main() {
     expect(c.cards.length, 2);
   });
 
+  test('tükendi ekranında sessiz yeniden bakış: sonradan gelen kartlar ekrana düşer', () async {
+    final b = FakeBackend(); // başta boş
+    final c = QueueController(
+      b,
+      seed: 1,
+      random: math.Random(1),
+      delay: (_) => Future<void>.value(),
+      slowPoll: const Duration(milliseconds: 5),
+    );
+    await c.start();
+    expect(c.status, QueueStatus.exhausted);
+    b.script.add((_) async => q([7, 8]));
+    await Future<void>.delayed(const Duration(milliseconds: 60));
+    expect(c.status, QueueStatus.ready);
+    expect(c.cards.map((e) => e.track), [7, 8]);
+    c.dispose();
+  });
+
   test('401: çıkış geri çağrısı tetiklenir ve döngü durur', () async {
     var out = 0;
     final b = FakeBackend()..script.add((_) => Future.error(ApiException(401, 'oturum')));
