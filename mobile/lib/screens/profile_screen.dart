@@ -10,7 +10,9 @@ import '../profile_photo.dart';
 import '../strings.dart';
 import '../theme/tini_tokens.dart';
 import '../ui/components/components.dart';
+import '../widgets/info_sheet.dart';
 import 'home_screen.dart';
+import 'intro_screen.dart';
 import 'tracks_screen.dart' show LaterScreen;
 
 /// Profil sekmesi: kullanıcı kartı, zevk modları, oy dağılımı, kaçınma bölgesi ve oy geçmişi.
@@ -336,9 +338,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   );
                 }),
                 const SizedBox(height: TiniTokens.sectionGap),
-                Text(
-                  TiniStrings.avoidZone,
-                  style: TiniTokens.section.copyWith(color: t.text),
+                Row(
+                  children: [
+                    Text(
+                      TiniStrings.avoidZone,
+                      style: TiniTokens.section.copyWith(color: t.text),
+                    ),
+                    const InfoIconButton(
+                      title: TiniStrings.avoidInfoTitle,
+                      body: TiniStrings.avoidInfoBody,
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 12),
                 _AvoidCard(profile: _profile),
@@ -421,6 +431,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                 ),
                 const SizedBox(height: 10),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: TextButton.icon(
+                    key: const ValueKey('intro-replay'),
+                    onPressed: () => Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (ctx) => IntroScreen(onDone: () => Navigator.of(ctx).pop()),
+                      ),
+                    ),
+                    icon: const Icon(Icons.school_outlined),
+                    label: const Text(TiniStrings.introReplay),
+                  ),
+                ),
                 Align(
                   alignment: Alignment.centerLeft,
                   child: TextButton.icon(
