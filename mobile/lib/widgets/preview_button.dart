@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../api.dart';
 import '../preview_player.dart';
 import '../theme/cosmic_colors.dart';
+import '../theme/tini_tokens.dart';
 import 'studio.dart';
 
 /// 30 sn'lik önizleme düğmesi: çal / durdur, yüklenirken döner, bulunamazsa soluk görünür.
@@ -16,6 +17,7 @@ class PreviewButton extends StatefulWidget {
     this.artistId,
     this.trackId,
     this.deezerId,
+    this.meta,
   });
   final Api api;
   final String previewKey;
@@ -24,6 +26,9 @@ class PreviewButton extends StatefulWidget {
 
   /// Yeni çıkan parçalar: Deezer kimliğiyle doğrudan çözülür.
   final int? deezerId;
+
+  /// Mini oynatıcıda gösterilecek parça bilgisi.
+  final PreviewMeta? meta;
 
   @override
   State<PreviewButton> createState() => _PreviewButtonState();
@@ -66,11 +71,7 @@ class _PreviewButtonState extends State<PreviewButton> {
                 border: Border.all(color: c.highlight))
             : BoxDecoration(
                 shape: BoxShape.circle,
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [scheme.primary, Color.lerp(scheme.primary, const Color(0xFFE0479E), 0.7)!],
-                ),
+                gradient: TiniTokens.brandGradient,
                 border: Border.all(color: Colors.white.withValues(alpha: playing ? 0.55 : 0.0), width: 2),
                 boxShadow: [
                   BoxShadow(
@@ -108,7 +109,8 @@ class _PreviewButtonState extends State<PreviewButton> {
                   : () => ctl.toggle(
                       previewKey,
                       () => api.previewUrl(
-                          artistId: artistId, trackId: trackId, deezerId: deezerId)),
+                          artistId: artistId, trackId: trackId, deezerId: deezerId),
+                      meta: widget.meta),
               child: SizedBox(
                 width: 44,
                 height: 44,

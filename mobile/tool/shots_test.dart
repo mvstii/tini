@@ -12,8 +12,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:tini/api.dart';
+import 'package:tini/screens/list_screen.dart';
 import 'package:tini/screens/login_screen.dart';
 import 'package:tini/screens/rating_screen.dart';
+import 'package:tini/screens/shell.dart';
 import 'package:tini/theme/cosmic_colors.dart';
 import 'package:tini/theme/tokens.dart';
 import 'package:tini/theme/transitions.dart';
@@ -35,7 +37,7 @@ ThemeData _theme(Brightness b) {
     colorSchemeSeed: Colors.deepPurple,
     brightness: b,
     useMaterial3: true,
-    fontFamily: 'PlusJakartaSans',
+    fontFamily: 'Inter',
     scaffoldBackgroundColor: c.scaffold,
     pageTransitionsTheme: tiniPageTransitions,
     textTheme: tiniTextTheme(ThemeData(brightness: b).textTheme, c),
@@ -45,7 +47,7 @@ ThemeData _theme(Brightness b) {
 
 void main() {
   final key = GlobalKey();
-  Future<void> shot(WidgetTester t, Widget app, String name) async {
+  Future<void> shot(WidgetTester t, Widget app, String name, {String dir = 'tasarim'}) async {
     t.view.physicalSize = const Size(390 * 3, 844 * 3);
     t.view.devicePixelRatio = 3;
     debugDisableShadows = false;
@@ -59,15 +61,15 @@ void main() {
       final b = key.currentContext!.findRenderObject() as RenderRepaintBoundary;
       final img = await b.toImage(pixelRatio: 1);
       final bytes = (await img.toByteData(format: ui.ImageByteFormat.png))!;
-      final f = File('../docs/tasarim/$name.png')..createSync(recursive: true);
+      final f = File('../docs/$dir/$name.png')..createSync(recursive: true);
       f.writeAsBytesSync(bytes.buffer.asUint8List());
     });
     debugDisableShadows = true;
   }
 
   setUpAll(() async {
-    final l = FontLoader('PlusJakartaSans')
-      ..addFont(Future.value(ByteData.view(File('assets/fonts/PlusJakartaSans.ttf').readAsBytesSync().buffer)));
+    final l = FontLoader('Inter')
+      ..addFont(Future.value(ByteData.view(File('assets/fonts/Inter.ttf').readAsBytesSync().buffer)));
     await l.load();
     final mi = FontLoader('MaterialIcons')
       ..addFont(Future.value(ByteData.view(
@@ -82,7 +84,52 @@ void main() {
             return http.Response('{"total": 12, "items": []}', 200);
           case '/votes/queue':
             return http.Response.bytes(
-                utf8.encode('{"remaining": 9, "stale": 0, "items": [{"track": 1, "title": "Gece Yarısı", "artists": ["Gama", "Ekin"]}, {"track": 2, "title": "Beta", "artists": ["B"]}]}'),
+                utf8.encode('{"remaining": 9, "stale": 0, "items": [{"track": 1, "title": "Gece Yarısı", "artists": ["Gama", "Ekin"]}, {"track": 2, "title": "Beta", "artists": ["B"]}, {"track": 3, "title": "Delta", "artists": ["D"]}]}'),
+                200);
+          case '/releases/new-tracks':
+            return http.Response.bytes(
+                utf8.encode(jsonEncode({
+                  'items': [
+                    for (final (i, n) in ['Sigma', 'Omega', 'Kappa'].indexed)
+                      {
+                        'deezer_id': i + 1,
+                        'title': n,
+                        'artist': 'Sanatçı ${i + 1}',
+                        'release': 'Yeni single',
+                        'released': '2026-11-1${i + 1}',
+                      },
+                  ],
+                })),
+                200);
+          case '/releases/new':
+            return http.Response.bytes(
+                utf8.encode(jsonEncode({
+                  'items': [
+                    for (final (i, n) in ['Altın Gün', 'Beach Club', 'Yeni Dalga', 'Mavi Saat'].indexed)
+                      {
+                        'title': n,
+                        'type': ['single', 'album', 'ep', 'single'][i],
+                        'released': '2026-11-1${i + 1}',
+                        'artist': 'Sanatçı ${i + 1}',
+                        'follow': 'auto',
+                      },
+                  ],
+                })),
+                200);
+          case '/recommend/daily':
+            return http.Response.bytes(
+                utf8.encode(jsonEncode({
+                  'list_id': 1,
+                  'track': 9,
+                  'position': 1,
+                  'name': 'Gama',
+                  'title': 'Gece Yarısı',
+                  'artists': ['Gama'],
+                  'reasons': [
+                    {'seed_id': 10, 'seed_name': 'Çapa A', 'share': 0.6, 'is_anchor': true},
+                    {'seed_id': 11, 'seed_name': 'Çapa B', 'share': 0.4, 'is_anchor': false},
+                  ],
+                })),
                 200);
         }
         return http.Response('{}', 200);
@@ -94,6 +141,154 @@ void main() {
       final a = api();
       await a.restore();
       await shot(t, MaterialApp(debugShowCheckedModeBanner: false, theme: _theme(b), home: Scaffold(body: AmbientBackground(child: SafeArea(child: RatingScreen(api: a))))), 'oyla-${b.name}');
+    });
+  }
+  // UI-3 inceleme görüntüleri: kabuk (sekme çubuğu + Oyla / Keşfet).
+  for (final b in [Brightness.dark, Brightness.light]) {
+    testWidgets('shell ${b.name}', (t) async {
+      final a = api();
+      await a.restore();
+      t.view.physicalSize = const Size(390 * 3, 844 * 3);
+      t.view.devicePixelRatio = 3;
+      addTearDown(t.view.reset);
+      await t.pumpWidget(RepaintBoundary(
+          key: key,
+          child: MaterialApp(
+              debugShowCheckedModeBanner: false,
+              theme: _theme(b),
+              home: AppShell(api: a, onLogout: () {}))));
+      await t.pumpAndSettle();
+      Future<void> save(String name) async {
+        await t.runAsync(() async {
+          final r = key.currentContext!.findRenderObject() as RenderRepaintBoundary;
+          final img = await r.toImage(pixelRatio: 1);
+          final bytes = (await img.toByteData(format: ui.ImageByteFormat.png))!;
+          File('../docs/design/review/$name.png')
+            ..createSync(recursive: true)
+            ..writeAsBytesSync(bytes.buffer.asUint8List());
+        });
+      }
+
+      await t.tap(find.byKey(const ValueKey('tab-1')));
+      await t.pumpAndSettle();
+      await save('ui3-oyla-${b.name}');
+      await t.tap(find.byKey(const ValueKey('tab-0')));
+      await t.pumpAndSettle();
+      await save('ui3-kesfet-${b.name}');
+    });
+  }
+  // UI-4 inceleme görüntüleri: Keşif listesi + Gerekçe paneli.
+  for (final b in [Brightness.dark, Brightness.light]) {
+    testWidgets('list ${b.name}', (t) async {
+      final items = [
+        for (final (i, n) in ['Gama', 'Ekin', 'Beta', 'Delta', 'Omega', 'Sigma'].indexed)
+          {
+            'position': i + 1,
+            'name': n,
+            'title': i == 5 ? null : 'Şarkı ${i + 1}',
+            if (i == 4)
+              'release': {'id': 1, 'title': 'Yeni Albüm', 'type': 'album', 'released': '2026-10-30'},
+            'reasons': [
+              {'seed_id': 10, 'seed_name': 'Çapa A', 'share': 0.5, 'is_anchor': true},
+              {'seed_id': 11, 'seed_name': 'Çapa B', 'share': 0.3, 'is_anchor': false},
+              {'seed_id': 12, 'seed_name': 'Çapa C', 'share': 0.2, 'is_anchor': false},
+            ],
+          },
+      ];
+      final a = Api(
+          client: MockClient((r) async => r.url.path == '/lists/generate'
+              ? http.Response.bytes(utf8.encode(jsonEncode({'id': 7, 'items': items})), 201)
+              : http.Response('{}', 200)),
+          storage: _Mem());
+      await a.restore();
+      t.view.physicalSize = const Size(390 * 3, 844 * 3);
+      t.view.devicePixelRatio = 3;
+      addTearDown(t.view.reset);
+      await t.pumpWidget(RepaintBoundary(
+          key: key,
+          child: MaterialApp(
+              debugShowCheckedModeBanner: false,
+              theme: _theme(b),
+              home: ListScreen(api: a))));
+      await t.tap(find.text('Liste üret'));
+      await t.pumpAndSettle();
+      Future<void> save(String name) async {
+        await t.runAsync(() async {
+          final r = key.currentContext!.findRenderObject() as RenderRepaintBoundary;
+          final img = await r.toImage(pixelRatio: 1);
+          final bytes = (await img.toByteData(format: ui.ImageByteFormat.png))!;
+          File('../docs/design/review/$name.png')
+            ..createSync(recursive: true)
+            ..writeAsBytesSync(bytes.buffer.asUint8List());
+        });
+      }
+
+      await save('ui4-liste-${b.name}');
+      await t.tap(find.text('Şarkı 1'));
+      await t.pumpAndSettle();
+      await save('ui4-gerekce-${b.name}');
+    });
+  }
+  // UI-5 inceleme görüntüleri: Profil sekmesi.
+  for (final b in [Brightness.dark, Brightness.light]) {
+    testWidgets('profile ${b.name}', (t) async {
+      final names = ['Gece Yarısı', 'Beta', 'Delta', 'Omega', 'Sigma', 'Kappa'];
+      final history = [
+        for (final (i, n) in names.indexed)
+          {
+            'track': i + 1,
+            'title': n,
+            'artists': ['Sanatçı ${i + 1}'],
+            'vote': [6, 5, 4, 6, 3, 1][i],
+          },
+      ];
+      final a = Api(
+          client: MockClient((r) async {
+            switch (r.url.path) {
+              case '/votes/history':
+                return http.Response.bytes(
+                    utf8.encode(jsonEncode({'total': 412, 'items': history})), 200);
+              case '/profile':
+                return http.Response.bytes(
+                    utf8.encode(jsonEncode({
+                      'vote_count': 412,
+                      'clusters': [
+                        {'id': 1, 'weight': 0.34, 'artists': []},
+                        {'id': 2, 'weight': 0.27, 'artists': []},
+                        {'id': 3, 'weight': 0.21, 'artists': []},
+                        {'id': 4, 'weight': 0.12, 'artists': []},
+                        {'id': 5, 'weight': 0.06, 'artists': []},
+                      ],
+                      'avoid': [
+                        for (var i = 0; i < 9; i++) {'artist_id': i, 'strength': 1.0, 'hard': i < 3},
+                      ],
+                    })),
+                    200);
+            }
+            return http.Response('{}', 200);
+          }),
+          storage: _Mem());
+      await a.restore();
+      t.view.physicalSize = const Size(390 * 3, 1500 * 3);
+      t.view.devicePixelRatio = 3;
+      addTearDown(t.view.reset);
+      await t.pumpWidget(RepaintBoundary(
+          key: key,
+          child: MaterialApp(
+              debugShowCheckedModeBanner: false,
+              theme: _theme(b),
+              home: AppShell(api: a, onLogout: () {}))));
+      await t.pumpAndSettle();
+      await t.tap(find.byKey(const ValueKey('tab-3')));
+      await t.pumpAndSettle();
+      await t.runAsync(() async {
+        final r = key.currentContext!.findRenderObject() as RenderRepaintBoundary;
+        final img = await r.toImage(pixelRatio: 1);
+        final bytes = (await img.toByteData(format: ui.ImageByteFormat.png))!;
+        File('../docs/design/review/ui5-profil-${b.name}.png')
+          ..createSync(recursive: true)
+          ..writeAsBytesSync(bytes.buffer.asUint8List());
+      });
     });
   }
   testWidgets('login dark', (t) async {

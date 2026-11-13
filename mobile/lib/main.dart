@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 
 import 'api.dart';
+import 'profile_photo.dart';
 import 'screens/login_screen.dart';
 import 'screens/shell.dart';
 import 'theme/cosmic_colors.dart';
+import 'theme/tini_tokens.dart';
 import 'theme/tokens.dart';
 import 'theme/transitions.dart';
 import 'widgets/brand.dart';
@@ -51,15 +53,15 @@ class _TiniBootState extends State<TiniBoot> {
               theme: ThemeData(
                 colorSchemeSeed: Colors.deepPurple,
                 useMaterial3: true,
-                fontFamily: 'PlusJakartaSans',
-                extensions: [TiniCosmicColors.light],
+                fontFamily: 'Inter',
+                extensions: [TiniCosmicColors.light, TiniTokens.light],
               ),
               darkTheme: ThemeData(
                 colorSchemeSeed: Colors.deepPurple,
                 brightness: Brightness.dark,
                 useMaterial3: true,
-                fontFamily: 'PlusJakartaSans',
-                extensions: [TiniCosmicColors.dark],
+                fontFamily: 'Inter',
+                extensions: [TiniCosmicColors.dark, TiniTokens.dark],
               ),
               home: const Scaffold(body: AmbientBackground(child: SplashScreen())),
             ),
@@ -94,7 +96,7 @@ class _TiniAppState extends State<TiniApp> {
         colorSchemeSeed: Colors.deepPurple,
         brightness: b,
         useMaterial3: true,
-        fontFamily: 'PlusJakartaSans',
+        fontFamily: 'Inter',
         scaffoldBackgroundColor: c.scaffold,
         pageTransitionsTheme: tiniPageTransitions,
         textTheme: tiniTextTheme(ThemeData(brightness: b).textTheme, c),
@@ -105,7 +107,7 @@ class _TiniAppState extends State<TiniApp> {
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(TiniShape.card)),
         ),
         dividerTheme: DividerThemeData(color: c.highlight.withValues(alpha: 0.5), space: 1),
-        extensions: [c],
+        extensions: [c, b == Brightness.dark ? TiniTokens.dark : TiniTokens.light],
       );
     }
 
@@ -117,7 +119,11 @@ class _TiniAppState extends State<TiniApp> {
       home: _loggedIn
           ? AppShell(
               api: widget.api,
-              onLogout: () => setState(() => _loggedIn = false),
+              onLogout: () {
+                // Kişisel veri: çıkışta, 401'de ve hesap silinirken yerel fotoğraf da gider.
+                ProfilePhotoStore.clear();
+                setState(() => _loggedIn = false);
+              },
               themeMode: _themeMode,
               onThemeChanged: _setTheme,
             )
