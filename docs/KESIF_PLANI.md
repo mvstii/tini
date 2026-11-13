@@ -446,6 +446,10 @@ Bu işler geliştiricinin hesaplarında ve elindedir; Claude Code bunları yapam
 
 - Yanıtlandı (7 Kasım 2026): OOM yok; takılma sunucu yavaşlığından değil Spotify 503 + istemci boş yanıt döngüsünden (Teşhis → Temel çizgi).
 
+## Paralel yan hat: UI/UX (13 Kasım 2026)
+
+Keşif programından bağımsız, yalnızca `mobile/` üzerinde ilerleyen tasarım hattı (`ui/redesign`, PR #96). Kuyruk/öneri davranışını değiştirmez; bayraklar ve kabul ölçütleri etkilenmez. Kapsam: tasarım uyumu ve küçültme, rozetler (`lib/badges.dart`), yerel profil fotoğrafı. **Açık karar:** fotoğrafın sunucuda saklanması (ayrı backend PR'ı; `bytea`, göç, hesap silmede cascade). Ayrıntı: `docs/KESIF_OTURUM.md` ve `docs/DURUM.md`.
+
 ## Claude Code çalışma kuralları ve ilerleme takibi
 
 Claude Code her PR'ı aynı dört aşamayla yürütür ve geliştiricinin açık "Onaylıyorum" / "Uygulamaya geç" komutu olmadan dosya değiştirmez.

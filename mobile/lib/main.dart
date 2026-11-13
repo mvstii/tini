@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'api.dart';
+import 'profile_photo.dart';
 import 'screens/login_screen.dart';
 import 'screens/shell.dart';
 import 'theme/cosmic_colors.dart';
@@ -118,7 +119,11 @@ class _TiniAppState extends State<TiniApp> {
       home: _loggedIn
           ? AppShell(
               api: widget.api,
-              onLogout: () => setState(() => _loggedIn = false),
+              onLogout: () {
+                // Kişisel veri: çıkışta, 401'de ve hesap silinirken yerel fotoğraf da gider.
+                ProfilePhotoStore.clear();
+                setState(() => _loggedIn = false);
+              },
               themeMode: _themeMode,
               onThemeChanged: _setTheme,
             )

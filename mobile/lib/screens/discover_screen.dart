@@ -422,7 +422,7 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
             TiniCover(
               seed: '$title|${artist ?? ''}',
               url: d.image,
-              size: 88,
+              size: 76,
               radius: TiniTokens.rCard,
             ),
             const SizedBox(width: 14),

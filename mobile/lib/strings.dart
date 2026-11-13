@@ -91,6 +91,13 @@ abstract final class TiniStrings {
   static String modeName(int n) => 'Mod $n';
   static const modesEmpty = 'Zevk modların, profilin kurulunca burada görünür.';
   static const yourVotes = 'Oy dağılımın';
+  static const badgesTitle = 'Rozetlerin';
+  static const photoEdit = 'Profil fotoğrafı';
+  static const photoGallery = 'Galeriden seç';
+  static const photoCamera = 'Fotoğraf çek';
+  static const photoRemove = 'Fotoğrafı kaldır';
+  static const badgeEarned = 'Kazandın';
+  static String badgeCount(int earned, int total) => '$earned / $total';
   static const calibrationDone =
       '30 oydan sonra puanların kendi ölçeğine göre ayarlanıyor';
   static String calibrationLeft(int n) => '$n oy daha verince ayarlanacak';

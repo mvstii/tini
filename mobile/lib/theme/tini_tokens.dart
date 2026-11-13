@@ -156,9 +156,9 @@ class TiniTokens extends ThemeExtension<TiniTokens> {
   static const double rPill = 999;
 
   // --- Boşluk ---
-  static const double pageMargin = 18;
+  static const double pageMargin = 16;
   static const double listMargin = 16;
-  static const double sectionGap = 22;
+  static const double sectionGap = 20;
 
   // --- Bulanıklık ---
   static const double blur = 20;
@@ -178,13 +178,13 @@ class TiniTokens extends ThemeExtension<TiniTokens> {
 
   static final largeTitle = _inter(34, 800, display: true, spacing: -0.025, height: 1.1);
   static final heroTitle = _inter(34, 900, display: true, spacing: -0.025, height: 1.05);
-  static final screenTitle = _inter(28, 900, display: true, spacing: -0.025, height: 1.12);
-  static final section = _inter(21, 800, display: true, spacing: -0.025, height: 1.2);
-  static final cardTitle = _inter(18, 800, display: true, spacing: -0.025, height: 1.2);
-  static final body = _inter(14, 400, height: 1.4);
-  static final bodyStrong = _inter(14, 600, height: 1.4);
-  static final secondary = _inter(12.5, 500, height: 1.35);
-  static final caption = _inter(11.5, 500, height: 1.3);
+  static final screenTitle = _inter(26, 800, display: true, spacing: -0.025, height: 1.12);
+  static final section = _inter(18, 800, display: true, spacing: -0.025, height: 1.2);
+  static final cardTitle = _inter(16, 800, display: true, spacing: -0.025, height: 1.2);
+  static final body = _inter(13.5, 400, height: 1.4);
+  static final bodyStrong = _inter(13.5, 600, height: 1.4);
+  static final secondary = _inter(12, 500, height: 1.35);
+  static final caption = _inter(11, 500, height: 1.3);
 
   /// Büyük harfe çevirmeyi çağıran yapar (`toUpperCase`).
   static final kicker = _inter(10.5, 700, spacing: 0.12);

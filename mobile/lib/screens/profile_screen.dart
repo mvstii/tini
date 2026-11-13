@@ -1,7 +1,12 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart' show ImageSource;
 
 import '../api.dart';
 import '../app_state.dart';
+import '../badges.dart';
+import '../profile_photo.dart';
 import '../strings.dart';
 import '../theme/tini_tokens.dart';
 import '../ui/components/components.dart';
@@ -31,11 +36,64 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   TasteProfile? _profile;
+  File? _photo;
 
   @override
   void initState() {
     super.initState();
     _loadProfile();
+    ProfilePhotoStore.load().then((f) {
+      if (mounted && f != null) setState(() => _photo = f);
+    });
+  }
+
+  Future<void> _editPhoto() async {
+    final t = TiniTokens.of(context);
+    final action = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: t.sheet,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(TiniTokens.rSheet)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 8),
+            ListTile(
+              key: const ValueKey('photo-gallery'),
+              leading: const Icon(Icons.photo_library_rounded),
+              title: const Text(TiniStrings.photoGallery),
+              onTap: () => Navigator.pop(ctx, 'gallery'),
+            ),
+            ListTile(
+              key: const ValueKey('photo-camera'),
+              leading: const Icon(Icons.photo_camera_rounded),
+              title: const Text(TiniStrings.photoCamera),
+              onTap: () => Navigator.pop(ctx, 'camera'),
+            ),
+            if (_photo != null)
+              ListTile(
+                key: const ValueKey('photo-remove'),
+                leading: const Icon(Icons.delete_outline_rounded),
+                title: const Text(TiniStrings.photoRemove),
+                onTap: () => Navigator.pop(ctx, 'remove'),
+              ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+    if (action == null) return;
+    if (action == 'remove') {
+      await ProfilePhotoStore.clear();
+      if (mounted) setState(() => _photo = null);
+      return;
+    }
+    final f = await ProfilePhotoStore.pick(
+      action == 'camera' ? ImageSource.camera : ImageSource.gallery,
+    );
+    if (mounted && f != null) setState(() => _photo = f);
   }
 
   Future<void> _loadProfile() async {
@@ -128,7 +186,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return [
       for (var i = 0; i < w.length; i++)
         if (w[i] > 0)
-          ModeData(name: TiniStrings.modeName(i + 1), share: w[i] / sum),
+          // Sunucu mod adı vermediği için her moda sırayla ayrı simge ve renk verilir.
+          ModeData(
+            name: TiniStrings.modeName(i + 1),
+            share: w[i] / sum,
+            kind: ModeKind.values[i % ModeKind.values.length],
+          ),
     ];
   }
 
@@ -170,7 +233,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ],
                 ),
                 const SizedBox(height: 14),
-                _UserCard(state: state),
+                _UserCard(state: state, photo: _photo, onEditPhoto: _editPhoto),
                 const SizedBox(height: TiniTokens.sectionGap),
                 Text(
                   TiniStrings.tasteModes,
@@ -187,7 +250,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ModeBubbleField(
                     key: const ValueKey('mode-field'),
                     modes: modes,
-                    height: 240,
+                    height: 220,
                   ),
                 const SizedBox(height: TiniTokens.sectionGap),
                 Text(
@@ -234,6 +297,36 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ],
                   ),
                 ),
+                const SizedBox(height: TiniTokens.sectionGap),
+                Builder(builder: (_) {
+                  final badges = computeBadges(total: state.total, counts: counts);
+                  final earned = badges.where((b) => b.earned).length;
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              TiniStrings.badgesTitle,
+                              style: TiniTokens.section.copyWith(color: t.text),
+                            ),
+                          ),
+                          Text(
+                            TiniStrings.badgeCount(earned, badges.length),
+                            key: const ValueKey('badge-count'),
+                            style: TiniTokens.secondary.copyWith(
+                              color: t.muted,
+                              fontFeatures: const [FontFeature.tabularFigures()],
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      BadgeShelf(badges: badges),
+                    ],
+                  );
+                }),
                 const SizedBox(height: TiniTokens.sectionGap),
                 Text(
                   TiniStrings.avoidZone,
@@ -367,8 +460,10 @@ class _Surface extends StatelessWidget {
 /// Kullanıcı kartı: avatar, "Seviye N" ve "412 oy · 38 Efsane · 27 Dinlemedin".
 /// Sunucu kullanıcı adı vermediği için ad yerine genel bir başlık kullanılır.
 class _UserCard extends StatelessWidget {
-  const _UserCard({required this.state});
+  const _UserCard({required this.state, this.photo, this.onEditPhoto});
   final AppState state;
+  final File? photo;
+  final VoidCallback? onEditPhoto;
 
   @override
   Widget build(BuildContext context) {
@@ -376,19 +471,53 @@ class _UserCard extends StatelessWidget {
     return _Surface(
       child: Row(
         children: [
-          Container(
-            width: 52,
-            height: 52,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: LinearGradient(
-                colors: [
-                  TiniCover.colorsFor('profile').$1,
-                  TiniCover.colorsFor('profile').$2,
+          Semantics(
+            button: true,
+            label: TiniStrings.photoEdit,
+            child: GestureDetector(
+              key: const ValueKey('profile-avatar'),
+              onTap: onEditPhoto,
+              child: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  Container(
+                    width: 52,
+                    height: 52,
+                    clipBehavior: Clip.antiAlias,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: LinearGradient(
+                        colors: [
+                          TiniCover.colorsFor('profile').$1,
+                          TiniCover.colorsFor('profile').$2,
+                        ],
+                      ),
+                    ),
+                    child: photo != null
+                        ? Image.file(photo!,
+                            fit: BoxFit.cover,
+                            cacheWidth: 156,
+                            errorBuilder: (_, _, _) =>
+                                Icon(Icons.person_rounded, color: TiniTokens.onLightFill))
+                        : Icon(Icons.person_rounded, color: TiniTokens.onLightFill),
+                  ),
+                  Positioned(
+                    right: -2,
+                    bottom: -2,
+                    child: Container(
+                      width: 20,
+                      height: 20,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: t.surface2,
+                        border: Border.all(color: t.surface1, width: 2),
+                      ),
+                      child: Icon(Icons.photo_camera_rounded, size: 11, color: t.text),
+                    ),
+                  ),
                 ],
               ),
             ),
-            child: Icon(Icons.person_rounded, color: TiniTokens.onLightFill),
           ),
           const SizedBox(width: 14),
           Expanded(

@@ -1,3 +1,4 @@
+export 'badge_shelf.dart';
 export 'list_components.dart';
 export 'nav_components.dart';
 export 'profile_components.dart';

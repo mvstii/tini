@@ -126,8 +126,11 @@ ModeKind modeKindFor(List<String> tags) {
 }
 
 class ModeData {
-  const ModeData({required this.name, required this.share, this.anchors, this.tags = const []});
+  const ModeData({required this.name, required this.share, this.anchors, this.tags = const [], this.kind});
   final String name;
+
+  /// Verilirse simge ve renk bundan gelir; yoksa ad/etiketlerden seçilir.
+  final ModeKind? kind;
 
   /// 0–1 arası zevk payı.
   final double share;
@@ -147,7 +150,7 @@ class ModeBubble extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = TiniTokens.of(context);
-    final kind = modeKindFor([mode.name, ...mode.tags]);
+    final kind = mode.kind ?? modeKindFor([mode.name, ...mode.tags]);
     final pct = (mode.share * 100).round();
     final big = diameter >= 150;
     final small = diameter < 100;
@@ -372,10 +375,10 @@ class ClipPlayer extends StatelessWidget {
                   customBorder: const CircleBorder(),
                   onTap: onToggle,
                   child: SizedBox(
-                    width: 44,
-                    height: 44,
+                    width: 40,
+                    height: 40,
                     child: Icon(playing ? Icons.pause_rounded : Icons.play_arrow_rounded,
-                        color: TiniTokens.onLightFill, size: 26),
+                        color: TiniTokens.onLightFill, size: 24),
                   ),
                 ),
               ),

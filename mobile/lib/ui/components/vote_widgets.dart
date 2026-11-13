@@ -20,7 +20,7 @@ class VoteButton extends StatelessWidget {
     required this.value,
     this.state = VoteButtonState.normal,
     this.onTap,
-    this.size = 50,
+    this.size = 46,
   });
   final int value;
   final VoteButtonState state;
@@ -111,7 +111,7 @@ class VoteRow extends StatelessWidget {
       children: [
         for (var v = 1; v <= 6; v++)
           SizedBox(
-            width: 54,
+            width: 52,
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
