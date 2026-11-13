@@ -42,8 +42,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
   void initState() {
     super.initState();
     _loadProfile();
+    // Önce yerel kare hemen görünür, sonra sunucuyla sessizce eşitlenir.
     ProfilePhotoStore.load().then((f) {
       if (mounted && f != null) setState(() => _photo = f);
+    });
+    ProfilePhotoStore.sync(widget.api).then((f) {
+      if (mounted) setState(() => _photo = f);
     });
   }
 
@@ -86,14 +90,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
     if (action == null) return;
     if (action == 'remove') {
-      await ProfilePhotoStore.clear();
       if (mounted) setState(() => _photo = null);
+      await ProfilePhotoStore.remove(widget.api);
       return;
     }
     final f = await ProfilePhotoStore.pick(
       action == 'camera' ? ImageSource.camera : ImageSource.gallery,
     );
     if (mounted && f != null) setState(() => _photo = f);
+    if (f != null) await ProfilePhotoStore.upload(widget.api);
   }
 
   Future<void> _loadProfile() async {

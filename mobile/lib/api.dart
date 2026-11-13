@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io' show SocketException;
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart' show ThemeMode, ValueNotifier;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -15,6 +16,8 @@ const appVersion = String.fromEnvironment('APP_VERSION', defaultValue: '1.0.0');
 
 /// Render ücretsiz katmanı soğuk başlangıçta ~20 sn sürebilir; bundan uzun süren istek hataya çevrilir.
 const requestTimeout = Duration(seconds: 45);
+/// Fotoğraf yükleme/indirme (≤256 KB) için biraz daha geniş süre.
+const photoTimeout = Duration(seconds: 60);
 
 /// Kuyruk isteği kısa sürede dönmeli (hızlı yol); uzun sürerse denetleyici sessizce yeniden dener.
 const queueTimeout = Duration(seconds: 15);
@@ -570,12 +573,49 @@ class Api {
   Future<Map<String, dynamic>> _send(String method, String path,
       [Object? json, Duration timeout = requestTimeout]) async {
     final req = http.Request(method, Uri.parse('$apiBase$path'));
-    if (_session != null) req.headers['Authorization'] = 'Bearer $_session';
     if (json != null) {
       req.headers['Content-Type'] = 'application/json';
       req.body = jsonEncode(json);
     }
-    final http.Response res;
+    final res = await _exec(req, timeout);
+    await _throwIfError(res);
+    final text = utf8.decode(res.bodyBytes);
+    if (text.isEmpty) return {};
+    final decoded = jsonDecode(text);
+    return decoded is List ? {'_list': decoded} : decoded as Map<String, dynamic>;
+  }
+
+  /// Profil fotoğrafını sunucuya yazar (`PUT /me/photo`, ham JPEG); döner: yeni ETag.
+  Future<String> putPhoto(Uint8List jpeg) async {
+    final req = http.Request('PUT', Uri.parse('$apiBase/me/photo'))
+      ..headers['Content-Type'] = 'image/jpeg'
+      ..bodyBytes = jpeg;
+    final res = await _exec(req, photoTimeout);
+    await _throwIfError(res);
+    return (jsonDecode(utf8.decode(res.bodyBytes)) as Map)['etag'] as String;
+  }
+
+  /// `GET /me/photo`; [etag] verilirse değişmediyse [PhotoFetch.notModified], sunucuda
+  /// fotoğraf yoksa [PhotoFetch.gone] döner.
+  Future<PhotoFetch> getPhoto({String? etag}) async {
+    final req = http.Request('GET', Uri.parse('$apiBase/me/photo'));
+    if (etag != null) req.headers['If-None-Match'] = '"$etag"';
+    final res = await _exec(req, photoTimeout);
+    if (res.statusCode == 304) return const PhotoFetch.notModified();
+    if (res.statusCode == 404) return const PhotoFetch.gone();
+    await _throwIfError(res);
+    final raw = res.headers['etag'] ?? '';
+    return PhotoFetch.ok(res.bodyBytes, raw.replaceAll('"', ''));
+  }
+
+  Future<void> deletePhoto() async {
+    final res = await _exec(http.Request('DELETE', Uri.parse('$apiBase/me/photo')), photoTimeout);
+    await _throwIfError(res);
+  }
+
+  /// Ortak aktarım: oturum başlığı, zaman aşımı, çevrimdışı ve "sunucu uyanıyor" ipucu.
+  Future<http.Response> _exec(http.Request req, Duration timeout) async {
+    if (_session != null) req.headers['Authorization'] = 'Bearer $_session';
     // Soğuk başlangıçta (sunucu uyku) uzun süren istek: kullanıcıya "uyanıyor" ipucu göster.
     var slow = false;
     final slowTimer = Timer(slowRequestHint, () {
@@ -583,7 +623,7 @@ class Api {
       slowRequests.value++;
     });
     try {
-      res = await (() async => http.Response.fromStream(await _http.send(req)))()
+      return await (() async => http.Response.fromStream(await _http.send(req)))()
           .timeout(timeout);
     } on TimeoutException {
       throw ApiException(0, 'Sunucu yanıt vermedi (uyanıyor olabilir), biraz sonra tekrar dene',
@@ -596,21 +636,37 @@ class Api {
       slowTimer.cancel();
       if (slow) slowRequests.value--;
     }
-    final text = utf8.decode(res.bodyBytes);
-    if (res.statusCode >= 400) {
-      var message = friendlyStatus(res.statusCode);
-      try {
-        final d = (jsonDecode(text) as Map)['detail'];
-        if (d is String) message = d;
-      } catch (_) {}
-      if (res.statusCode == 401) {
-        _session = null;
-        await _storage.delete(key: _key);
-      }
-      throw ApiException(res.statusCode, message);
+  }
+
+  Future<void> _throwIfError(http.Response res) async {
+    if (res.statusCode < 400) return;
+    var message = friendlyStatus(res.statusCode);
+    try {
+      final d = (jsonDecode(utf8.decode(res.bodyBytes)) as Map)['detail'];
+      if (d is String) message = d;
+    } catch (_) {}
+    if (res.statusCode == 401) {
+      _session = null;
+      await _storage.delete(key: _key);
     }
-    if (text.isEmpty) return {};
-    final decoded = jsonDecode(text);
-    return decoded is List ? {'_list': decoded} : decoded as Map<String, dynamic>;
+    throw ApiException(res.statusCode, message);
   }
 }
+
+/// `GET /me/photo` sonucu: 200 (bayt + ETag), 304 (değişmedi) ya da 404 (sunucuda yok).
+class PhotoFetch {
+  const PhotoFetch.ok(Uint8List this.bytes, String this.etag) : state = PhotoState.ok;
+  const PhotoFetch.notModified()
+      : state = PhotoState.notModified,
+        bytes = null,
+        etag = null;
+  const PhotoFetch.gone()
+      : state = PhotoState.gone,
+        bytes = null,
+        etag = null;
+  final PhotoState state;
+  final Uint8List? bytes;
+  final String? etag;
+}
+
+enum PhotoState { ok, notModified, gone }

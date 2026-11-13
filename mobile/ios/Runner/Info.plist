@@ -25,9 +25,9 @@
 	<key>CFBundleVersion</key>
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>Profil fotoğrafı seçmek için galerine erişilir. Fotoğraf yalnızca bu cihazda saklanır.</string>
+	<string>Profil fotoğrafı seçmek için galerine erişilir. Fotoğraf hesabında saklanır, hesabını silince silinir.</string>
 	<key>NSCameraUsageDescription</key>
-	<string>Profil fotoğrafı çekmek için kamera kullanılır. Fotoğraf yalnızca bu cihazda saklanır.</string>
+	<string>Profil fotoğrafı çekmek için kamera kullanılır. Fotoğraf hesabında saklanır, hesabını silince silinir.</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>UIApplicationSceneManifest</key>
