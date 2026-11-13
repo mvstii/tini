@@ -1,6 +1,7 @@
 # ruff: noqa: F811
 from datetime import UTC, datetime, timedelta
 
+import pytest
 from test_lists_api import client, db, mk_artist, register, setup_user  # noqa: F401
 
 from app.artwork import get_fetcher
@@ -8,7 +9,7 @@ from app.catalog.artist_images import cached_images, fill_images
 from app.config import ArtworkSettings
 from app.main import app
 from app.models import ArtistImage
-from app.sources.deezer import pick_picture
+from app.sources.deezer import check_error, pick_picture
 from app.sources.http import SourceError
 
 NOW = datetime(2026, 11, 3, tzinfo=UTC)
@@ -25,6 +26,16 @@ def test_pick_picture_matches_exact_name_and_skips_placeholder():
     assert pick_picture(empty, "Niche") is None
     assert pick_picture({"data": []}, "Niche") is None
     assert pick_picture(None, "Niche") is None
+
+
+def test_deezer_quota_and_busy_errors_are_transient_not_a_miss():
+    for code in (4, 700):
+        with pytest.raises(SourceError):
+            check_error({"error": {"type": "Exception", "message": "Quota", "code": code}})
+    no_data = {"error": {"type": "DataException", "message": "no data", "code": 800}}
+    assert check_error(no_data) == no_data  # "veri yok" gerçek bir yokluktur
+    assert check_error({"data": []}) == {"data": []}
+    assert check_error(None) is None
 
 
 def test_fill_caches_hits_and_misses_and_respects_limit(db):

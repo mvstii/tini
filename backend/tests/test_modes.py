@@ -47,3 +47,23 @@ def test_deterministic_tie_break_and_input_untouched():
 def test_negative_affinity_does_not_vote():
     [m] = name_clusters([cluster(0, (1, -2.0), (4, 0.2))], GENRES)
     assert m["name"] == "Indie / Alternatif"
+
+
+def test_dominant_shared_genre_does_not_name_every_cluster():
+    genres = {1: ("rap", "pop_rap"), 2: ("rap", "pop_rap"), 3: ("rap", "pop_rap"),
+              4: ("rap", "trap"), 5: ("indie_alt", "shoegaze"), 6: ("rap", "boom_bap")}
+    clusters = [
+        cluster(0, (1, 1.0), (4, 0.9)),
+        cluster(1, (2, 1.0), (5, 0.9)),
+        cluster(2, (3, 1.0), (6, 0.9)),
+    ]
+    names = [m["name"] for m in name_clusters(clusters, genres)]
+    assert names == ["Trap", "Shoegaze", "Boom Bap"]
+
+
+def test_same_top_genre_is_disambiguated_with_second_genre_then_number():
+    genres = {1: ("rap", "trap"), 2: ("rap", "trap"), 3: ("rap", "boom_bap"), 4: ("rap", "drill")}
+    clusters = [cluster(0, (1, 1.0), (3, 0.3)), cluster(1, (2, 1.0), (4, 0.3)),
+                cluster(2, (1, 1.0), (3, 0.3))]
+    names = [m["name"] for m in name_clusters(clusters, genres)]
+    assert len(set(names)) == 3

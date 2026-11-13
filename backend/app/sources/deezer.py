@@ -4,7 +4,20 @@ Deezer API koşulları görsel saklamayı yasaklar ve ticari kullanım için anl
 kaynak yalnızca kapalı testte kullanılır (docs/ARCHITECTURE.md, "Sanatçı fotoğrafları").
 """
 from app.catalog.names import normalize_name
-from app.sources.http import SourceClient
+from app.sources.http import SourceClient, SourceError
+
+# Deezer kotayı/yoğunluğu HTTP 200 + {"error": {"code": ...}} ile bildirir: 4 = kota aşıldı,
+# 700 = servis meşgul. Bunlar "sonuç yok" değil geçici hatadır; miss olarak önbelleğe yazılmaz.
+_TRANSIENT_CODES = {4, 700}
+
+
+def check_error(data: dict | None) -> dict | None:
+    """Geçici Deezer hatasında SourceError fırlatır; diğer yanıtı (800 "veri yok" dahil) döner."""
+    err = (data or {}).get("error") if isinstance(data, dict) else None
+    if isinstance(err, dict) and err.get("code") in _TRANSIENT_CODES:
+        msg = f"{err.get('code')} {err.get('message') or ''}".strip()
+        raise SourceError(f"Deezer geçici hata: {msg}")
+    return data
 
 
 def pick_picture(data: dict | None, name: str) -> str | None:
@@ -28,20 +41,23 @@ class DeezerClient:
         self._http = http
         self._base = base_url.rstrip("/")
 
+    def _get(self, url: str, params: dict[str, str] | None = None) -> dict | None:
+        return check_error(self._http.get_json(url, params))
+
     def artist_picture(self, name: str) -> str | None:
-        data = self._http.get_json(f"{self._base}/search/artist", {"q": name, "limit": "5"})
+        data = self._get(f"{self._base}/search/artist", {"q": name, "limit": "5"})
         return pick_picture(data, name)
 
     def album_tracks(self, artist: str, title: str) -> list[dict]:
         """Yayının parça listesi: [{id, title}] (önizleme URL'si süreli olduğundan alınmaz)."""
-        found = self._http.get_json(
+        found = self._get(
             f"{self._base}/search/album",
             {"q": f'artist:"{artist}" album:"{title}"', "limit": "5"},
         )
         album = pick_album(found, artist, title)
         if album is None:
             return []
-        data = self._http.get_json(f"{self._base}/album/{album}/tracks", {"limit": "50"})
+        data = self._get(f"{self._base}/album/{album}/tracks", {"limit": "50"})
         return [
             {"id": t["id"], "title": t["title"]}
             for t in (data or {}).get("data") or []
@@ -49,16 +65,16 @@ class DeezerClient:
         ]
 
     def track_preview_by_id(self, deezer_id: int) -> tuple[str, str] | None:
-        return pick_preview(self._http.get_json(f"{self._base}/track/{deezer_id}"))
+        return pick_preview(self._get(f"{self._base}/track/{deezer_id}"))
 
     def track_preview(self, isrc: str | None, artist: str | None) -> tuple[str, str] | None:
         """30 sn önizleme: önce ISRC, olmazsa sanatçı adıyla arama. (url, başlık) ya da None."""
         if isrc:
-            found = pick_preview(self._http.get_json(f"{self._base}/track/isrc:{isrc}"))
+            found = pick_preview(self._get(f"{self._base}/track/isrc:{isrc}"))
             if found:
                 return found
         if artist:
-            data = self._http.get_json(
+            data = self._get(
                 f"{self._base}/search", {"q": artist, "limit": "10"}
             )
             return pick_preview(data, artist)

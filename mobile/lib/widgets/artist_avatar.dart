@@ -60,6 +60,10 @@ class ArtistAvatar extends StatelessWidget {
   }
 }
 
+/// Geçici hatadan sonra yeniden denemeden önceki bekleme; testler sıfırlar.
+@visibleForTesting
+Duration artistPhotoRetryDelay = const Duration(seconds: 2);
+
 /// Liste yüklenince eksik portreleri sunucudan ister; sunucu her istekte az sayıda doldurduğu
 /// için `pending` bitene dek (en çok [rounds] kez) yeniler. Hata sessizce yutulur: fotoğraf süstür.
 Future<void> loadArtistPhotos(
@@ -68,7 +72,7 @@ Future<void> loadArtistPhotos(
   void Function(Map<int, String?> found) onFound, {
   int rounds = 6,
   bool Function() alive = _always,
-  Duration retryDelay = const Duration(seconds: 2),
+  Duration? retryDelay,
 }) async {
   final want = ids.toSet().toList();
   for (var r = 0; r < rounds && want.isNotEmpty && alive(); r++) {
@@ -80,7 +84,8 @@ Future<void> loadArtistPhotos(
       if (res.pending == 0) return;
     } catch (_) {
       // Geçici hata (soğuk sunucu, ağ kesintisi): kısa bekleyip en çok iki kez yeniden dene.
-      await Future<void>.delayed(retryDelay);
+      final wait = retryDelay ?? artistPhotoRetryDelay;
+      if (wait > Duration.zero) await Future<void>.delayed(wait);
       if (r >= 1) return;
     }
   }

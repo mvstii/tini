@@ -9,6 +9,7 @@ import '../theme/cosmic_colors.dart';
 import '../theme/tini_tokens.dart';
 import '../strings.dart';
 import '../ui/components/components.dart';
+import '../widgets/artist_avatar.dart' show loadArtistPhotos;
 import '../widgets/preview_button.dart';
 import '../preview_player.dart' show PreviewMeta;
 import '../widgets/studio.dart';
@@ -65,6 +66,7 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
   bool _dailyLoaded = false;
   String? _dailyNote; // yükleme hatasında profil mesajı yerine gösterilir
   List<NewRelease>? _releases;
+  final Map<int, String?> _photos = {}; // sanatçı portreleri: kapak yoksa yedek görsel
   String? _releaseError;
   List<NewTrack> _tracks = const [];
   int _shuffle = 0;
@@ -87,6 +89,7 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
     try {
       final t = await widget.api.newTracks();
       if (mounted) setState(() => _tracks = t);
+      _loadPhotos();
     } on ApiException catch (e) {
       if (e.status == 401) return widget.onLogout();
       if (mounted) setState(() => _tracksError = e.message);
@@ -94,6 +97,21 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
       if (mounted) setState(() => _tracksError = 'Sunucuya ulaşılamadı');
     }
   }
+
+  /// Kapağı olmayabilecek öğelerin sanatçı portrelerini ister; kapak yüklenemezse yedek olur.
+  void _loadPhotos() {
+    final ids = <int?>{
+      ...?_releases?.map((r) => r.artistId),
+      ..._tracks.map((t) => t.artistId),
+      _daily?.entry.artistId,
+    }.whereType<int>().where((i) => !_photos.containsKey(i)).toList();
+    if (ids.isEmpty) return;
+    loadArtistPhotos(widget.api, ids, (found) {
+      if (mounted) setState(() => _photos.addAll(found));
+    }, alive: () => mounted);
+  }
+
+  String? _photoOf(int? artistId) => artistId == null ? null : _photos[artistId];
 
   Future<void> _loadDaily() async {
     try {
@@ -103,6 +121,7 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
           _daily = d;
           _dailyNote = null;
         });
+        _loadPhotos();
       }
     } on ApiException catch (e) {
       if (e.status == 401) widget.onLogout();
@@ -126,6 +145,7 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
           _releases = r;
           _reshuffle();
         });
+        _loadPhotos();
       }
     } on ApiException catch (e) {
       if (e.status == 401) return widget.onLogout();
@@ -272,7 +292,7 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
                 StateNote.error(_tracksError!, onRetry: _loadTracks)
               else
                 for (final t in _tracks.take(10))
-                  _TrackRow(api: widget.api, track: t),
+                  _TrackRow(api: widget.api, track: t, photo: _photoOf(t.artistId)),
             ],
             const SizedBox(height: TiniTokens.sectionGap),
             Row(
@@ -335,7 +355,7 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
                         itemCount: carousel.length,
                         separatorBuilder: (_, _) => const SizedBox(width: 14),
                         itemBuilder: (_, i) =>
-                            _ReleaseCard(release: carousel[i]),
+                            _ReleaseCard(release: carousel[i], photo: _photoOf(carousel[i].artistId)),
                       ),
                     ),
                     if (rest.isNotEmpty) ...[
@@ -345,7 +365,7 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
                         child: SectionLabel('HIZLI KEŞİF'),
                       ),
                       const SizedBox(height: 8),
-                      for (final r in rest) _ReleaseRow(release: r),
+                      for (final r in rest) _ReleaseRow(release: r, photo: _photoOf(r.artistId)),
                     ],
                   ],
                 ),
@@ -422,6 +442,7 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
             TiniCover(
               seed: '$title|${artist ?? ''}',
               url: d.image,
+              fallbackUrl: _photoOf(d.entry.artistId) ?? d.entry.artistImage,
               size: 76,
               radius: TiniTokens.rCard,
             ),
@@ -594,7 +615,8 @@ class _QuickVote extends StatelessWidget {
 }
 
 class _ReleaseCard extends StatelessWidget {
-  const _ReleaseCard({required this.release});
+  const _ReleaseCard({required this.release, this.photo});
+  final String? photo;
   final NewRelease release;
 
   @override
@@ -611,6 +633,7 @@ class _ReleaseCard extends StatelessWidget {
               TiniCover(
                 seed: '${release.title}|${release.artist}',
                 url: release.cover,
+                fallbackUrl: photo,
                 size: 150,
                 radius: TiniTokens.rCard,
               ),
@@ -638,7 +661,8 @@ class _ReleaseCard extends StatelessWidget {
 
 /// Bu haftanın tek bir parçası: kapak yer tutucusu, ad, sanatçı · yayın · tarih ve play tuşu.
 class _TrackRow extends StatelessWidget {
-  const _TrackRow({required this.api, required this.track});
+  const _TrackRow({required this.api, required this.track, this.photo});
+  final String? photo;
   final Api api;
   final NewTrack track;
 
@@ -655,6 +679,7 @@ class _TrackRow extends StatelessWidget {
             TiniCover(
               seed: '${track.title}|${track.artist}',
               url: track.cover,
+              fallbackUrl: photo,
               size: 48,
               radius: TiniTokens.rCoverSmall,
             ),
@@ -700,7 +725,8 @@ class _TrackRow extends StatelessWidget {
 }
 
 class _ReleaseRow extends StatelessWidget {
-  const _ReleaseRow({required this.release});
+  const _ReleaseRow({required this.release, this.photo});
+  final String? photo;
   final NewRelease release;
 
   @override
@@ -716,6 +742,7 @@ class _ReleaseRow extends StatelessWidget {
             TiniCover(
               seed: '${release.title}|${release.artist}',
               url: release.cover,
+              fallbackUrl: photo,
               size: 48,
               radius: TiniTokens.rCoverSmall,
             ),

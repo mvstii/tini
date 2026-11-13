@@ -197,8 +197,10 @@ class ReleaseInfo {
 }
 
 class NewTrack {
-  NewTrack(this.deezerId, this.title, this.artist, this.release, this.released, {this.cover});
+  NewTrack(this.deezerId, this.title, this.artist, this.release, this.released,
+      {this.cover, this.artistId});
   final String? cover;
+  final int? artistId;
   final int deezerId;
   final String title;
   final String artist;
@@ -207,8 +209,10 @@ class NewTrack {
 }
 
 class NewRelease {
-  NewRelease(this.title, this.type, this.released, this.artist, this.follow, {this.cover});
+  NewRelease(this.title, this.type, this.released, this.artist, this.follow,
+      {this.cover, this.artistId});
   final String? cover;
+  final int? artistId;
   final String title;
   final String type;
   final String released;
@@ -511,7 +515,7 @@ class Api {
     return (body['items'] as List)
         .map((e) => NewRelease(e['title'] as String, e['type'] as String,
             e['released'] as String, (e['artist'] as String?) ?? '?', e['follow'] as String,
-            cover: e['cover'] as String?))
+            cover: e['cover'] as String?, artistId: (e['artist_id'] as num?)?.toInt()))
         .toList();
   }
 
@@ -521,7 +525,7 @@ class Api {
     return (body['items'] as List)
         .map((e) => NewTrack(e['deezer_id'] as int, e['title'] as String,
             (e['artist'] as String?) ?? '?', e['release'] as String, e['released'] as String,
-            cover: e['cover'] as String?))
+            cover: e['cover'] as String?, artistId: (e['artist_id'] as num?)?.toInt()))
         .toList();
   }
 

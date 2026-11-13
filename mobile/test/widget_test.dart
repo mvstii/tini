@@ -64,6 +64,7 @@ Api _api(MockClientHandler handler, _MemoryStorage storage) =>
     Api(client: MockClient(handler), storage: storage);
 
 void main() {
+  artistPhotoRetryDelay = Duration.zero;
   test(
     'deleteAccount sends the password and clears the session only on success',
     () async {
