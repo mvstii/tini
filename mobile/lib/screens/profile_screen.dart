@@ -186,14 +186,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   List<ModeData> _modes() {
     final w = _profile?.clusterWeights ?? const <double>[];
+    final names = _profile?.clusterNames ?? const <String?>[];
+    final tags = _profile?.clusterTags ?? const <List<String>>[];
     final sum = w.fold<double>(0, (a, b) => a + b);
     if (sum <= 0) return const [];
     return [
       for (var i = 0; i < w.length; i++)
         if (w[i] > 0)
-          // Sunucu mod adı vermediği için her moda sırayla ayrı simge ve renk verilir.
+          // Ad ve etiketler sunucudan gelir (yoksa "Mod N"); simge ve renk sırayla verilir.
           ModeData(
-            name: TiniStrings.modeName(i + 1),
+            name: (i < names.length ? names[i] : null) ?? TiniStrings.modeName(i + 1),
+            tags: i < tags.length ? tags[i] : const [],
             share: w[i] / sum,
             kind: ModeKind.values[i % ModeKind.values.length],
           ),

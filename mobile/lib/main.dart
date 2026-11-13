@@ -45,7 +45,7 @@ class _TiniBootState extends State<TiniBoot> {
     return FutureBuilder<TiniApp>(
       future: _app,
       builder: (context, snap) => AnimatedSwitcher(
-        duration: const Duration(milliseconds: 400),
+        duration: const Duration(milliseconds: 240),
         child: snap.data ??
             MaterialApp(
               key: const ValueKey('splash'),

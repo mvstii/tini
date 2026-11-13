@@ -66,8 +66,9 @@ Future<void> loadArtistPhotos(
   Api api,
   Iterable<int> ids,
   void Function(Map<int, String?> found) onFound, {
-  int rounds = 4,
+  int rounds = 6,
   bool Function() alive = _always,
+  Duration retryDelay = const Duration(seconds: 2),
 }) async {
   final want = ids.toSet().toList();
   for (var r = 0; r < rounds && want.isNotEmpty && alive(); r++) {
@@ -78,7 +79,9 @@ Future<void> loadArtistPhotos(
       want.removeWhere(res.images.containsKey);
       if (res.pending == 0) return;
     } catch (_) {
-      return;
+      // Geçici hata (soğuk sunucu, ağ kesintisi): kısa bekleyip en çok iki kez yeniden dene.
+      await Future<void>.delayed(retryDelay);
+      if (r >= 1) return;
     }
   }
 }

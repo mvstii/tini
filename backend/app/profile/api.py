@@ -8,7 +8,7 @@ from sqlalchemy import func, select
 from sqlalchemy.dialects.postgresql import distinct_on
 from sqlalchemy.orm import Session
 
-from app.catalog.tags import load_genres
+from app.catalog.tags import load_genre_pairs, load_genres
 from app.config import (
     GraphSettings,
     ProfileSettings,
@@ -36,6 +36,7 @@ from app.models import (
 )
 from app.profile.active import diversify, order_active, order_unresolved
 from app.profile.active_service import artist_uncertainties, mark_awaiting
+from app.profile.modes import name_clusters
 from app.profile.queue import pick_versions
 from app.profile.refill import maybe_refill
 from app.profile.sampled_queue import sampled_items
@@ -367,8 +368,18 @@ def current(
     }
 
 
-def _out(row: TasteProfile) -> dict:
-    return {"version": row.version, "created_at": row.created_at.isoformat(), **row.body}
+def _out(row: TasteProfile, db: Session | None = None) -> dict:
+    out = {"version": row.version, "created_at": row.created_at.isoformat(), **row.body}
+    if db is not None:
+        # Mod adları okuma anında güncel tür etiketlerinden türetilir (gövde değişmez).
+        clusters = out.get("clusters", [])
+        ids = {a["artist_id"] for c in clusters for a in c["artists"]}
+        names = name_clusters(clusters, load_genre_pairs(db, ids) if ids else {})
+        out["clusters"] = [
+            {**c, "name": n["name"], "tags": n["tags"]}
+            for c, n in zip(clusters, names, strict=True)
+        ]
+    return out
 
 
 @profile_router.post("/rebuild", status_code=201)
@@ -378,7 +389,7 @@ def rebuild(
     cfg: ProfileSettings = Depends(get_profile_settings),
     graph_cfg: GraphSettings = Depends(get_graph_settings),
 ) -> dict:
-    return _out(rebuild_profile(db, user.id, datetime.now(UTC), cfg, graph_cfg))
+    return _out(rebuild_profile(db, user.id, datetime.now(UTC), cfg, graph_cfg), db)
 
 
 @profile_router.get("")
@@ -391,4 +402,4 @@ def latest(user: User = Depends(current_user), db: Session = Depends(get_db)) ->
     )
     if row is None:
         raise HTTPException(404, "Henüz profil üretilmedi")
-    return _out(row)
+    return _out(row, db)

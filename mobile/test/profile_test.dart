@@ -82,6 +82,32 @@ void main() {
     expect(find.text('30 oy daha verince ayarlanacak'), findsOneWidget);
   });
 
+  testWidgets('uses server mode names and falls back to Mod N when unnamed', (
+    tester,
+  ) async {
+    await _pump(tester, (req) async {
+      if (req.url.path == '/profile') {
+        return http.Response.bytes(
+          utf8.encode(
+            jsonEncode({
+              'vote_count': 40,
+              'clusters': [
+                {'id': 1, 'weight': 3.0, 'name': 'Trap', 'tags': ['Boom Bap'], 'artists': []},
+                {'id': 2, 'weight': 1.0, 'name': null, 'tags': [], 'artists': []},
+              ],
+              'avoid': [],
+            }),
+          ),
+          200,
+        );
+      }
+      return http.Response('{}', 200);
+    });
+    expect(find.text('Trap'), findsOneWidget);
+    expect(find.text('Mod 1'), findsNothing);
+    expect(find.text('Mod 2'), findsOneWidget);
+  });
+
   testWidgets('without a profile the mode and avoidance sections are empty', (
     tester,
   ) async {
