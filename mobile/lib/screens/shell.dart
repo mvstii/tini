@@ -40,6 +40,7 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
   late final AppState _state = AppState(widget.api);
   int _tab = 1; // açılışta Oylama; Keşfet solda (0)
   bool _seenRecs = false;
+  final _visited = <int>{1}; // sekmeler ilk açıldıklarında kurulur (açılışta yalnızca Oylama)
 
   @override
   void initState() {
@@ -64,6 +65,7 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
   void _go(int i) => setState(() {
         if (i != _tab) PreviewController.instance.stop();
         _tab = i;
+        _visited.add(i);
         if (i == 2) _seenRecs = true;
       });
 
@@ -105,9 +107,13 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
               onThemeChanged: widget.onThemeChanged,
             ),
             ].indexed)
-              TabPane(active: _tab == i, child: w),
+              TabPane(
+                active: _tab == i,
+                child: _visited.contains(i) ? w : const SizedBox.shrink(),
+              ),
           ],
         ),
+        const Positioned(top: 8, left: 24, right: 24, child: _WakingHint()),
         Positioned(
           left: 24,
           right: 24,
@@ -164,20 +170,22 @@ class PillNav extends StatelessWidget {
       height: _navHeight,
       decoration: BoxDecoration(
         color: theme.brightness == Brightness.dark
-            ? theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.92)
+            ? c.card.withValues(alpha: 0.94)
             : Colors.white.withValues(alpha: 0.96),
         borderRadius: BorderRadius.circular(28),
         border: Border.all(
             color: theme.brightness == Brightness.dark
-                ? theme.colorScheme.outlineVariant
+                ? c.highlight
                 : c.primary.withValues(alpha: 0.14)),
         boxShadow: [
           BoxShadow(
               color: theme.brightness == Brightness.dark
-                  ? const Color(0x33000000)
+                  ? c.primary.withValues(alpha: 0.16)
                   : const Color(0xFF4A3A8C).withValues(alpha: 0.16),
-              blurRadius: 20,
+              blurRadius: 26,
               offset: const Offset(0, 6)),
+          if (theme.brightness == Brightness.dark)
+            const BoxShadow(color: Color(0xCC000000), blurRadius: 12, offset: Offset(0, 4)),
         ],
       ),
       child: Stack(
@@ -193,8 +201,15 @@ class PillNav extends StatelessWidget {
                 padding: const EdgeInsets.all(4),
                 child: DecoratedBox(
                   decoration: BoxDecoration(
-                    color: c.primary.withValues(alpha: 0.2),
+                    gradient: LinearGradient(colors: [
+                      c.primary.withValues(alpha: 0.30),
+                      c.votes[5]!.border.withValues(alpha: 0.22),
+                    ]),
                     borderRadius: BorderRadius.circular(24),
+                    border: Border.all(color: c.primary.withValues(alpha: 0.35)),
+                    boxShadow: [
+                      BoxShadow(color: c.primary.withValues(alpha: 0.25), blurRadius: 14),
+                    ],
                   ),
                 ),
               ),
@@ -204,7 +219,13 @@ class PillNav extends StatelessWidget {
             children: [
               for (var i = 0; i < _tabs.length; i++)
                 Expanded(
-                  child: InkWell(
+                  child: Semantics(
+                    button: true,
+                    selected: i == index,
+                    label: i == 2 && badge ? '${_tabs[i].$2}, yeni öneriler var' : _tabs[i].$2,
+                    excludeSemantics: true,
+                    onTap: () => onTap(i),
+                    child: InkWell(
                     key: ValueKey('tab-$i'),
                     customBorder: const StadiumBorder(),
                     onTap: () => onTap(i),
@@ -215,9 +236,16 @@ class PillNav extends StatelessWidget {
                           Stack(
                             clipBehavior: Clip.none,
                             children: [
-                              Icon(_tabs[i].$1,
-                                  size: 22,
-                                  color: i == index ? c.primary : theme.colorScheme.onSurfaceVariant),
+                              AnimatedScale(
+                                scale: i == index ? 1.14 : 1,
+                                duration: const Duration(milliseconds: 260),
+                                curve: Curves.easeOutBack,
+                                child: Icon(_tabs[i].$1,
+                                    size: 22,
+                                    color: i == index
+                                        ? c.primary
+                                        : theme.colorScheme.onSurfaceVariant),
+                              ),
                               if (i == 2 && badge)
                                 Positioned(
                                   key: const ValueKey('recs-badge'),
@@ -248,6 +276,7 @@ class PillNav extends StatelessWidget {
                         ],
                       ),
                     ),
+                  ),
                   ),
                 ),
             ],
@@ -315,3 +344,40 @@ class _DebugBar extends StatelessWidget {
   }
 }
 
+/// Sunucu soğuk başlangıçtayken (istek uzun sürerse) üstte kısa bir bilgi şeridi.
+class _WakingHint extends StatelessWidget {
+  const _WakingHint();
+
+  @override
+  Widget build(BuildContext context) {
+    final c = TiniCosmicColors.of(context);
+    return SafeArea(
+      bottom: false,
+      child: ValueListenableBuilder<int>(
+        valueListenable: slowRequests,
+        builder: (_, n, _) => IgnorePointer(
+          child: AnimatedOpacity(
+            opacity: n > 0 ? 1 : 0,
+            duration: const Duration(milliseconds: 200),
+            child: Semantics(
+              liveRegion: true,
+              label: n > 0 ? 'Sunucu uyanıyor, birkaç saniye daha' : null,
+              excludeSemantics: true,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                decoration: BoxDecoration(
+                  color: c.card,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: c.primary.withValues(alpha: 0.4)),
+                ),
+                child: Text('Sunucu uyanıyor, birkaç saniye daha…',
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.labelMedium),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}

@@ -30,7 +30,8 @@ class JustAudioBackend implements PreviewBackend {
   Future<void> stop() async => _player?.stop();
 }
 
-enum PreviewStatus { idle, loading, playing, unavailable }
+/// `unavailable`: kaynakta önizleme yok (kalıcı). `error`: geçici hata (ağ/ses); yeniden denenebilir.
+enum PreviewStatus { idle, loading, playing, unavailable, error }
 
 /// Aynı anda tek önizleme çalar. Kesitler yalnızca yayın olarak çalınır; dosya saklanmaz.
 class PreviewController extends ChangeNotifier {
@@ -57,7 +58,9 @@ class PreviewController extends ChangeNotifier {
 
   /// Çalıyorsa durdurur; değilse `resolve` ile URL'yi bulup çalar.
   Future<void> toggle(String key, Future<String?> Function() resolve) async {
-    if (_key == key && _status != PreviewStatus.unavailable) return stop();
+    if (_key == key && _status != PreviewStatus.unavailable && _status != PreviewStatus.error) {
+      return stop();
+    }
     await backend.stop();
     _set(key, PreviewStatus.loading);
     try {
@@ -69,7 +72,7 @@ class PreviewController extends ChangeNotifier {
       });
       if (_key == key && _status == PreviewStatus.loading) _set(key, PreviewStatus.playing);
     } catch (_) {
-      if (_key == key) _set(key, PreviewStatus.unavailable);
+      if (_key == key) _set(key, PreviewStatus.error);
     }
   }
 

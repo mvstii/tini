@@ -12,6 +12,8 @@ import '../widgets/studio.dart';
 
 /// Gerekçe cümlesi: en büyük paylı çapalar, yüzdeyle (hesabın kendisinden gelir).
 String reasonText(ListEntry e, {int top = 3}) {
+  // Gerekçe uydurulmaz: hesap çapa döndürmediyse bunu açıkça söyleriz.
+  if (e.reasons.isEmpty) return 'Bu öneri için çapa gerekçesi hesaplanamadı';
   final sorted = [...e.reasons]..sort((a, b) => b.share.compareTo(a.share));
   final parts = sorted
       .take(top)
@@ -29,7 +31,15 @@ class _ReasonChips extends StatelessWidget {
     final c = TiniCosmicColors.of(context);
     final theme = Theme.of(context);
     final top = ([...entry.reasons]..sort((a, b) => b.share.compareTo(a.share))).take(3);
-    if (top.isEmpty) return const SizedBox.shrink();
+    if (top.isEmpty) {
+      return Row(children: [
+        Icon(Icons.insights_rounded, size: 14, color: c.primary),
+        const SizedBox(width: 6),
+        Flexible(
+            child: Text('Bu öneri için çapa gerekçesi hesaplanamadı',
+                style: theme.textTheme.bodySmall)),
+      ]);
+    }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -94,8 +104,21 @@ class _ListScreenState extends State<ListScreen> {
   bool _busy = false;
   bool _exporting = false;
   String? _error;
+  VoidCallback? _retry; // üstteki hata bandının "Yeniden dene"si: hatayı doğuran işlem
+  int _gen = 0; // liste nesli: eski listenin geç gelen başlıkları yenisine yazılmasın
   final Map<int, String?> _photos = {};
   final Map<int, String> _titles = {};
+
+  @override
+  void initState() {
+    super.initState();
+    // Sekme olarak açılınca ölü ekran yerine ilk listeyi kendiliğinden üret.
+    if (widget.embedded) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && _list == null && !_busy) _generate();
+      });
+    }
+  }
 
   /// Önbellekte olmayan sanatçı portrelerini arka planda ister; kartlar geldikçe güncellenir.
   void _loadPhotos(DiscoveryList l) {
@@ -109,12 +132,13 @@ class _ListScreenState extends State<ListScreen> {
   }
 
   /// Parça adı gelmeyen sanatçı öğeleri için adı arka planda, sırayla çözer (sunucu hız sınırlı).
-  Future<void> _loadTitles(DiscoveryList l) async {
+  Future<void> _loadTitles(DiscoveryList l, int gen) async {
     for (final e in l.items) {
+      if (gen != _gen) return;
       if (e.title != null || e.release != null || e.artistId == null) continue;
       try {
         final t = await widget.api.previewTitle(e.artistId!);
-        if (!mounted) return;
+        if (!mounted || gen != _gen) return;
         if (t != null) setState(() => _titles[e.position] = t);
       } catch (_) {
         if (!mounted) return;
@@ -129,6 +153,7 @@ class _ListScreenState extends State<ListScreen> {
     });
     try {
       final l = await widget.api.generateList();
+      final gen = ++_gen;
       if (mounted) {
         setState(() {
           _list = l;
@@ -136,17 +161,25 @@ class _ListScreenState extends State<ListScreen> {
         });
       }
       _loadPhotos(l);
-      unawaited(_loadTitles(l));
+      unawaited(_loadTitles(l, gen));
     } on ApiException catch (e) {
       if (e.status == 401) {
         if (mounted && Navigator.of(context).canPop()) Navigator.of(context).pop();
         return widget.onLogout?.call();
       }
       if (mounted) {
-        setState(() => _error = e.status == 404 ? 'Önce oylayıp profilini kur.' : e.message);
+        setState(() {
+          _error = e.status == 404 ? 'Önce oylayıp profilini kur.' : e.message;
+          _retry = _generate;
+        });
       }
     } catch (_) {
-      if (mounted) setState(() => _error = 'Sunucuya ulaşılamadı');
+      if (mounted) {
+        setState(() {
+          _error = 'Sunucuya ulaşılamadı';
+          _retry = _generate;
+        });
+      }
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -170,12 +203,20 @@ class _ListScreenState extends State<ListScreen> {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
     } on ApiException catch (ex) {
       if (mounted) {
-        setState(() => _error = ex.status == 409
-            ? "Spotify'ı (yeniden) bağla; çalma listesi izni gerekebilir."
-            : ex.message);
+        setState(() {
+          _error = ex.status == 409
+              ? "Spotify'ı (yeniden) bağla; çalma listesi izni gerekebilir."
+              : ex.message;
+          _retry = _export;
+        });
       }
     } catch (_) {
-      if (mounted) setState(() => _error = 'Sunucuya ulaşılamadı');
+      if (mounted) {
+        setState(() {
+          _error = 'Sunucuya ulaşılamadı';
+          _retry = _export;
+        });
+      }
     } finally {
       if (mounted) {
         setState(() {
@@ -195,16 +236,20 @@ class _ListScreenState extends State<ListScreen> {
       } on PlatformException {
         // Uygulama kurulu değilse launchUrl istisna fırlatabilir.
       }
-      if (!opened && mounted) {
-        setState(() => _error = 'Spotify açılamadı. Uygulama kurulu mu?');
-      }
+      if (!opened) _toast('Spotify açılamadı. Uygulama kurulu mu?');
     } on ApiException catch (ex) {
-      if (mounted) {
-        setState(() => _error = ex.status == 409 ? "Önce Spotify'ı bağla." : ex.message);
-      }
+      _toast(ex.status == 409 ? "Önce Spotify'ı bağla." : ex.message);
     } catch (_) {
-      if (mounted) setState(() => _error = 'Sunucuya ulaşılamadı');
+      _toast('Sunucuya ulaşılamadı');
     }
+  }
+
+  /// Kart eylemlerinin hatası, kullanıcının baktığı yerde (sayfa tepesindeki bant ekran dışında kalır).
+  void _toast(String msg) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+      ..clearSnackBars()
+      ..showSnackBar(SnackBar(content: Text(msg)));
   }
 
   Future<void> _object(ListEntry e) async {
@@ -232,9 +277,9 @@ class _ListScreenState extends State<ListScreen> {
             .showSnackBar(const SnackBar(content: Text('Geri bildirimin kaydedildi')));
       }
     } on ApiException catch (ex) {
-      if (mounted) setState(() => _error = ex.message);
+      _toast(ex.message);
     } catch (_) {
-      if (mounted) setState(() => _error = 'Sunucuya ulaşılamadı');
+      _toast('Sunucuya ulaşılamadı');
     }
   }
 
@@ -276,7 +321,7 @@ class _ListScreenState extends State<ListScreen> {
           if (_error != null)
             Padding(
               padding: const EdgeInsets.only(bottom: 12),
-              child: StateNote.error(_error!, onRetry: _busy ? null : _generate),
+              child: StateNote.error(_error!, onRetry: _busy ? null : (_retry ?? _generate)),
             ),
           if (_busy && !_exporting && list == null)
             for (var i = 0; i < 4; i++)

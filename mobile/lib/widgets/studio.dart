@@ -1,7 +1,13 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
-/// Tüm ekranların arkasındaki yumuşak ışık zemini. `BackdropFilter` yok: yalnızca iki
-/// `RadialGradient` katmanı (sağ üst mor, sol alt macenta), bu yüzden ucuz.
+import '../theme/cosmic_colors.dart';
+import '../theme/tokens.dart';
+
+/// Tüm ekranların arkasındaki galaksi zemini: simsiyah-mor taban, iki nebula ışığı ve sabit bir
+/// yıldız tozu katmanı (tek `CustomPaint`, animasyonsuz; `BackdropFilter` yok, bu yüzden ucuz).
+/// Açık temada aynı kurgu pastel: lavanta zemin, pembe/mor nebula, ince parıltılar.
 class AmbientBackground extends StatelessWidget {
   const AmbientBackground({super.key, required this.child});
   final Widget child;
@@ -9,39 +15,32 @@ class AmbientBackground extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final dark = Theme.of(context).brightness == Brightness.dark;
-    final base = dark ? const Color(0xFF08060E) : const Color(0xFFF7F4FC);
-    final top = dark ? const Color(0xFF3E1F5E) : const Color(0xFFB9A4E8);
-    final bottom = dark ? const Color(0xFF59184A) : const Color(0xFFF2B5D4);
+    final base = dark ? const Color(0xFF050309) : const Color(0xFFF3EEFC);
+    final top = dark ? const Color(0xFF4B1F8C) : const Color(0xFFB9A4E8);
+    final bottom = dark ? const Color(0xFF7A1B6B) : const Color(0xFFF2B5D4);
+    Widget glow(Alignment at, double radius, Color color, double alpha) => Positioned.fill(
+          child: IgnorePointer(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: RadialGradient(
+                    center: at,
+                    radius: radius,
+                    colors: [color.withValues(alpha: alpha), color.withValues(alpha: 0)]),
+              ),
+            ),
+          ),
+        );
     return ColoredBox(
       color: base,
       child: Stack(
         children: [
+          glow(const Alignment(1.0, -1.0), 1.3, top, dark ? 0.34 : 0.26),
+          glow(const Alignment(-1.0, 1.0), 1.1, bottom, 0.20),
+          glow(const Alignment(-0.9, -0.3), 0.7, top, dark ? 0.10 : 0.08),
           Positioned.fill(
             child: IgnorePointer(
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  gradient: RadialGradient(
-                    center: const Alignment(1.0, -1.0),
-                    radius: 1.2,
-                    colors: [top.withValues(alpha: dark ? 0.12 : 0.22), top.withValues(alpha: 0)],
-                  ),
-                ),
-              ),
-            ),
-          ),
-          Positioned.fill(
-            child: IgnorePointer(
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  gradient: RadialGradient(
-                    center: const Alignment(-1.0, 1.0),
-                    radius: 1.0,
-                    colors: [
-                      bottom.withValues(alpha: dark ? 0.07 : 0.18),
-                      bottom.withValues(alpha: 0),
-                    ],
-                  ),
-                ),
+              child: RepaintBoundary(
+                child: CustomPaint(painter: _StarDust(dark: dark)),
               ),
             ),
           ),
@@ -52,13 +51,38 @@ class AmbientBackground extends StatelessWidget {
   }
 }
 
+/// Sabit tohumdan üretilen yıldız tozu: aynı ekran her seferinde aynı gökyüzünü çizer.
+class _StarDust extends CustomPainter {
+  const _StarDust({required this.dark});
+  final bool dark;
+
+  static final List<(double, double, double, double)> _stars = () {
+    final r = math.Random(7);
+    return List.generate(90,
+        (_) => (r.nextDouble(), r.nextDouble(), 0.4 + r.nextDouble() * 1.1, 0.25 + r.nextDouble() * 0.6));
+  }();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final p = Paint();
+    for (final (x, y, rad, a) in _stars) {
+      p.color = (dark ? const Color(0xFFE9DEFF) : const Color(0xFF8B6FD6))
+          .withValues(alpha: dark ? a : a * 0.35);
+      canvas.drawCircle(Offset(x * size.width, y * size.height), rad, p);
+    }
+  }
+
+  @override
+  bool shouldRepaint(_StarDust old) => old.dark != dark;
+}
+
 /// Üstten aydınlatmalı kart yüzeyi: dikey gradyan dolgu + 1 dp'lik, üstü parlak alt kenarı sönük
 /// çerçeve. [tint] verilirse dolgu o renkten (vitrin kartı) türetilir.
 class StudioSurface extends StatelessWidget {
   const StudioSurface({
     super.key,
     required this.child,
-    this.radius = 20,
+    this.radius = TiniShape.card + 4,
     this.padding = EdgeInsets.zero,
     this.fill,
     this.edge,
@@ -76,9 +100,10 @@ class StudioSurface extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final dark = Theme.of(context).brightness == Brightness.dark;
+    final tok = TiniCosmicColors.of(context);
     final fillColors = fill ??
         (dark
-            ? const [Color(0xFF1B1730), Color(0xFF171329)]
+            ? [tok.raised, tok.card]
             : const [Color(0xFFFFFFFF), Color(0xFFFAF8FF)]);
     final (hi, lo) = edge ??
         (dark
@@ -90,7 +115,13 @@ class StudioSurface extends StatelessWidget {
         borderRadius: BorderRadius.circular(radius),
         // Açık temada kart gölgeyle zeminden ayrılır; koyuda ışık kenarı yeterli.
         boxShadow: dark
-            ? null
+            ? [
+                BoxShadow(
+                    color: tok.primary.withValues(alpha: 0.10),
+                    blurRadius: 28,
+                    offset: const Offset(0, 10)),
+                const BoxShadow(color: Color(0x99000000), blurRadius: 14, offset: Offset(0, 4)),
+              ]
             : [
                 BoxShadow(
                     color: const Color(0xFF4A3A8C).withValues(alpha: 0.10),
@@ -229,15 +260,20 @@ class StudioButton extends StatefulWidget {
 
 class _StudioButtonState extends State<StudioButton> {
   bool _down = false;
+  bool _hover = false;
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final tok = TiniCosmicColors.of(context);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final enabled = widget.onPressed != null && !widget.busy;
+    final lit = enabled && (_down || _hover);
     final radius = BorderRadius.circular(widget.dense ? 12 : 16);
     final gradient = [
       scheme.primary,
-      Color.lerp(scheme.primary, const Color(0xFFE0479E), 0.55)!,
+      Color.lerp(scheme.primary, const Color(0xFFE0479E), 0.35)!,
+      Color.lerp(scheme.primary, const Color(0xFFE0479E), 0.75)!,
     ];
     // Karanlık temada birincil renk açık lavantadır; beyaz yazı okunmaz. Gradyanın en açık
     // ucuna göre kontrastı yüksek olan yazı rengi seçilir.
@@ -255,20 +291,23 @@ class _StudioButtonState extends State<StudioButton> {
               end: Alignment.bottomRight,
               colors: gradient,
             ),
-            boxShadow: enabled
-                ? [
-                    BoxShadow(
-                        color: scheme.primary.withValues(alpha: 0.35),
-                        blurRadius: 16,
-                        offset: const Offset(0, 6))
-                  ]
-                : null,
           )
         : BoxDecoration(
             borderRadius: radius,
-            color: scheme.surfaceContainerHighest.withValues(alpha: 0.35),
-            border: Border.all(color: scheme.outlineVariant),
+            // Dolu yüzey: içi boş (saydam) düğme açık temada kaybolur.
+            color: isDark ? tok.raised : tok.card,
+            border: Border.all(color: tok.primary.withValues(alpha: isDark ? 0.35 : 0.45)),
           );
+    // Işıma: dinlenirken yumuşak, basılı/üzerindeyken parlar (animasyonlu).
+    final glow = !enabled
+        ? <BoxShadow>[]
+        : [
+            BoxShadow(
+                color: (widget.primary ? scheme.primary : tok.primary)
+                    .withValues(alpha: widget.primary ? (lit ? 0.6 : 0.32) : (lit ? 0.30 : 0.12)),
+                blurRadius: lit ? 26 : 16,
+                offset: Offset(0, lit ? 4 : 7)),
+          ];
     return Semantics(
       button: true,
       enabled: enabled,
@@ -277,11 +316,17 @@ class _StudioButtonState extends State<StudioButton> {
         enabled: enabled,
         scale: 1.02,
         child: AnimatedScale(
-        scale: _down && enabled ? 0.97 : 1,
-        duration: const Duration(milliseconds: 90),
+        scale: _down && enabled ? 0.96 : 1,
+        // Basarken hızlı çöker, bırakınca yaylanarak geri gelir.
+        duration: Duration(milliseconds: _down ? 90 : 260),
+        curve: _down ? Curves.easeOut : Curves.easeOutBack,
         child: Opacity(
           opacity: widget.onPressed == null && !widget.busy ? 0.45 : 1,
-          child: Material(
+          child: AnimatedContainer(
+           duration: const Duration(milliseconds: 220),
+           curve: Curves.easeOutCubic,
+           decoration: BoxDecoration(borderRadius: radius, boxShadow: glow),
+           child: Material(
             color: Colors.transparent,
             child: Ink(
               height: h,
@@ -289,6 +334,7 @@ class _StudioButtonState extends State<StudioButton> {
               child: InkWell(
                 borderRadius: radius,
                 onTap: enabled ? widget.onPressed : null,
+                onHover: (v) => setState(() => _hover = v),
                 onHighlightChanged: (v) => setState(() => _down = v),
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 18),
@@ -317,6 +363,7 @@ class _StudioButtonState extends State<StudioButton> {
                 ),
               ),
             ),
+           ),
           ),
         ),
       ),
@@ -336,8 +383,19 @@ class SkeletonCard extends StatefulWidget {
 
 class _SkeletonCardState extends State<SkeletonCard> with SingleTickerProviderStateMixin {
   late final AnimationController _c =
-      AnimationController(vsync: this, duration: const Duration(milliseconds: 1100))
-        ..repeat(reverse: true);
+      AnimationController(vsync: this, duration: const Duration(milliseconds: 1100));
+
+  /// Hareketi azalt açıkken sonsuz nefes durur, sabit bir kareye çekilir.
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (MediaQuery.disableAnimationsOf(context)) {
+      _c.stop();
+      _c.value = 1;
+    } else if (!_c.isAnimating) {
+      _c.repeat(reverse: true);
+    }
+  }
 
   @override
   void dispose() {
@@ -393,13 +451,197 @@ class StaggerIn extends StatelessWidget {
     final delay = index.clamp(0, 8) * 45;
     return TweenAnimationBuilder<double>(
       tween: Tween(begin: 0, end: 1),
-      duration: Duration(milliseconds: 280 + delay),
+      duration: MediaQuery.disableAnimationsOf(context)
+          ? Duration.zero
+          : Duration(milliseconds: 280 + delay),
       curve: Curves.easeOutCubic,
       builder: (_, t, c) => Opacity(
         opacity: t,
         child: Transform.translate(offset: Offset(0, (1 - t) * 14), child: c),
       ),
       child: child,
+    );
+  }
+}
+
+/// Yuvarlak, katmanlı ikon düğmesi (üst çubuk eylemleri). Dolu yüzey, ince kenar; seçiliyken
+/// birincil renkte ışır. Basınca çöker, bırakınca yaylanır; ikon değişimi ölçekle geçer.
+class StudioIconButton extends StatefulWidget {
+  const StudioIconButton({
+    super.key,
+    required this.icon,
+    required this.tooltip,
+    required this.onPressed,
+    this.selectedIcon,
+    this.selected = false,
+    this.size = 38,
+  });
+  final IconData icon;
+  final IconData? selectedIcon;
+  final bool selected;
+  final String tooltip;
+  final VoidCallback? onPressed;
+  final double size;
+
+  @override
+  State<StudioIconButton> createState() => _StudioIconButtonState();
+}
+
+class _StudioIconButtonState extends State<StudioIconButton> {
+  bool _down = false;
+  bool _hover = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final tok = TiniCosmicColors.of(context);
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final enabled = widget.onPressed != null;
+    final lit = enabled && (_down || _hover);
+    final on = widget.selected;
+    final fg = on ? tok.primary : Theme.of(context).colorScheme.onSurface;
+    return Tooltip(
+      message: widget.tooltip,
+      child: AnimatedScale(
+        scale: _down && enabled ? 0.88 : 1,
+        duration: Duration(milliseconds: _down ? 80 : 260),
+        curve: _down ? Curves.easeOut : Curves.easeOutBack,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeOutCubic,
+          width: widget.size,
+          height: widget.size,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: on
+                ? Color.alphaBlend(tok.primary.withValues(alpha: dark ? 0.22 : 0.16),
+                    dark ? tok.raised : tok.card)
+                : (dark ? tok.raised : tok.card),
+            border: Border.all(
+                color: on
+                    ? tok.primary.withValues(alpha: 0.6)
+                    : (lit ? tok.primary.withValues(alpha: 0.45) : tok.highlight)),
+            boxShadow: [
+              if (enabled && (on || lit))
+                BoxShadow(
+                    color: tok.primary.withValues(alpha: lit ? 0.45 : 0.28),
+                    blurRadius: lit ? 16 : 12),
+              if (!dark && enabled)
+                BoxShadow(
+                    color: tok.primary.withValues(alpha: 0.10),
+                    blurRadius: 8,
+                    offset: const Offset(0, 3)),
+            ],
+          ),
+          child: Opacity(
+            opacity: enabled ? 1 : 0.38,
+            child: Material(
+              color: Colors.transparent,
+              shape: const CircleBorder(),
+              child: InkWell(
+                customBorder: const CircleBorder(),
+                onTap: widget.onPressed,
+                onHover: (v) => setState(() => _hover = v),
+                onHighlightChanged: (v) => setState(() => _down = v),
+                child: Center(
+                  child: AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 200),
+                    transitionBuilder: (c, a) => ScaleTransition(
+                        scale: CurvedAnimation(parent: a, curve: Curves.easeOutBack),
+                        child: FadeTransition(opacity: a, child: c)),
+                    child: Icon(
+                      on && widget.selectedIcon != null ? widget.selectedIcon : widget.icon,
+                      key: ValueKey(on),
+                      size: widget.size * 0.5,
+                      color: fg,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Hap biçimli ikincil bağlantı düğmesi ("Spotify'da aç"): dolu yüzey, vurgu renkli ince kenar
+/// ve ikon; basınca çöker, üzerine gelince ışır.
+class StudioLinkPill extends StatefulWidget {
+  const StudioLinkPill({
+    super.key,
+    required this.icon,
+    required this.label,
+    required this.accent,
+    required this.onPressed,
+  });
+  final IconData icon;
+  final String label;
+  final Color accent;
+  final VoidCallback? onPressed;
+
+  @override
+  State<StudioLinkPill> createState() => _StudioLinkPillState();
+}
+
+class _StudioLinkPillState extends State<StudioLinkPill> {
+  bool _down = false;
+  bool _hover = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final tok = TiniCosmicColors.of(context);
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final enabled = widget.onPressed != null;
+    final lit = enabled && (_down || _hover);
+    return AnimatedScale(
+      scale: _down && enabled ? 0.95 : 1,
+      duration: Duration(milliseconds: _down ? 80 : 260),
+      curve: _down ? Curves.easeOut : Curves.easeOutBack,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.easeOutCubic,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(20),
+          color: dark ? tok.raised : tok.card,
+          border: Border.all(color: widget.accent.withValues(alpha: lit ? 0.85 : 0.45)),
+          boxShadow: [
+            if (enabled)
+              BoxShadow(
+                  color: widget.accent.withValues(alpha: lit ? 0.35 : (dark ? 0.12 : 0.10)),
+                  blurRadius: lit ? 16 : 10,
+                  offset: const Offset(0, 3)),
+          ],
+        ),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(20),
+            onTap: widget.onPressed,
+            onHover: (v) => setState(() => _hover = v),
+            onHighlightChanged: (v) => setState(() => _down = v),
+            child: SizedBox(
+              height: 40,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 10),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(widget.icon, size: 16, color: widget.accent),
+                    const SizedBox(width: 5),
+                    Text(widget.label,
+                        maxLines: 1,
+                        style: Theme.of(context)
+                            .textTheme
+                            .labelMedium
+                            ?.copyWith(fontWeight: FontWeight.w600)),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

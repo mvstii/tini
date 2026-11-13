@@ -281,6 +281,30 @@ void main() {
       expect(find.text('Başlangıç Turu · 1 / $tourVotes'), findsOneWidget);
     });
 
+    testWidgets('undo of a re-vote writes the previous vote as a new event', (tester) async {
+      final f = fake();
+      await open(tester, f.api);
+
+      await tester.tap(find.byKey(const ValueKey('vote-2')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('Geri al')); // ilk oyda önceki oy yok: sunucuya yazılmaz
+      await tester.pumpAndSettle();
+      expect(f.votes, [
+        {'track': 1, 'vote': 2},
+      ]);
+
+      await tester.tap(find.byKey(const ValueKey('vote-5')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('Geri al')); // önceki oy (2) yeni olay olarak geri yazılır
+      await tester.pumpAndSettle();
+      expect(f.votes, [
+        {'track': 1, 'vote': 2},
+        {'track': 1, 'vote': 5},
+        {'track': 1, 'vote': 2},
+      ]);
+      expect(find.text('Alpha'), findsOneWidget); // kart yine kuyruğun başında
+    });
+
     testWidgets('offers profile build after the tour and rebuilds', (tester) async {
       final f = fake(total: tourVotes - 1);
       await open(tester, f.api);

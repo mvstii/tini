@@ -187,7 +187,24 @@ class _LaterScreenState extends State<LaterScreen> {
     final m = ScaffoldMessenger.of(context);
     try {
       await (_likes ? widget.api.removeLike(t.track) : widget.api.removeLater(t.track));
-      if (mounted) _drop(t);
+      if (!mounted) return;
+      _drop(t);
+      m
+        ..clearSnackBars()
+        ..showSnackBar(SnackBar(
+          content: Text(_likes ? 'Beğenilerden çıkarıldı' : 'Listeden çıkarıldı'),
+          action: SnackBarAction(label: 'Geri al', onPressed: () => _restore(t)),
+        ));
+    } catch (e) {
+      m.showSnackBar(SnackBar(content: Text(_msg(e))));
+    }
+  }
+
+  Future<void> _restore(TrackCard t) async {
+    final m = ScaffoldMessenger.of(context);
+    try {
+      await (_likes ? widget.api.addLike(t.track) : widget.api.addLater(t.track));
+      await _load();
     } catch (e) {
       m.showSnackBar(SnackBar(content: Text(_msg(e))));
     }
@@ -240,6 +257,7 @@ class _LaterScreenState extends State<LaterScreen> {
     setState(() => _exporting = true);
     try {
       final r = await widget.api.exportLater();
+      m.clearSnackBars();
       m.showSnackBar(SnackBar(
           content: Text(r.added == 0
               ? 'Spotify’da bulunan şarkı yok'
@@ -381,7 +399,13 @@ class _TrackScreenState extends State<TrackScreen> {
         });
       }
     } catch (e) {
-      if (mounted) setState(() => _error = _msg(e));
+      if (!mounted) return;
+      if (_items != null) {
+        // Liste ekranda: yorumlar kalsın, hata yalnızca bildirilsin.
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(_msg(e))));
+      } else {
+        setState(() => _error = _msg(e));
+      }
     }
   }
 
@@ -426,6 +450,18 @@ class _TrackScreenState extends State<TrackScreen> {
   }
 
   Future<void> _delete(TrackComment c) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Yorum silinsin mi?'),
+        content: const Text('Bu işlem geri alınamaz.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Vazgeç')),
+          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Sil')),
+        ],
+      ),
+    );
+    if (ok != true) return;
     try {
       await widget.api.deleteComment(c.id);
       await _load();

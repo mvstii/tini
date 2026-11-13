@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show TextInput;
 
 import '../api.dart';
 import '../widgets/brand.dart';
@@ -20,21 +21,38 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _busy = false;
   String? _error;
 
+  @override
+  void dispose() {
+    _email.dispose();
+    _password.dispose();
+    super.dispose();
+  }
+
   Future<void> _submit() async {
+    if (_busy) return;
+    final email = _email.text.trim();
+    if (!email.contains('@') || email.startsWith('@') || email.endsWith('@')) {
+      setState(() => _error = 'Geçerli bir e-posta yaz.');
+      return;
+    }
+    if (_password.text.isEmpty) {
+      setState(() => _error = 'Parolanı yaz.');
+      return;
+    }
     setState(() {
       _busy = true;
       _error = null;
     });
     try {
-      final email = _email.text.trim();
       await (_register
           ? widget.api.register(email, _password.text)
           : widget.api.login(email, _password.text));
+      TextInput.finishAutofillContext();
       widget.onDone();
     } on ApiException catch (e) {
-      setState(() => _error = e.message);
+      if (mounted) setState(() => _error = e.message);
     } catch (_) {
-      setState(() => _error = 'Sunucuya ulaşılamadı');
+      if (mounted) setState(() => _error = 'Sunucuya ulaşılamadı');
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -61,12 +79,14 @@ class _LoginScreenState extends State<LoginScreen> {
                       index: 2,
                       child: StudioSurface(
                         padding: const EdgeInsets.fromLTRB(18, 10, 18, 18),
-                        child: Column(
+                        child: AutofillGroup(
+                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
                             TextField(
                               controller: _email,
                               keyboardType: TextInputType.emailAddress,
+                              textInputAction: TextInputAction.next,
                               autofillHints: const [AutofillHints.email],
                               decoration: const InputDecoration(
                                   labelText: 'E-posta', prefixIcon: Icon(Icons.mail_outline)),
@@ -74,7 +94,11 @@ class _LoginScreenState extends State<LoginScreen> {
                             TextField(
                               controller: _password,
                               obscureText: true,
-                              autofillHints: const [AutofillHints.password],
+                              textInputAction: TextInputAction.done,
+                              onSubmitted: (_) => _submit(),
+                              autofillHints: [
+                                _register ? AutofillHints.newPassword : AutofillHints.password
+                              ],
                               decoration: const InputDecoration(
                                   labelText: 'Parola', prefixIcon: Icon(Icons.lock_outline)),
                             ),
@@ -84,8 +108,11 @@ class _LoginScreenState extends State<LoginScreen> {
                                   ? const SizedBox(width: double.infinity)
                                   : Padding(
                                       padding: const EdgeInsets.only(top: 12),
-                                      child: Text(_error!,
-                                          style: TextStyle(color: theme.colorScheme.error)),
+                                      child: Semantics(
+                                        liveRegion: true,
+                                        child: Text(_error!,
+                                            style: TextStyle(color: theme.colorScheme.error)),
+                                      ),
                                     ),
                             ),
                             const SizedBox(height: 18),
@@ -96,6 +123,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               onPressed: _busy ? null : _submit,
                             ),
                           ],
+                         ),
                         ),
                       ),
                     ),

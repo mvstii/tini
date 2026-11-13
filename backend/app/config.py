@@ -54,6 +54,16 @@ class AuthSettings(BaseSettings):
     register_window_seconds: int = 3600
 
 
+class PhotoSettings(BaseSettings):
+    """Profil fotoğrafı sınırları; ortamdan PHOTO_ önekiyle ezilir."""
+
+    model_config = SettingsConfigDict(env_file=".env", env_prefix="PHOTO_", extra="ignore")
+
+    max_bytes: int = 262144
+    put_limit: int = 10
+    put_window_seconds: int = 3600
+
+
 class GraphSettings(BaseSettings):
     """Katalog/grafik parametreleri; gömülü sabit yok. Ortamdan GRAPH_ önekiyle ezilir."""
 

@@ -222,5 +222,11 @@ void main() {
     expect(b.imports, 1);
     expect(c.cards.length, 3);
   });
-}
 
+  test('friendlyStatus maps opaque statuses to readable sentences', () {
+    expect(friendlyStatus(503), contains('geçici'));
+    expect(friendlyStatus(429), contains('bekle'));
+    expect(friendlyStatus(422), contains('geçerli değil'));
+    expect(friendlyStatus(404), 'Hata 404');
+  });
+}

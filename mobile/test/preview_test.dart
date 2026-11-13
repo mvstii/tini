@@ -40,8 +40,10 @@ void main() {
     expect(c.statusOf('a'), PreviewStatus.unavailable);
     b.fail = true;
     await c.toggle('b', () async => 'u');
-    expect(c.statusOf('b'), PreviewStatus.unavailable);
+    expect(c.statusOf('b'), PreviewStatus.error); // geçici hata: kalıcı pasif değil
     b.fail = false;
+    await c.toggle('b', () async => 'u'); // yeniden deneme çalışır
+    expect(c.statusOf('b'), PreviewStatus.playing);
     await c.toggle('c', () async => 'u');
     b.done!();
     expect(c.statusOf('c'), PreviewStatus.idle);

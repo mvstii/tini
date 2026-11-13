@@ -4,6 +4,7 @@ import 'api.dart';
 import 'screens/login_screen.dart';
 import 'screens/shell.dart';
 import 'theme/cosmic_colors.dart';
+import 'theme/tokens.dart';
 import 'theme/transitions.dart';
 import 'widgets/brand.dart';
 import 'widgets/studio.dart';
@@ -50,12 +51,14 @@ class _TiniBootState extends State<TiniBoot> {
               theme: ThemeData(
                 colorSchemeSeed: Colors.deepPurple,
                 useMaterial3: true,
+                fontFamily: 'PlusJakartaSans',
                 extensions: [TiniCosmicColors.light],
               ),
               darkTheme: ThemeData(
                 colorSchemeSeed: Colors.deepPurple,
                 brightness: Brightness.dark,
                 useMaterial3: true,
+                fontFamily: 'PlusJakartaSans',
                 extensions: [TiniCosmicColors.dark],
               ),
               home: const Scaffold(body: AmbientBackground(child: SplashScreen())),
@@ -94,6 +97,14 @@ class _TiniAppState extends State<TiniApp> {
         fontFamily: 'PlusJakartaSans',
         scaffoldBackgroundColor: c.scaffold,
         pageTransitionsTheme: tiniPageTransitions,
+        textTheme: tiniTextTheme(ThemeData(brightness: b).textTheme, c),
+        cardTheme: CardThemeData(
+          color: c.card,
+          elevation: 0,
+          margin: EdgeInsets.zero,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(TiniShape.card)),
+        ),
+        dividerTheme: DividerThemeData(color: c.highlight.withValues(alpha: 0.5), space: 1),
         extensions: [c],
       );
     }

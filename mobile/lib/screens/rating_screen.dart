@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'dart:math' as math;
+import 'package:flutter/semantics.dart' show CustomSemanticsAction;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -76,10 +78,13 @@ class RatingScreen extends StatefulWidget {
 /// Geri alınabilir tek adım. Oy olayı silinmez; geri alınan kart yeniden gösterilir ve
 /// verilecek yeni oy, yeni bir olay olarak öncekinin yerini alır.
 class _Step {
-  _Step(this.item, this.vote, {this.later = false});
+  _Step(this.item, this.vote, {this.later = false, this.prevVote});
   final QueueItem item;
   final int? vote; // null: Unheard (later değilse)
   final bool later; // "Sonra dinle" listesine eklendi
+
+  /// Bu adımdan önceki güncel oy (bilinmiyorsa null). Geri alınca yeni bir olay olarak yazılır.
+  final int? prevVote;
 }
 
 class _RatingScreenState extends State<RatingScreen> {
@@ -156,7 +161,9 @@ class _RatingScreenState extends State<RatingScreen> {
   }
 
   void _onState() {
-    if (mounted) setState(() {});
+    if (!mounted) return;
+    setState(() {});
+    _maybeAutoplay(); // kart/otomatik çalma değişimine olay olarak tepki (build içinde değil)
   }
 
   Future<void> _guard(Future<void> Function() action) async {
@@ -193,6 +200,7 @@ class _RatingScreenState extends State<RatingScreen> {
       _error = null;
     });
     _queue.pop();
+    final prev = _state.votes[item.track];
     var saved = false;
     await _guard(() async {
       if (vote != null) {
@@ -203,10 +211,13 @@ class _RatingScreenState extends State<RatingScreen> {
         _state.recordUnheard();
       }
       saved = true;
-      _history.add(_Step(item, vote));
+      _history.add(_Step(item, vote, prevVote: prev));
     });
     if (!saved) _queue.putBack(item); // kayıt başarısızsa kart geri gelir
-    if (mounted) setState(() => _busy = false);
+    if (mounted) {
+      setState(() => _busy = false);
+      _maybeAutoplay();
+    }
   }
 
   /// Sağa kaydırma: parça "Sonra dinle" listesine girer, kuyruktan çıkar.
@@ -227,6 +238,7 @@ class _RatingScreenState extends State<RatingScreen> {
     if (!saved) _queue.putBack(item);
     if (mounted) {
       setState(() => _busy = false);
+      _maybeAutoplay();
       if (saved) {
         ScaffoldMessenger.of(context)
           ..clearSnackBars()
@@ -236,11 +248,24 @@ class _RatingScreenState extends State<RatingScreen> {
     }
   }
 
-  void _undo() {
+  /// Geri al: kart kuyruğa döner. Parça daha önce oylanmışsa önceki oy yeni bir olay olarak
+  /// yazılır (olay silinmez; güncel oy son olaydır). İlk kez oylanan parçada sunucudaki oy,
+  /// kullanıcı yeniden oylayana kadar kalır (oyu temizleme olayı yok).
+  Future<void> _undo() async {
     if (_history.isEmpty || _busy) return;
     final step = _history.removeLast();
     if (step.later) unawaited(widget.api.removeLater(step.item.track).catchError((_) {}));
     _queue.putBack(step.item);
+    final prev = step.prevVote;
+    final cur = step.vote;
+    if (step.later || cur == null || prev == null || prev == cur) return;
+    setState(() => _busy = true); // geri yazma bitmeden yeni oy gitmesin (sıra bozulmasın)
+    await _guard(() async {
+      await widget.api.castVote(step.item.track, prev);
+      _state.recordChange(
+          HistoryItem(step.item.track, cur, step.item.title, step.item.artists), prev);
+    });
+    if (mounted) setState(() => _busy = false);
   }
 
   /// Keşif listesine geçer (kabukta Öneriler sekmesi; yoksa liste ekranı).
@@ -304,13 +329,24 @@ class _RatingScreenState extends State<RatingScreen> {
                     if (_state.unlocked)
                       _ProfileBand(
                           built: _state.profileBuilt, busy: _busy, onBuild: _buildProfile),
-                    if (_error != null && _current != null)
+                    // Profil/özet yüklenemediyse seviye 0 görünür; hata ve yeniden deneme göster.
+                    if (_error != null && (_current != null || !_state.loaded))
                       Padding(
                         padding: const EdgeInsets.only(top: 4),
-                        child: Text(_error!,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(color: Theme.of(context).colorScheme.error)),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Text(_error!,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(color: Theme.of(context).colorScheme.error)),
+                            ),
+                            if (!_state.loaded)
+                              TextButton(
+                                  onPressed: _loading ? null : _init,
+                                  child: const Text('Yeniden dene')),
+                          ],
+                        ),
                       ),
                   ],
                 ),
@@ -318,7 +354,11 @@ class _RatingScreenState extends State<RatingScreen> {
               const SizedBox(height: 8),
               Expanded(child: _cardArea(c, canVote)),
               const SizedBox(height: 10),
-              _VoteGrid(enabled: canVote, onVote: _answer),
+              // Kayıt sürerken dokunma kapalı ama düğmeler solmaz (her oyda titreme olmasın).
+              _VoteGrid(
+                  enabled: canVote,
+                  dimmed: _loading || _current == null || _state.forced != UiState.normal,
+                  onVote: _answer),
             ],
           ),
         ),
@@ -327,7 +367,6 @@ class _RatingScreenState extends State<RatingScreen> {
   }
 
   Widget _cardArea(TiniCosmicColors c, bool canVote) {
-    _maybeAutoplay();
     final forced = _state.forced;
     final item = _current;
     if (forced == UiState.loading || _loading) return _SkeletonCard(color: c.card);
@@ -441,18 +480,6 @@ class _TopBar extends StatelessWidget {
       height: 48,
       child: Row(
         children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            decoration: BoxDecoration(
-              color: c.card,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: c.primary.withValues(alpha: 0.5)),
-            ),
-            child: Text('Seviye ${state.level}',
-                style: theme.textTheme.labelMedium
-                    ?.copyWith(color: c.primary, fontFeatures: _tabular)),
-          ),
-          const SizedBox(width: 12),
           Expanded(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -481,50 +508,35 @@ class _TopBar extends StatelessWidget {
               ],
             ),
           ),
-          SizedBox(
-            width: 40,
-            height: 48,
-            child: IconButton(
-              key: const ValueKey('toggle-autoplay'),
-              padding: EdgeInsets.zero,
-              onPressed: onAutoplay,
-              isSelected: autoplay,
-              icon: const Icon(Icons.volume_off_rounded),
-              selectedIcon: const Icon(Icons.volume_up_rounded),
-              tooltip: autoplay ? 'Otomatik çalma açık' : 'Otomatik çalma kapalı',
-            ),
+          const SizedBox(width: 8),
+          StudioIconButton(
+            key: const ValueKey('toggle-autoplay'),
+            onPressed: onAutoplay,
+            selected: autoplay,
+            icon: Icons.volume_off_rounded,
+            selectedIcon: Icons.volume_up_rounded,
+            tooltip: autoplay ? 'Otomatik çalma açık' : 'Otomatik çalma kapalı',
           ),
-          SizedBox(
-            width: 40,
-            height: 48,
-            child: IconButton(
-              key: const ValueKey('open-search'),
-              padding: EdgeInsets.zero,
-              onPressed: onSearch,
-              icon: const Icon(Icons.search_rounded),
-              tooltip: 'Şarkı ara',
-            ),
+          const SizedBox(width: 6),
+          StudioIconButton(
+            key: const ValueKey('open-search'),
+            onPressed: onSearch,
+            icon: Icons.search_rounded,
+            tooltip: 'Şarkı ara',
           ),
-          SizedBox(
-            width: 40,
-            height: 48,
-            child: IconButton(
-              key: const ValueKey('open-later'),
-              padding: EdgeInsets.zero,
-              onPressed: onLater,
-              icon: const Icon(Icons.bookmark_border_rounded),
-              tooltip: 'Sonra dinle',
-            ),
+          const SizedBox(width: 6),
+          StudioIconButton(
+            key: const ValueKey('open-later'),
+            onPressed: onLater,
+            icon: Icons.bookmark_border_rounded,
+            selectedIcon: Icons.bookmark_rounded,
+            tooltip: 'Sonra dinle',
           ),
-          SizedBox(
-            width: 40,
-            height: 48,
-            child: IconButton(
-              padding: EdgeInsets.zero,
-              onPressed: canUndo ? onUndo : null,
-              icon: const Icon(Icons.undo_rounded),
-              tooltip: 'Geri al',
-            ),
+          const SizedBox(width: 6),
+          StudioIconButton(
+            onPressed: canUndo ? onUndo : null,
+            icon: Icons.undo_rounded,
+            tooltip: 'Geri al',
           ),
         ],
       ),
@@ -577,16 +589,24 @@ class _ProfileBand extends StatelessWidget {
 
 BoxDecoration _cardDecoration(BuildContext context, Color color) {
   final dark = Theme.of(context).brightness == Brightness.dark;
+  final tok = TiniCosmicColors.of(context);
   return BoxDecoration(
     borderRadius: BorderRadius.circular(24),
     gradient: LinearGradient(
       begin: Alignment.topCenter,
       end: Alignment.bottomCenter,
-      colors: dark
-          ? const [Color(0xFF1B1730), Color(0xFF171329)]
-          : [Colors.white, color],
+      // Dolu, katmanlı yüzey: açık temada da beyaz boşluk yerine lavanta geçiş.
+      colors: dark ? [tok.raised, tok.card] : [Colors.white, tok.raised],
     ),
-    border: Border.all(color: (dark ? Colors.white : Colors.black).withValues(alpha: dark ? 0.08 : 0.06)),
+    border: Border.all(
+        color: dark ? Colors.white.withValues(alpha: 0.10) : tok.primary.withValues(alpha: 0.18)),
+    boxShadow: [
+      BoxShadow(
+          color: tok.primary.withValues(alpha: dark ? 0.16 : 0.14),
+          blurRadius: 30,
+          offset: const Offset(0, 12)),
+      if (dark) const BoxShadow(color: Color(0x99000000), blurRadius: 14, offset: Offset(0, 4)),
+    ],
   );
 }
 
@@ -698,7 +718,14 @@ class _SwipeCardState extends State<_SwipeCard> with SingleTickerProviderStateMi
       _width = box.maxWidth;
       final compact = box.maxHeight < 250;
       final hintStyle = theme.textTheme.labelSmall?.copyWith(color: theme.colorScheme.onSurface);
-      return GestureDetector(
+      return Semantics(
+        customSemanticsActions: widget.enabled
+            ? {
+                const CustomSemanticsAction(label: 'Sonra dinle'): widget.onLater,
+                const CustomSemanticsAction(label: 'Dinlemedim, geç'): widget.onSkip,
+              }
+            : const {},
+        child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onHorizontalDragUpdate: _update,
         onHorizontalDragEnd: _end,
@@ -809,18 +836,17 @@ class _SwipeCardState extends State<_SwipeCard> with SingleTickerProviderStateMi
                         api: widget.api,
                         previewKey: 'vote-${item.track}',
                         trackId: item.track),
-                    const SizedBox(width: 4),
-                    TextButton.icon(
+                    const SizedBox(width: 8),
+                    StudioLinkPill(
                       key: const ValueKey('open-spotify'),
                       onPressed: () => openInSpotify(item.title, item.artistLine),
-                      icon: const Icon(Icons.open_in_new_rounded, size: 18),
-                      label: const Text("Spotify'da aç"),
-                      style: TextButton.styleFrom(
-                          foregroundColor: theme.colorScheme.onSurfaceVariant,
-                          textStyle: theme.textTheme.labelMedium,
-                          padding: const EdgeInsets.symmetric(horizontal: 8)),
+                      icon: Icons.open_in_new_rounded,
+                      label: "Spotify'da aç",
+                      accent: Theme.of(context).brightness == Brightness.dark
+                          ? const Color(0xFF1DB954)
+                          : const Color(0xFF138A3D),
                     ),
-                    const SizedBox(width: 4),
+                    const SizedBox(width: 6),
                     Expanded(
                       child: Align(
                         alignment: Alignment.centerRight,
@@ -838,7 +864,7 @@ class _SwipeCardState extends State<_SwipeCard> with SingleTickerProviderStateMi
             ),
           ),
         ),
-      );
+      ));
     });
   }
 }
@@ -927,17 +953,21 @@ class _SkipPill extends StatelessWidget {
 }
 
 class _VoteGrid extends StatelessWidget {
-  const _VoteGrid({required this.enabled, required this.onVote});
+  const _VoteGrid({required this.enabled, required this.dimmed, required this.onVote});
   final bool enabled;
+  final bool dimmed;
   final ValueChanged<int> onVote;
 
   @override
   Widget build(BuildContext context) {
     final c = TiniCosmicColors.of(context);
-    Widget row(List<int> ids, double h) => SizedBox(
-          height: h,
-          child: Row(
-            children: [
+    // Sabit yükseklik yerine alt sınır: büyük yazı ölçeğinde düğmeler büyür, taşmaz.
+    Widget row(List<int> ids, double h) => ConstrainedBox(
+          constraints: BoxConstraints(minHeight: h),
+          child: IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
               for (var i = 0; i < ids.length; i++) ...[
                 if (i > 0) const SizedBox(width: 8),
                 Expanded(
@@ -945,11 +975,13 @@ class _VoteGrid extends StatelessWidget {
                     value: ids[i],
                     style: c.votes[ids[i]]!,
                     enabled: enabled,
+                    dimmed: dimmed,
                     onTap: () => onVote(ids[i]),
                   ),
                 ),
               ],
             ],
+            ),
           ),
         );
     return Column(
@@ -965,72 +997,169 @@ class _VoteGrid extends StatelessWidget {
 
 class _VoteButton extends StatefulWidget {
   const _VoteButton(
-      {required this.value, required this.style, required this.enabled, required this.onTap});
+      {required this.value,
+      required this.style,
+      required this.enabled,
+      required this.dimmed,
+      required this.onTap});
   final int value;
   final VoteStyle style;
   final bool enabled;
+  final bool dimmed;
   final VoidCallback onTap;
 
   @override
   State<_VoteButton> createState() => _VoteButtonState();
 }
 
-class _VoteButtonState extends State<_VoteButton> {
+class _VoteButtonState extends State<_VoteButton> with SingleTickerProviderStateMixin {
   bool _pressed = false;
   bool _hover = false;
+
+  /// Dokunuşta bir kez oynar (tekrarlı değil): halka dışa yayılır, ikon zıplar, yüzey parlar.
+  late final AnimationController _burst =
+      AnimationController(vsync: this, duration: const Duration(milliseconds: 520));
+
+  @override
+  void dispose() {
+    _burst.dispose();
+    super.dispose();
+  }
+
+  void _tap() {
+    HapticFeedback.selectionClick();
+    if (!MediaQuery.disableAnimationsOf(context)) _burst.forward(from: 0);
+    widget.onTap();
+  }
 
   @override
   Widget build(BuildContext context) {
     final s = widget.style;
-    return Opacity(
-      opacity: widget.enabled ? 1 : 0.45,
-      child: AnimatedScale(
-        scale: _pressed ? 0.95 : (_hover && widget.enabled ? 1.05 : 1),
-        duration: const Duration(milliseconds: 90),
-        child: Ink(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: s.border, width: s.borderWidth),
-            // Sol üstten gelen ışık: üstte açılmış, altta kendi rengine inen dikey geçiş.
-            gradient: LinearGradient(
-              begin: const Alignment(-0.6, -1),
-              end: const Alignment(0.4, 1),
-              colors: [Color.alphaBlend(Colors.white.withValues(alpha: 0.10), s.fill), s.fill],
-            ),
-          ),
-          child: InkWell(
-            key: ValueKey('vote-${widget.value}'),
-            customBorder: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-            onHighlightChanged: (v) => setState(() => _pressed = v),
-            onHover: (v) => setState(() => _hover = v),
-            onTap: widget.enabled
-                ? () {
-                    HapticFeedback.selectionClick();
-                    widget.onTap();
-                  }
-                : null,
-            child: Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text('${widget.value}',
-                          style: TextStyle(
-                              fontSize: 15,
-                              color: s.fg,
-                              fontWeight: FontWeight.w700,
-                              fontFeatures: _tabular)),
-                      const SizedBox(width: 4),
-                      Icon(s.icon, size: 18, color: s.fg),
-                    ],
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final live = widget.enabled && !widget.dimmed;
+    final lit = live && (_pressed || _hover);
+    // Yüksek oylar daha sıcak ışır: 6 en güçlü, 1 en sönük.
+    final heat = 0.6 + 0.4 * (widget.value / 6);
+    final glow = !live
+        ? <BoxShadow>[]
+        : [
+            BoxShadow(
+                color: s.border.withValues(alpha: (lit ? 0.55 : (dark ? 0.24 : 0.20)) * heat),
+                blurRadius: lit ? 20 : 12,
+                offset: Offset(0, lit ? 3 : 5)),
+          ];
+    return Semantics(
+      button: true,
+      enabled: widget.enabled,
+      label: '${widget.value}, ${s.label}',
+      excludeSemantics: true,
+      onTap: widget.enabled ? widget.onTap : null,
+      child: Opacity(
+        opacity: widget.dimmed ? 0.45 : 1,
+        child: AnimatedScale(
+          scale: _pressed ? 0.93 : (_hover && widget.enabled ? 1.05 : 1),
+          duration: Duration(milliseconds: _pressed ? 90 : 280),
+          curve: _pressed ? Curves.easeOut : Curves.easeOutBack,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 220),
+            curve: Curves.easeOutCubic,
+            decoration: BoxDecoration(borderRadius: BorderRadius.circular(14), boxShadow: glow),
+            child: Ink(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: s.border, width: s.borderWidth),
+                // Sol üstten gelen ışık: üstte açılmış, altta kendi rengine inen geçiş.
+                gradient: LinearGradient(
+                  begin: const Alignment(-0.6, -1),
+                  end: const Alignment(0.4, 1),
+                  colors: [
+                    Color.alphaBlend(Colors.white.withValues(alpha: lit ? 0.18 : 0.12), s.fill),
+                    s.fill,
+                    Color.alphaBlend(s.border.withValues(alpha: dark ? 0.10 : 0.06), s.fill),
+                  ],
+                  stops: const [0, 0.55, 1],
+                ),
+              ),
+              child: InkWell(
+                key: ValueKey('vote-${widget.value}'),
+                customBorder: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                onHighlightChanged: (v) => setState(() => _pressed = v),
+                onHover: (v) => setState(() => _hover = v),
+                onTap: widget.enabled ? _tap : null,
+                child: AnimatedBuilder(
+                  animation: _burst,
+                  builder: (_, child) {
+                    final t = _burst.value;
+                    final active = _burst.isAnimating;
+                    return Stack(
+                      alignment: Alignment.center,
+                      clipBehavior: Clip.none,
+                      children: [
+                        if (active) ...[
+                          // Parlama: yüzey kısa süre aydınlanıp söner.
+                          Positioned.fill(
+                            child: DecoratedBox(
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(14),
+                                color: s.fg.withValues(alpha: 0.28 * (1 - Curves.easeOut.transform(t))),
+                              ),
+                            ),
+                          ),
+                          // Halka: düğme çevresinden dışa yayılıp solar.
+                          Positioned.fill(
+                            child: Transform.scale(
+                              scale: 1 + 0.35 * Curves.easeOutCubic.transform(t),
+                              child: DecoratedBox(
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(14),
+                                  border: Border.all(
+                                      color: s.fg.withValues(alpha: 0.7 * (1 - t)), width: 2),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                        child!,
+                      ],
+                    );
+                  },
+                  child: Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text('${widget.value}',
+                                style: TextStyle(
+                                    fontSize: 15,
+                                    color: s.fg,
+                                    fontWeight: FontWeight.w700,
+                                    fontFeatures: _tabular)),
+                            const SizedBox(width: 4),
+                            // İkon: dokunuşta yaylanarak büyüyüp döner, sonra yerine oturur.
+                            AnimatedBuilder(
+                              animation: _burst,
+                              builder: (_, child) {
+                                final k = math.sin(math.pi * Curves.easeOut.transform(_burst.value));
+                                return Transform.rotate(
+                                  angle: 0.35 * k * (widget.value.isEven ? -1 : 1),
+                                  child: Transform.scale(scale: 1 + 0.55 * k, child: child),
+                                );
+                              },
+                              child: Icon(s.icon, size: 18, color: s.fg),
+                            ),
+                          ],
+                        ),
+                        Text(s.label,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                                fontSize: 12, fontWeight: FontWeight.w600, color: s.fg, height: 1.1)),
+                      ],
+                    ),
                   ),
-                  Text(s.label,
-                      maxLines: 1,
-                      style: TextStyle(
-                          fontSize: 12, fontWeight: FontWeight.w600, color: s.fg, height: 1.1)),
-                ],
+                ),
               ),
             ),
           ),
@@ -1050,8 +1179,18 @@ class _SkeletonCard extends StatefulWidget {
 
 class _SkeletonCardState extends State<_SkeletonCard> with SingleTickerProviderStateMixin {
   late final AnimationController _ctl = AnimationController(
-      vsync: this, duration: const Duration(milliseconds: 900))
-    ..repeat(reverse: true);
+      vsync: this, duration: const Duration(milliseconds: 900));
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (MediaQuery.disableAnimationsOf(context)) {
+      _ctl.stop();
+      _ctl.value = 1;
+    } else if (!_ctl.isAnimating) {
+      _ctl.repeat(reverse: true);
+    }
+  }
 
   @override
   void dispose() {
