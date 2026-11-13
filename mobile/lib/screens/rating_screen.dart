@@ -11,8 +11,10 @@ import '../api.dart';
 import '../app_state.dart';
 import '../preview_player.dart';
 import '../queue_controller.dart';
+import '../strings.dart';
 import '../theme/cosmic_colors.dart';
 import '../theme/tini_tokens.dart';
+import '../widgets/info_sheet.dart';
 import '../widgets/like_button.dart';
 import '../widgets/preview_widgets.dart';
 import '../ui/components/components.dart';
@@ -432,7 +434,15 @@ class _RatingScreenState extends State<RatingScreen> {
                 ),
               ),
               const SizedBox(height: 12),
-              UnheardButton(onTap: canVote ? () => _answer(null) : null),
+              Row(
+                children: [
+                  Expanded(child: UnheardButton(onTap: canVote ? () => _answer(null) : null)),
+                  const InfoIconButton(
+                    title: TiniStrings.unheardInfoTitle,
+                    body: TiniStrings.unheardInfoBody,
+                  ),
+                ],
+              ),
             ],
           ),
         ),

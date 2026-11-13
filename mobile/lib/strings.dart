@@ -24,8 +24,8 @@ abstract final class TiniStrings {
   static const connectService = 'Bağla';
 
   // Bileşenler
-  static const unheardAdd = 'keşif havuzuna ekle';
-  static const unheardAdded = 'keşif havuzunda';
+  static const unheardAdd = 'Dinlemedim';
+  static const unheardAdded = 'Dinlemedim ✓';
   static const newBadge = 'YENİ';
   static const predictionPrefix = 'Tahmin';
   static const slotFit = 'Sana uyan';
@@ -106,6 +106,54 @@ abstract final class TiniStrings {
   static const avoidSoft = 'Yumuşak ceza';
   static const avoidEmpty = 'Henüz kaçındığımız bir şey yok.';
   static const avoidHint = 'Öneriler bu sanatçılardan uzak tutulur.';
+
+  // Açıklama sayfaları
+  static const infoClose = 'Anladım';
+  static const infoTooltip = 'Bu ne demek?';
+  static const unheardInfoTitle = 'Dinlemedim ne işe yarar?';
+  static const unheardInfoBody =
+      'Şarkıyı tanımıyorsan oy vermek zorunda değilsin. Dinlemedim oy sayılmaz ve zevk '
+      'profilini bozmaz; şarkı keşif havuzunda aday olarak kalır ve sana tekrar gösterilebilir. '
+      'Üç kez karşına çıkıp hâlâ oy vermediysen zayıf bir olumsuz sinyal olarak sayılır.';
+  static const avoidInfoTitle = 'Kaçınma bölgesi nedir?';
+  static const avoidInfoBody =
+      'Düşük puan verdiğin sanatçıların özeti. Sayılar şarkı değil sanatçı sayısıdır.\n\n'
+      'Sert filtre: Berbat (1) verdiğin sanatçılar. Önerilerden elenir ve bu etki zamanla sönmez.\n\n'
+      'Yumuşak ceza: puanları genel olarak olumsuz olan ama Berbat içermeyen sanatçılar. '
+      'Elenmez, yalnızca öneri sırasında geriye düşer.';
+
+  // İlk açılış eğitimi
+  static const introSkip = 'Eğitimi atla';
+  static const introNext = 'İleri';
+  static const introStart = 'Başla';
+  static const introReplay = 'Eğitimi yeniden göster';
+  static const introPages = <(String, String)>[
+    (
+      "Tını'ya hoş geldin",
+      'Şarkıları oylayarak müzik zevkini çıkarırız. Sonra sana özel keşif listeleri hazırlar, '
+          'her öneri için nedenini de gösteririz.'
+    ),
+    (
+      '6 kademeli oy',
+      "Her şarkıya 1'den 6'ya kadar puan ver: 1 Berbat, 6 Efsane. Ortada nötr bir seçenek "
+          'yok; bir şarkıyı ya sevdin ya sevmedin. Bu seni daha net tanımamızı sağlar.'
+    ),
+    (
+      'Dinlemedim',
+      "Tanımadığın şarkıda Dinlemedim'e bas. Oy sayılmaz, profilini bozmaz. Şarkı keşif "
+          'havuzunda kalır ve sonra tekrar karşına çıkabilir.'
+    ),
+    (
+      'Sonra dinle ve beğen',
+      'Kartı sağa kaydırırsan şarkı Sonra dinle listene eklenir; bu bir oy değildir. '
+          'Kalp simgesiyle beğendiklerini ayrıca saklarsın.'
+    ),
+    (
+      'Profil ve öneriler',
+      '30 oydan sonra profilin oluşur ve Öneriler sekmesi açılır. Profilinde türlerini, '
+          'rozetlerini ve kaçınma bölgeni görürsün. Her önerinin altında nedeni yazar.'
+    ),
+  ];
   static const recentVotes = 'Son oylananlar';
   static const noVotesYet = 'Henüz oy yok.';
   static const myLists = 'Listelerim';

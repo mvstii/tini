@@ -266,6 +266,25 @@ class Api {
     }
   }
 
+  static const _introKey = 'intro_seen';
+
+  /// İlk açılış eğitimi görüldü mü; okunamazsa görülmüş sayılır (eğitim tekrar tekrar çıkmasın).
+  Future<bool> loadIntroSeen() async {
+    try {
+      return await _storage.read(key: _introKey) == '1';
+    } catch (_) {
+      return true;
+    }
+  }
+
+  Future<void> saveIntroSeen() async {
+    try {
+      await _storage.write(key: _introKey, value: '1');
+    } catch (_) {
+      // Saklanamazsa eğitim bir sonraki açılışta yeniden gösterilir.
+    }
+  }
+
   Future<void> register(String email, String password) => _auth('register', email, password);
 
   Future<void> login(String email, String password) => _auth('login', email, password);

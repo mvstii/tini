@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'api.dart';
 import 'profile_photo.dart';
+import 'screens/intro_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/shell.dart';
 import 'theme/cosmic_colors.dart';
@@ -35,9 +36,14 @@ class _TiniBootState extends State<TiniBoot> {
         await api.restore();
         return await api.loadTheme();
       }(),
+      api.loadIntroSeen(),
       Future<void>.delayed(const Duration(milliseconds: 900)),
     ]);
-    return TiniApp(api: api, themeMode: results[0] as ThemeMode);
+    return TiniApp(
+      api: api,
+      themeMode: results[0] as ThemeMode,
+      introSeen: results[1] as bool,
+    );
   }
 
   @override
@@ -71,9 +77,17 @@ class _TiniBootState extends State<TiniBoot> {
 }
 
 class TiniApp extends StatefulWidget {
-  const TiniApp({super.key, required this.api, this.themeMode = ThemeMode.system});
+  const TiniApp({
+    super.key,
+    required this.api,
+    this.themeMode = ThemeMode.system,
+    this.introSeen = true,
+  });
   final Api api;
   final ThemeMode themeMode;
+
+  /// İlk açılış eğitimi görüldü mü (varsayılan true: testler ve eski çağrılar etkilenmez).
+  final bool introSeen;
 
   @override
   State<TiniApp> createState() => _TiniAppState();
@@ -82,6 +96,7 @@ class TiniApp extends StatefulWidget {
 class _TiniAppState extends State<TiniApp> {
   late bool _loggedIn = widget.api.loggedIn;
   late ThemeMode _themeMode = widget.themeMode;
+  late bool _introSeen = widget.introSeen;
 
   void _setTheme(ThemeMode mode) {
     setState(() => _themeMode = mode);
@@ -116,7 +131,14 @@ class _TiniAppState extends State<TiniApp> {
       theme: theme(Brightness.light),
       darkTheme: theme(Brightness.dark),
       themeMode: _themeMode,
-      home: _loggedIn
+      home: _loggedIn && !_introSeen
+          ? IntroScreen(
+              onDone: () {
+                widget.api.saveIntroSeen();
+                setState(() => _introSeen = true);
+              },
+            )
+          : _loggedIn
           ? AppShell(
               api: widget.api,
               onLogout: () {
