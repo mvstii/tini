@@ -122,11 +122,12 @@ class Reason {
 }
 
 class HistoryItem {
-  HistoryItem(this.track, this.vote, this.title, this.artists);
+  HistoryItem(this.track, this.vote, this.title, this.artists, [this.image]);
   final int track;
   final int vote;
   final String? title;
   final List<String> artists;
+  final String? image;
 }
 
 class ExportResult {
@@ -398,7 +399,7 @@ class Api {
     final body = await _send('GET', '/votes/history?limit=$limit');
     final items = (body['items'] as List)
         .map((e) => HistoryItem(e['track'] as int, e['vote'] as int, e['title'] as String?,
-            ((e['artists'] as List?) ?? const []).cast<String>()))
+            ((e['artists'] as List?) ?? const []).cast<String>(), e['image'] as String?))
         .toList();
     return (total: body['total'] as int, items: items);
   }

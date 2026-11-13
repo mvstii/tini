@@ -61,7 +61,7 @@ class AppState extends ChangeNotifier {
     if (!votes.containsKey(item.track)) _serverTotal++;
     votes[item.track] = vote;
     recent.removeWhere((h) => h.track == item.track);
-    recent.insert(0, HistoryItem(item.track, vote, item.title, item.artists));
+    recent.insert(0, HistoryItem(item.track, vote, item.title, item.artists, item.image));
     if (recent.length > 20) recent.removeLast();
     notifyListeners();
   }
@@ -75,7 +75,7 @@ class AppState extends ChangeNotifier {
   void recordChange(HistoryItem h, int vote) {
     votes[h.track] = vote;
     final i = recent.indexWhere((r) => r.track == h.track);
-    if (i >= 0) recent[i] = HistoryItem(h.track, vote, h.title, h.artists);
+    if (i >= 0) recent[i] = HistoryItem(h.track, vote, h.title, h.artists, h.image);
     notifyListeners();
   }
 

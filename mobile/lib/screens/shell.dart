@@ -202,8 +202,8 @@ class PillNav extends StatelessWidget {
                 child: DecoratedBox(
                   decoration: BoxDecoration(
                     gradient: LinearGradient(colors: [
-                      c.primary.withValues(alpha: 0.30),
-                      c.votes[5]!.border.withValues(alpha: 0.22),
+                      c.primary.withValues(alpha: 0.26),
+                      c.primary.withValues(alpha: 0.18),
                     ]),
                     borderRadius: BorderRadius.circular(24),
                     border: Border.all(color: c.primary.withValues(alpha: 0.35)),

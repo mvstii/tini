@@ -29,7 +29,7 @@ class _Thumb extends StatelessWidget {
   }
 }
 
-String _title(TrackCard t) => t.title ?? 'Parça ${t.track}';
+String _title(TrackCard t) => t.title ?? 'Şarkı bilgisi yükleniyor…';
 
 /// Servis aramasından şarkı bulur; sonuca dokununca yorum sayfası açılır.
 class SearchScreen extends StatefulWidget {
@@ -171,12 +171,29 @@ class _LaterScreenState extends State<LaterScreen> {
     _load();
   }
 
+  Timer? _retry;
+  int _retries = 0;
+
+  @override
+  void dispose() {
+    _retry?.cancel();
+    super.dispose();
+  }
+
   Future<void> _load() async {
     try {
       final r = _likes ? await widget.api.likesList() : await widget.api.laterList();
-      if (mounted) setState(() => _items = r);
+      if (!mounted) return;
+      setState(() => _items = r);
+      // Sunucu eksik başlıkları istek başına sınırlı sayıda yeniler; kalan varsa kısa aralıkla
+      // yeniden dene (her turda biraz daha dolar).
+      _retry?.cancel();
+      if (r.any((t) => t.title == null) && _retries < 6) {
+        _retries++;
+        _retry = Timer(const Duration(seconds: 2), _load);
+      }
     } catch (e) {
-      if (mounted) setState(() => _error = _msg(e));
+      if (mounted && _items == null) setState(() => _error = _msg(e));
     }
   }
 

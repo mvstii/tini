@@ -331,7 +331,7 @@ def history(
     total = db.scalar(select(func.count()).select_from(latest))
     rows = db.execute(
         select(latest.c.track_id, latest.c.vote, latest.c.created_at, UserTrackMeta.title,
-               UserTrackMeta.artist_names)
+               UserTrackMeta.artist_names, UserTrackMeta.image_url)
         .outerjoin(
             UserTrackMeta,
             (UserTrackMeta.track_id == latest.c.track_id) & (UserTrackMeta.user_id == user.id),
@@ -344,8 +344,8 @@ def history(
         "total": total,
         "items": [
             {"track": t, "vote": v, "voted_at": at.isoformat(), "title": title,
-             "artists": names}
-            for t, v, at, title, names in rows
+             "artists": names, "image": image}
+            for t, v, at, title, names, image in rows
         ],
     }
 

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../api.dart';
 import '../app_state.dart';
 import '../theme/cosmic_colors.dart';
+import '../widgets/cover_art.dart';
 import '../widgets/studio.dart';
 import 'home_screen.dart';
 import 'tracks_screen.dart' show LaterScreen;
@@ -37,7 +38,7 @@ class ProfileScreen extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            ListTile(title: Text(h.title ?? 'Parça ${h.track}')),
+            ListTile(title: Text(h.title ?? 'Şarkı bilgisi yükleniyor…')),
             for (var v = 1; v <= 6; v++)
               ListTile(
                 leading: Icon(c.votes[v]!.icon, color: c.votes[v]!.fg),
@@ -218,7 +219,8 @@ class ProfileScreen extends StatelessWidget {
                       child: Material(
                       color: Colors.transparent,
                       child: ListTile(
-                        title: Text(h.title ?? 'Parça ${h.track}', maxLines: 1, overflow: TextOverflow.ellipsis),
+                        leading: CoverArt(url: h.image, size: 44, radius: 8, gradientSeed: h.title),
+                        title: Text(h.title ?? 'Şarkı bilgisi yükleniyor…', maxLines: 1, overflow: TextOverflow.ellipsis),
                         subtitle: Text(h.artists.join(', '), maxLines: 1, overflow: TextOverflow.ellipsis),
                         trailing: _VoteBadge(style: c.votes[h.vote]!, vote: h.vote),
                         onTap: () => _change(context, h),

@@ -263,7 +263,7 @@ class _RatingScreenState extends State<RatingScreen> {
     await _guard(() async {
       await widget.api.castVote(step.item.track, prev);
       _state.recordChange(
-          HistoryItem(step.item.track, cur, step.item.title, step.item.artists), prev);
+          HistoryItem(step.item.track, cur, step.item.title, step.item.artists, step.item.image), prev);
     });
     if (mounted) setState(() => _busy = false);
   }
@@ -421,9 +421,9 @@ class _RatingScreenState extends State<RatingScreen> {
             icon: Icons.library_music_rounded,
             text: _queue.stale > 0
                 ? '${_queue.stale} şarkının bilgisi eskidi. Kütüphaneyi yenile.'
-                : 'Oylanacak şarkı kalmadı.',
-            action: 'Kütüphaneyi yenile',
-            onAction: _queue.refreshLibrary,
+                : 'Yeni şarkılar hazırlanıyor olabilir. Biraz sonra kendiliğinden bakılır.',
+            action: _queue.stale > 0 ? 'Kütüphaneyi yenile' : 'Yeniden dene',
+            onAction: _queue.stale > 0 ? _queue.refreshLibrary : _queue.retry,
             secondaryAction: _state.profileBuilt ? 'Keşif listesine git' : null,
             onSecondary: _openDiscover,
           );

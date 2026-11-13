@@ -81,7 +81,6 @@ def refill_needed(
     voted = select(VoteEvent.track_id).where(VoteEvent.user_id == user.id)
     return bool(db.scalar(select(exists().where(
         UserTrackMeta.user_id == user.id,
-        UserTrackMeta.expires_at > now,
         UserTrackMeta.expires_at <= now + ttl * (1 - cfg.meta_refresh_at),
         UserTrackMeta.track_id.not_in(voted),
     ))))

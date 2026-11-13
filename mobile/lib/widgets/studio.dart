@@ -17,7 +17,7 @@ class AmbientBackground extends StatelessWidget {
     final dark = Theme.of(context).brightness == Brightness.dark;
     final base = dark ? const Color(0xFF050309) : const Color(0xFFF3EEFC);
     final top = dark ? const Color(0xFF4B1F8C) : const Color(0xFFB9A4E8);
-    final bottom = dark ? const Color(0xFF7A1B6B) : const Color(0xFFF2B5D4);
+    final bottom = dark ? const Color(0xFF2A2F6B) : const Color(0xFFC9CCEE);
     Widget glow(Alignment at, double radius, Color color, double alpha) => Positioned.fill(
           child: IgnorePointer(
             child: DecoratedBox(
@@ -35,7 +35,7 @@ class AmbientBackground extends StatelessWidget {
       child: Stack(
         children: [
           glow(const Alignment(1.0, -1.0), 1.3, top, dark ? 0.34 : 0.26),
-          glow(const Alignment(-1.0, 1.0), 1.1, bottom, 0.20),
+          glow(const Alignment(-1.0, 1.0), 1.1, bottom, 0.12),
           glow(const Alignment(-0.9, -0.3), 0.7, top, dark ? 0.10 : 0.08),
           Positioned.fill(
             child: IgnorePointer(
@@ -270,10 +270,10 @@ class _StudioButtonState extends State<StudioButton> {
     final enabled = widget.onPressed != null && !widget.busy;
     final lit = enabled && (_down || _hover);
     final radius = BorderRadius.circular(widget.dense ? 12 : 16);
+    // Tek tonluk, ince geçiş: renk değiştirmez, yalnızca alta doğru hafifçe koyulaşır.
     final gradient = [
       scheme.primary,
-      Color.lerp(scheme.primary, const Color(0xFFE0479E), 0.35)!,
-      Color.lerp(scheme.primary, const Color(0xFFE0479E), 0.75)!,
+      Color.lerp(scheme.primary, Colors.black, 0.12)!,
     ];
     // Karanlık temada birincil renk açık lavantadır; beyaz yazı okunmaz. Gradyanın en açık
     // ucuna göre kontrastı yüksek olan yazı rengi seçilir.

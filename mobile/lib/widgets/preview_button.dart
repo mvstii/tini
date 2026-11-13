@@ -69,7 +69,7 @@ class _PreviewButtonState extends State<PreviewButton> {
                 gradient: LinearGradient(
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
-                  colors: [scheme.primary, Color.lerp(scheme.primary, const Color(0xFFE0479E), 0.7)!],
+                  colors: [scheme.primary, Color.lerp(scheme.primary, Colors.black, 0.14)!],
                 ),
                 border: Border.all(color: Colors.white.withValues(alpha: playing ? 0.55 : 0.0), width: 2),
                 boxShadow: [

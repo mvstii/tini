@@ -23,7 +23,7 @@ later_router = APIRouter(prefix="/later", tags=["later"])
 likes_router = APIRouter(prefix="/likes", tags=["likes"])
 comments_router = APIRouter(tags=["comments"])
 
-_REFRESH_MAX = 10  # istek başına en çok bu kadar servis çağrısı (429 koruması)
+_REFRESH_MAX = 30  # istek başına en çok bu kadar servis çağrısı (429 koruması)
 _EXPORT_MAX = 100  # dışa aktarımda en eski bu kadar parça (find_track başına bir servis çağrısı)
 
 
