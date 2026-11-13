@@ -90,6 +90,7 @@ class TrackRow extends StatelessWidget {
     required this.reason,
     this.coverSeed,
     this.coverUrl,
+    this.coverFallbackUrl,
     this.fit,
     this.isNew = false,
     this.onTap,
@@ -100,6 +101,9 @@ class TrackRow extends StatelessWidget {
   final String reason;
   final String? coverSeed;
   final String? coverUrl;
+
+  /// Kapak yüklenemezse gösterilecek görsel (sanatçı portresi).
+  final String? coverFallbackUrl;
   final int? fit;
   final bool isNew;
   final VoidCallback? onTap;
@@ -125,7 +129,11 @@ class TrackRow extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             child: Row(
               children: [
-                TiniCover(seed: coverSeed ?? '$title|$artist', url: coverUrl),
+                TiniCover(
+                  seed: coverSeed ?? '$title|$artist',
+                  url: coverUrl,
+                  fallbackUrl: coverFallbackUrl,
+                ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(

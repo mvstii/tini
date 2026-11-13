@@ -291,7 +291,13 @@ class _RatingScreenState extends State<RatingScreen> {
     await _guard(() async {
       await widget.api.castVote(step.item.track, prev);
       _state.recordChange(
-        HistoryItem(step.item.track, cur, step.item.title, step.item.artists),
+        HistoryItem(
+          step.item.track,
+          cur,
+          step.item.title,
+          step.item.artists,
+          step.item.image,
+        ),
         prev,
       );
     });

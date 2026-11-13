@@ -637,7 +637,7 @@ class _HistoryRow extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: 8),
         child: Row(
           children: [
-            TiniCover(seed: 'track-${item.track}', size: 46),
+            TiniCover(seed: 'track-${item.track}', url: item.image, size: 46),
             const SizedBox(width: 12),
             Expanded(
               child: Column(

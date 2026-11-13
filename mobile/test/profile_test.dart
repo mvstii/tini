@@ -108,6 +108,27 @@ void main() {
     expect(find.text('Mod 2'), findsOneWidget);
   });
 
+  test('vote history carries the cached cover image', () async {
+    final api = Api(
+      client: MockClient(
+        (req) async => http.Response(
+          jsonEncode({
+            'total': 2,
+            'items': [
+              {'track': 1, 'vote': 5, 'title': 'A', 'artists': ['X'], 'image': 'http://img/a.jpg'},
+              {'track': 2, 'vote': 4, 'title': 'B', 'artists': [], 'image': null},
+            ],
+          }),
+          200,
+        ),
+      ),
+      storage: _Mem(),
+    );
+    await api.restore();
+    final r = await api.voteSummary();
+    expect(r.items.map((h) => h.image), ['http://img/a.jpg', null]);
+  });
+
   testWidgets('without a profile the mode and avoidance sections are empty', (
     tester,
   ) async {

@@ -125,11 +125,14 @@ class Reason {
 }
 
 class HistoryItem {
-  HistoryItem(this.track, this.vote, this.title, this.artists);
+  HistoryItem(this.track, this.vote, this.title, this.artists, [this.image]);
   final int track;
   final int vote;
   final String? title;
   final List<String> artists;
+
+  /// Önbellekteki kapak URL'si; yoksa boyalı yer tutucu çizilir.
+  final String? image;
 }
 
 /// Zevk profilinin arayüzün kullandığı özeti. Mod adları/etiketleri sunucudan gelir; eski
@@ -172,12 +175,15 @@ class DailySong {
 
 class ListEntry {
   ListEntry(this.position, this.name, this.title, this.reasons,
-      {this.release, this.artistId, this.artistImage});
+      {this.release, this.artistId, this.artistImage, this.image});
   final int position;
 
   /// Sanatçı kimliği ve (varsa) önbellekteki portre URL'si; fotoğraf sonradan doldurulabilir.
   final int? artistId;
   final String? artistImage;
+
+  /// Parça kapağı (kullanıcı önbelleği) ya da yayın kapağı; yoksa sanatçı portresi kullanılır.
+  final String? image;
   final String name;
   final String? title;
   final List<Reason> reasons;
@@ -458,7 +464,7 @@ class Api {
     final body = await _send('GET', '/votes/history?limit=$limit');
     final items = (body['items'] as List)
         .map((e) => HistoryItem(e['track'] as int, e['vote'] as int, e['title'] as String?,
-            ((e['artists'] as List?) ?? const []).cast<String>()))
+            ((e['artists'] as List?) ?? const []).cast<String>(), e['image'] as String?))
         .toList();
     return (total: body['total'] as int, items: items);
   }
@@ -544,6 +550,7 @@ class Api {
                     .toList(),
                 artistId: e['artist_id'] as int?,
                 artistImage: e['artist_image'] as String?,
+                image: (e['image'] as String?) ?? (e['release']?['cover'] as String?),
                 release: e['release'] == null
                     ? null
                     : ReleaseInfo(e['release']['title'] as String, e['release']['type'] as String,
