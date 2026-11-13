@@ -226,6 +226,14 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     ),
             ),
           ),
+          if (_spotifyConnected)
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton(
+                onPressed: _busy ? null : _connectSpotify,
+                child: const Text('Spotify bağlantısını yenile'),
+              ),
+            ),
           if (_busy) const Padding(padding: EdgeInsets.all(16), child: LinearProgressIndicator()),
           if (_message != null) Padding(padding: const EdgeInsets.all(12), child: Text(_message!)),
           const SizedBox(height: 8),
