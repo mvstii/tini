@@ -36,7 +36,10 @@ Widget _frame(Widget child, {double w = 390}) => MaterialApp(
     );
 
 void main() {
+  // Görseller Windows'ta üretildi ve yazı tipi yolu Windows'a özgü; CI (Linux) bu testleri atlar.
+  final skip = Platform.isWindows ? null : 'Windows için üretilmiş görseller';
   setUpAll(() async {
+    if (skip != null) return;
     final inter = FontLoader('Inter')
       ..addFont(Future.value(ByteData.view(File('assets/fonts/Inter.ttf').readAsBytesSync().buffer)));
     await inter.load();
@@ -74,7 +77,7 @@ void main() {
       'vote_button',
       size: const Size(420, 290),
     );
-  });
+  }, skip: skip != null);
 
   testWidgets('TrackRow 4 slot', (tester) async {
     await shot(
@@ -90,7 +93,7 @@ void main() {
       'track_row',
       size: const Size(420, 380),
     );
-  });
+  }, skip: skip != null);
 
   testWidgets('ServiceSaveButton 4 durum × 2 servis', (tester) async {
     await shot(
@@ -112,5 +115,5 @@ void main() {
       'service_save_button',
       size: const Size(420, 260),
     );
-  });
+  }, skip: skip != null);
 }
