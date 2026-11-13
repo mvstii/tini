@@ -12,6 +12,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:tini/api.dart';
+import 'package:tini/screens/list_screen.dart';
 import 'package:tini/screens/login_screen.dart';
 import 'package:tini/screens/rating_screen.dart';
 import 'package:tini/screens/shell.dart';
@@ -129,6 +130,58 @@ void main() {
       await t.tap(find.byKey(const ValueKey('tab-0')));
       await t.pumpAndSettle();
       await save('ui3-kesfet-${b.name}');
+    });
+  }
+  // UI-4 inceleme görüntüleri: Keşif listesi + Gerekçe paneli.
+  for (final b in [Brightness.dark, Brightness.light]) {
+    testWidgets('list ${b.name}', (t) async {
+      final items = [
+        for (final (i, n) in ['Gama', 'Ekin', 'Beta', 'Delta', 'Omega', 'Sigma'].indexed)
+          {
+            'position': i + 1,
+            'name': n,
+            'title': i == 5 ? null : 'Şarkı ${i + 1}',
+            if (i == 4)
+              'release': {'id': 1, 'title': 'Yeni Albüm', 'type': 'album', 'released': '2026-10-30'},
+            'reasons': [
+              {'seed_id': 10, 'seed_name': 'Çapa A', 'share': 0.5, 'is_anchor': true},
+              {'seed_id': 11, 'seed_name': 'Çapa B', 'share': 0.3, 'is_anchor': false},
+              {'seed_id': 12, 'seed_name': 'Çapa C', 'share': 0.2, 'is_anchor': false},
+            ],
+          },
+      ];
+      final a = Api(
+          client: MockClient((r) async => r.url.path == '/lists/generate'
+              ? http.Response.bytes(utf8.encode(jsonEncode({'id': 7, 'items': items})), 201)
+              : http.Response('{}', 200)),
+          storage: _Mem());
+      await a.restore();
+      t.view.physicalSize = const Size(390 * 3, 844 * 3);
+      t.view.devicePixelRatio = 3;
+      addTearDown(t.view.reset);
+      await t.pumpWidget(RepaintBoundary(
+          key: key,
+          child: MaterialApp(
+              debugShowCheckedModeBanner: false,
+              theme: _theme(b),
+              home: ListScreen(api: a))));
+      await t.tap(find.text('Liste üret'));
+      await t.pumpAndSettle();
+      Future<void> save(String name) async {
+        await t.runAsync(() async {
+          final r = key.currentContext!.findRenderObject() as RenderRepaintBoundary;
+          final img = await r.toImage(pixelRatio: 1);
+          final bytes = (await img.toByteData(format: ui.ImageByteFormat.png))!;
+          File('../docs/design/review/$name.png')
+            ..createSync(recursive: true)
+            ..writeAsBytesSync(bytes.buffer.asUint8List());
+        });
+      }
+
+      await save('ui4-liste-${b.name}');
+      await t.tap(find.text('Şarkı 1'));
+      await t.pumpAndSettle();
+      await save('ui4-gerekce-${b.name}');
     });
   }
   testWidgets('login dark', (t) async {

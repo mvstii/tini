@@ -10,17 +10,17 @@ enum TrackSlot { fit, unheard, explore, fresh }
 
 extension TrackSlotX on TrackSlot {
   Color get color => switch (this) {
-        TrackSlot.fit => TiniTokens.slotFit,
-        TrackSlot.unheard => TiniTokens.slotUnheard,
-        TrackSlot.explore => TiniTokens.slotExplore,
-        TrackSlot.fresh => TiniTokens.slotFresh,
-      };
+    TrackSlot.fit => TiniTokens.slotFit,
+    TrackSlot.unheard => TiniTokens.slotUnheard,
+    TrackSlot.explore => TiniTokens.slotExplore,
+    TrackSlot.fresh => TiniTokens.slotFresh,
+  };
   String get label => switch (this) {
-        TrackSlot.fit => TiniStrings.slotFit,
-        TrackSlot.unheard => TiniStrings.slotUnheard,
-        TrackSlot.explore => TiniStrings.slotExplore,
-        TrackSlot.fresh => TiniStrings.slotFresh,
-      };
+    TrackSlot.fit => TiniStrings.slotFit,
+    TrackSlot.unheard => TiniStrings.slotUnheard,
+    TrackSlot.explore => TiniStrings.slotExplore,
+    TrackSlot.fresh => TiniStrings.slotFresh,
+  };
 }
 
 /// 5 pt'lik ilerleme/oran çubuğu. [gradient] verilmezse marka gradyanı kullanılır.
@@ -71,7 +71,10 @@ class NewBadge extends StatelessWidget {
         color: TiniTokens.slotFresh,
         borderRadius: BorderRadius.circular(TiniTokens.rCoverSmall / 2),
       ),
-      child: Text(TiniStrings.newBadge, style: TiniTokens.badge.copyWith(color: Colors.white)),
+      child: Text(
+        TiniStrings.newBadge,
+        style: TiniTokens.badge.copyWith(color: Colors.white),
+      ),
     );
   }
 }
@@ -107,7 +110,8 @@ class TrackRow extends StatelessWidget {
     final tint = slot == TrackSlot.unheard;
     return Semantics(
       button: true,
-      label: '$title, $artist, ${slot.label}, $reason'
+      label:
+          '$title, $artist, ${slot.label}, $reason'
           '${fit != null ? ', ${TiniStrings.fitPercent(fit!)} ${TiniStrings.fitSuffix}' : ''}',
       excludeSemantics: true,
       onTap: onTap,
@@ -131,32 +135,49 @@ class TrackRow extends StatelessWidget {
                       Row(
                         children: [
                           Flexible(
-                            child: Text(title,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: TiniTokens.bodyStrong.copyWith(color: t.text, fontWeight: FontWeight.w700)),
+                            child: Text(
+                              title,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TiniTokens.bodyStrong.copyWith(
+                                color: t.text,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
                           ),
-                          if (isNew) ...[const SizedBox(width: 6), const NewBadge()],
+                          if (isNew) ...[
+                            const SizedBox(width: 6),
+                            const NewBadge(),
+                          ],
                         ],
                       ),
-                      Text(artist,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TiniTokens.secondary.copyWith(color: t.muted)),
+                      Text(
+                        artist,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TiniTokens.secondary.copyWith(color: t.muted),
+                      ),
                       const SizedBox(height: 2),
                       Row(
                         children: [
                           Container(
                             width: 7,
                             height: 7,
-                            decoration: BoxDecoration(shape: BoxShape.circle, color: slot.color),
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: slot.color,
+                            ),
                           ),
                           const SizedBox(width: 6),
                           Expanded(
-                            child: Text(reason,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: TiniTokens.caption.copyWith(color: t.muted)),
+                            child: Text(
+                              reason,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TiniTokens.caption.copyWith(
+                                color: t.muted,
+                              ),
+                            ),
                           ),
                         ],
                       ),
@@ -169,9 +190,17 @@ class TrackRow extends StatelessWidget {
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
-                      Text(TiniStrings.fitPercent(fit!),
-                          style: TiniTokens.cardTitle.copyWith(color: t.text, letterSpacing: 0)),
-                      Text(TiniStrings.fitSuffix, style: TiniTokens.caption.copyWith(color: t.muted2)),
+                      Text(
+                        TiniStrings.fitPercent(fit!),
+                        style: TiniTokens.cardTitle.copyWith(
+                          color: t.text,
+                          letterSpacing: 0,
+                        ),
+                      ),
+                      Text(
+                        TiniStrings.fitSuffix,
+                        style: TiniTokens.caption.copyWith(color: t.muted2),
+                      ),
                     ],
                   ),
                 ],
@@ -189,15 +218,17 @@ class AnchorRow extends StatelessWidget {
   const AnchorRow({
     super.key,
     required this.title,
-    required this.artist,
-    required this.vote,
     required this.share,
+    this.artist = '',
+    this.vote,
     this.coverSeed,
     this.coverUrl,
   });
   final String title;
   final String artist;
-  final int vote;
+
+  /// Kullanıcının bu çapaya verdiği oy; bilinmiyorsa (sunucu göndermiyorsa) boş bırakılır.
+  final int? vote;
 
   /// 0–1 arası katkı payı.
   final double share;
@@ -209,42 +240,68 @@ class AnchorRow extends StatelessWidget {
     final t = TiniTokens.of(context);
     final pct = (share * 100).round();
     return Semantics(
-      label: '$title, $artist, ${TiniStrings.gaveVote(vote)}, ${TiniStrings.fitPercent(pct)}',
+      label:
+          '$title, $artist${vote != null ? ', ${TiniStrings.gaveVote(vote!)}' : ''}, ${TiniStrings.fitPercent(pct)}',
       excludeSemantics: true,
       child: Row(
         children: [
-          TiniCover(seed: coverSeed ?? '$title|$artist', url: coverUrl, size: 50),
+          TiniCover(
+            seed: coverSeed ?? '$title|$artist',
+            url: coverUrl,
+            size: 50,
+          ),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TiniTokens.bodyStrong.copyWith(color: t.text, fontWeight: FontWeight.w700)),
-                const SizedBox(height: 2),
-                Row(
-                  children: [
-                    Flexible(
-                      child: Text('$artist · ',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TiniTokens.secondary.copyWith(color: t.muted)),
-                    ),
-                    VoteBadge(vote: vote, size: 20),
-                    const SizedBox(width: 4),
-                    Text(TiniStrings.gaveSuffix, style: TiniTokens.secondary.copyWith(color: t.muted)),
-                  ],
+                Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TiniTokens.bodyStrong.copyWith(
+                    color: t.text,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
+                const SizedBox(height: 2),
+                if (artist.isNotEmpty || vote != null)
+                  Row(
+                    children: [
+                      if (artist.isNotEmpty)
+                        Flexible(
+                          child: Text(
+                            vote != null ? '$artist · ' : artist,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TiniTokens.secondary.copyWith(
+                              color: t.muted,
+                            ),
+                          ),
+                        ),
+                      if (vote != null) ...[
+                        VoteBadge(vote: vote!, size: 20),
+                        const SizedBox(width: 4),
+                        Text(
+                          TiniStrings.gaveSuffix,
+                          style: TiniTokens.secondary.copyWith(color: t.muted),
+                        ),
+                      ],
+                    ],
+                  ),
                 const SizedBox(height: 6),
                 SlotBar(value: share),
               ],
             ),
           ),
           const SizedBox(width: 12),
-          Text(TiniStrings.fitPercent(pct),
-              style: TiniTokens.cardTitle.copyWith(color: t.text, letterSpacing: 0)),
+          Text(
+            TiniStrings.fitPercent(pct),
+            style: TiniTokens.cardTitle.copyWith(
+              color: t.text,
+              letterSpacing: 0,
+            ),
+          ),
         ],
       ),
     );
@@ -253,7 +310,12 @@ class AnchorRow extends StatelessWidget {
 
 /// Etiket hapı; [count] verilirse pembe "×3" eklenir.
 class TagChip extends StatelessWidget {
-  const TagChip({super.key, required this.label, this.count, this.danger = false});
+  const TagChip({
+    super.key,
+    required this.label,
+    this.count,
+    this.danger = false,
+  });
   final String label;
   final int? count;
 
@@ -278,7 +340,10 @@ class TagChip extends StatelessWidget {
             if (count != null)
               TextSpan(
                 text: ' ×$count',
-                style: TiniTokens.bodyStrong.copyWith(color: TiniTokens.slotFresh, fontWeight: FontWeight.w800),
+                style: TiniTokens.bodyStrong.copyWith(
+                  color: TiniTokens.slotFresh,
+                  fontWeight: FontWeight.w800,
+                ),
               ),
           ],
         ),
@@ -313,12 +378,15 @@ class ServiceSaveButton extends StatelessWidget {
     final apple = service == ServiceKind.apple;
     final bg = apple ? Colors.white : t.surface2;
     final fg = apple ? TiniTokens.onLightFill : t.text;
-    final accent = apple ? TiniTokens.apple : (dark ? TiniTokens.spotify : TiniTokens.spotifyOnLight);
+    final accent = apple
+        ? TiniTokens.apple
+        : (dark ? TiniTokens.spotify : TiniTokens.spotifyOnLight);
     final label = switch (state) {
       SaveState.idle => apple ? TiniStrings.saveApple : TiniStrings.saveSpotify,
       SaveState.saving => TiniStrings.saving,
       SaveState.saved => TiniStrings.saved,
-      SaveState.notConnected => apple ? TiniStrings.connectApple : TiniStrings.connectSpotify,
+      SaveState.notConnected =>
+        apple ? TiniStrings.connectApple : TiniStrings.connectSpotify,
     };
     final icon = switch (state) {
       SaveState.idle => Icons.download_rounded,
@@ -342,24 +410,36 @@ class ServiceSaveButton extends StatelessWidget {
           child: ConstrainedBox(
             constraints: BoxConstraints(minHeight: compact ? 44 : 48),
             child: Padding(
-              padding: EdgeInsets.symmetric(horizontal: compact ? 14 : 18, vertical: 10),
+              padding: EdgeInsets.symmetric(
+                horizontal: compact ? 14 : 18,
+                vertical: 10,
+              ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   if (busy)
                     SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2, color: accent))
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: accent,
+                      ),
+                    )
                   else
                     Icon(icon, size: 18, color: accent),
                   const SizedBox(width: 8),
                   Flexible(
-                    child: Text(label,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TiniTokens.bodyStrong.copyWith(color: fg, fontWeight: FontWeight.w700)),
+                    child: Text(
+                      label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TiniTokens.bodyStrong.copyWith(
+                        color: fg,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
                   ),
                 ],
               ),

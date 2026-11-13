@@ -41,7 +41,8 @@ abstract final class TiniStrings {
   static const pause = 'Durdur';
   static const close = 'Kapat';
   static String pendingVotes(int n) => '$n bekleyen oy';
-  static String tabSemantics(String label, int badge) => badge > 0 ? '$label, $badge bekleyen' : label;
+  static String tabSemantics(String label, int badge) =>
+      badge > 0 ? '$label, $badge bekleyen' : label;
   static const clipSemantics = '30 sn önizleme';
   static String shareOfTaste(int p) => "zevkinin %$p'i";
   static const votesChartTitle = 'Oy dağılımı';
@@ -53,4 +54,32 @@ abstract final class TiniStrings {
   static const gaveSuffix = 'verdin';
   static String gaveVote(int v) => '$v $gaveSuffix';
   static String commonTagCount(String tag, int n) => '$tag ×$n';
+
+  // Keşif listesi ve Gerekçe paneli
+  static const listTitle = 'Keşif listesi';
+  static const listEmbeddedTitle = 'Sana özel öneriler';
+  static String listForYou(int n) => 'Senin için · $n şarkı';
+  static const generate = 'Liste üret';
+  static const regenerate = 'Yeniden üret';
+  static const listEmpty = 'Öneri çıkmadı.';
+  static const noProfile = 'Önce oylayıp profilini kur.';
+  static const unreachable = 'Sunucuya ulaşılamadı';
+  static const retry = 'Yeniden dene';
+  static const noAnchorReason = 'Bu öneri için çapa gerekçesi hesaplanamadı';
+  static String reasonShort(String name, int pct) => 'Benzer: $name %$pct';
+  static const whyTitle = 'Neden bu şarkı?';
+  static String whySentence(int pct, int n) =>
+      'Skorun %$pct oranında ${n == 1 ? 'bu şarkıdan' : 'bu $n şarkıdan'} geliyor';
+  static const objectSimilarity = 'Bu benzerlik yanlış';
+  static const objectionSaved = 'Geri bildirimin kaydedildi';
+  static const openInSpotify = "Spotify'da aç";
+  static const connectSpotifyFirst = "Önce Spotify'ı bağla.";
+  static const spotifyOpenFailed = 'Spotify açılamadı. Uygulama kurulu mu?';
+  static const reconnectSpotify =
+      "Spotify'ı (yeniden) bağla; çalma listesi izni gerekebilir.";
+  static const appleNotAvailable = 'Apple Music bağlantısı henüz yok';
+  static const noPlayableTracks =
+      'Bu listedeki öğelerin çalınabilir parçası bulunamadı.';
+  static String savedToSpotify(int added, int skipped, String detail) =>
+      "Spotify'a kaydedildi: $added parça${skipped > 0 ? ', $skipped öğe atlandı$detail' : ''}";
 }
