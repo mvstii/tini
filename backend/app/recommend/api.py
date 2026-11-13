@@ -19,6 +19,7 @@ from app.config import (
     get_graph_settings,
     get_profile_settings,
     get_recommend_settings,
+    get_releases_settings,
 )
 from app.connect import get_http
 from app.connections import valid_access_value
@@ -107,8 +108,10 @@ def candidates(
 def _release_out(r: Release | None) -> dict | None:
     if r is None:
         return None
+    base = get_releases_settings().cover_base_url.rstrip("/")
     return {"id": r.id, "title": r.title, "type": r.primary_type,
-            "released": r.first_release_date.isoformat()}
+            "released": r.first_release_date.isoformat(),
+            "cover": f"{base}/release-group/{r.mb_rgid}/front-250" if r.mb_rgid else None}
 
 
 def _list_out(db: Session, lst: GeneratedList) -> dict:
@@ -151,6 +154,7 @@ def _list_out(db: Session, lst: GeneratedList) -> dict:
                 "slot": i.slot,
                 "track_id": i.track_id,
                 "title": metas[i.track_id].title if i.track_id in metas else None,
+                "image": metas[i.track_id].image_url if i.track_id in metas else None,
                 "release": _release_out(releases.get(i.release_id)),
                 "score": round(i.score, 6),
                 "reasons": [_reason(r, names) for r in i.reasons],

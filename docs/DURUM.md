@@ -8,6 +8,10 @@ Son güncelleme: 13 Kasım 2026 · Her aşama (PR) sonrasında güncellenir.
 - **Faz 1 kapısı geçildi (30 Ekim 2026):** emülatörde hesap açıldı, Spotify bağlandı, kütüphane aktarıldı (531 bağlantı, 524 parça veritabanında).
 - **Faz 0:** tamamlandı. Kalan kullanıcı işleri: partners@last.fm'e izin e-postası, `.env.example` şablonunu geri koymak, Spotify'daki "tini-spike" ve "tini-spike-2" çalma listelerini silmek.
 
+## Son oylananlar ve liste kapakları (13 Kasım 2026)
+
+- `/votes/history` ve `/lists` yanıtlarına kapak eklendi (parça önbelleği `image`, yayın `release.cover`); istemci kapak yüklenemezse sanatçı portresine düşer. Canlıda doğrulanmadı; kapak, kullanıcı parça önbelleği doluysa görünür.
+
 ## Arayüz yeniden tasarımı (dal `ui/redesign`, 13 Kasım 2026)
 
 İstem: Claude Docs "Tını — Claude Code İstemi (Arayüz Tasarımı)". Karar: açık tema korunur, galaksi teması üzerine kurulur (istemin "yalnız koyu / nötr siyah" kısmı bilerek uygulanmaz).

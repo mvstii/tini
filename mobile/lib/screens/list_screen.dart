@@ -238,7 +238,13 @@ class _ListScreenState extends State<ListScreen> {
       ..showSnackBar(SnackBar(content: Text(msg)));
   }
 
-  String? _cover(ListEntry e) => _photos[e.artistId] ?? e.artistImage;
+  String? _portrait(ListEntry e) => _photos[e.artistId] ?? e.artistImage;
+
+  /// Parça/yayın kapağı; yoksa (ya da yüklenemezse) sanatçı portresi.
+  String? _cover(ListEntry e) => e.image ?? _portrait(e);
+
+  /// Asıl kapak varsa ve yüklenemezse portre devreye girer.
+  String? _coverFallback(ListEntry e) => e.image == null ? null : _portrait(e);
 
   _Shown _shown(ListEntry e) {
     final song = e.title ?? _titles[e.position];
@@ -270,6 +276,7 @@ class _ListScreenState extends State<ListScreen> {
         entry: e,
         shown: shown,
         coverUrl: _cover(e),
+        coverFallbackUrl: _coverFallback(e),
         onObject: () => _object(e),
         onOpen: () => _open(e),
       ),
@@ -301,7 +308,11 @@ class _ListScreenState extends State<ListScreen> {
             covers: [
               if (list != null)
                 for (final e in list.items.take(4))
-                  (seed: '${_shown(e).title}|${e.name}', url: _cover(e)),
+                  (
+                    seed: '${_shown(e).title}|${e.name}',
+                    url: _cover(e),
+                    fallback: _coverFallback(e),
+                  ),
             ],
             title: widget.embedded && list == null
                 ? TiniStrings.listEmbeddedTitle
@@ -356,6 +367,7 @@ class _ListScreenState extends State<ListScreen> {
                             isNew: s.isNew,
                             coverSeed: '${s.title}|${e.name}',
                             coverUrl: _cover(e),
+                            coverFallbackUrl: _coverFallback(e),
                             reason: top.isEmpty
                                 ? TiniStrings.noAnchorReason
                                 : TiniStrings.reasonShort(
@@ -401,7 +413,7 @@ class _Header extends StatelessWidget {
   });
   final DiscoveryList? list;
   final double topPad;
-  final List<({String seed, String? url})> covers;
+  final List<({String seed, String? url, String? fallback})> covers;
   final String title;
   final int freshCount;
   final bool busy;
@@ -507,7 +519,7 @@ class _Header extends StatelessWidget {
 /// 190 pt'lik 2×2 kapak kolajı; eksik kapaklar kararlı yedek gradyanla dolar.
 class _Collage extends StatelessWidget {
   const _Collage({required this.covers});
-  final List<({String seed, String? url})> covers;
+  final List<({String seed, String? url, String? fallback})> covers;
 
   @override
   Widget build(BuildContext context) {
@@ -518,6 +530,7 @@ class _Collage extends StatelessWidget {
         ? TiniCover(
             seed: covers[i].seed,
             url: covers[i].url,
+            fallbackUrl: covers[i].fallback,
             size: cell,
             radius: 0,
           )
@@ -562,12 +575,14 @@ class _WhySheet extends StatefulWidget {
     required this.entry,
     required this.shown,
     required this.coverUrl,
+    this.coverFallbackUrl,
     required this.onObject,
     required this.onOpen,
   });
   final ListEntry entry;
   final _Shown shown;
   final String? coverUrl;
+  final String? coverFallbackUrl;
   final Future<bool> Function() onObject;
   final VoidCallback onOpen;
 
@@ -634,6 +649,7 @@ class _WhySheetState extends State<_WhySheet> {
                 TiniCover(
                   seed: '${s.title}|${e.name}',
                   url: widget.coverUrl,
+                  fallbackUrl: widget.coverFallbackUrl,
                   size: 64,
                   radius: TiniTokens.rCard,
                 ),
