@@ -24,9 +24,13 @@ class TiniCover extends StatelessWidget {
     this.url,
     this.size = 50,
     this.radius = TiniTokens.rCoverSmall,
+    this.fallbackUrl,
   });
   final String seed;
   final String? url;
+
+  /// Kapak yoksa ya da yüklenemezse gösterilecek ikinci görsel (ör. sanatçı portresi).
+  final String? fallbackUrl;
   final double size;
   final double radius;
 
@@ -52,6 +56,18 @@ class TiniCover extends StatelessWidget {
   static CoverArtKind kindFor(String seed) =>
       CoverArtKind.values[(tiniHash(seed) ~/ 13) % CoverArtKind.values.length];
 
+  Widget _fallbackImage(BuildContext context) {
+    final f = fallbackUrl;
+    if (f == null || f.isEmpty) return const SizedBox.shrink();
+    return Image.network(
+      f,
+      fit: BoxFit.cover,
+      gaplessPlayback: true,
+      cacheWidth: (size * MediaQuery.devicePixelRatioOf(context)).round(),
+      errorBuilder: (_, _, _) => const SizedBox.shrink(),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final h = tiniHash(seed);
@@ -75,8 +91,10 @@ class TiniCover extends StatelessWidget {
                 fit: BoxFit.cover,
                 gaplessPlayback: true,
                 cacheWidth: (size * MediaQuery.devicePixelRatioOf(context)).round(),
-                errorBuilder: (_, _, _) => const SizedBox.shrink(),
-              ),
+                errorBuilder: (_, _, _) => _fallbackImage(context),
+              )
+            else
+              _fallbackImage(context),
           ],
         ),
       ),
