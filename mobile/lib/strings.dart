@@ -80,6 +80,38 @@ abstract final class TiniStrings {
   static const appleNotAvailable = 'Apple Music bağlantısı henüz yok';
   static const noPlayableTracks =
       'Bu listedeki öğelerin çalınabilir parçası bulunamadı.';
+  // Profil
+  static const profileTitle = 'Profil';
+  static const settings = 'Bağlantılar ve ayarlar';
+  static const you = 'Sen';
+  static String levelLabel(int n) => 'Seviye $n';
+  static String profileSummary(int votes, int amazing, int unheard) =>
+      '$votes oy · $amazing Efsane · $unheard Dinlemedin';
+  static const tasteModes = 'Zevk modların';
+  static String modeName(int n) => 'Mod $n';
+  static const modesEmpty = 'Zevk modların, profilin kurulunca burada görünür.';
+  static const yourVotes = 'Oy dağılımın';
+  static const calibrationDone =
+      '30 oydan sonra puanların kendi ölçeğine göre ayarlanıyor';
+  static String calibrationLeft(int n) => '$n oy daha verince ayarlanacak';
+  static const avoidZone = 'Kaçınma bölgesi';
+  static const avoidHard = 'Sert filtre';
+  static const avoidSoft = 'Yumuşak ceza';
+  static const avoidEmpty = 'Henüz kaçındığımız bir şey yok.';
+  static const avoidHint = 'Öneriler bu sanatçılardan uzak tutulur.';
+  static const recentVotes = 'Son oylananlar';
+  static const noVotesYet = 'Henüz oy yok.';
+  static const myLists = 'Listelerim';
+  static const listenLater = 'Sonra dinle';
+  static const myLikes = 'Beğendiklerim';
+  static const appearance = 'Görünüm';
+  static const themeSystem = 'Sistem';
+  static const themeLight = 'Açık';
+  static const themeDark = 'Koyu';
+  static const logout = 'Çıkış';
+  static const serverUnreachable = 'Sunucuya ulaşılamadı';
+  static String trackFallback(int n) => 'Parça $n';
+
   static String savedToSpotify(int added, int skipped, String detail) =>
       "Spotify'a kaydedildi: $added parça${skipped > 0 ? ', $skipped öğe atlandı$detail' : ''}";
 }

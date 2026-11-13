@@ -129,6 +129,20 @@ class HistoryItem {
   final List<String> artists;
 }
 
+/// Zevk profilinin arayüzün kullandığı özeti (kimlik/ağırlık düzeyi; ad ve etiket yok).
+class TasteProfile {
+  const TasteProfile({
+    required this.voteCount,
+    required this.clusterWeights,
+    required this.avoidCount,
+    required this.hardAvoidCount,
+  });
+  final int voteCount;
+  final List<double> clusterWeights;
+  final int avoidCount;
+  final int hardAvoidCount;
+}
+
 class ExportResult {
   ExportResult(this.added, this.skippedNames);
   final int added;
@@ -388,6 +402,26 @@ class Api {
       {'kind': kind, 'screen': screen, 'app_version': appVersion, 'message': message});
 
   Future<void> rebuildProfile() => _send('POST', '/profile/rebuild');
+
+  /// Son zevk profili; henüz üretilmediyse (404) null. Sunucu yalnızca kimlik ve ağırlık verir.
+  Future<TasteProfile?> tasteProfile() async {
+    try {
+      final b = await _send('GET', '/profile');
+      final clusters = (b['clusters'] as List?) ?? const [];
+      final avoid = (b['avoid'] as List?) ?? const [];
+      return TasteProfile(
+        voteCount: (b['vote_count'] as num?)?.toInt() ?? 0,
+        clusterWeights: [
+          for (final c in clusters) ((c as Map)['weight'] as num?)?.toDouble() ?? 0.0,
+        ],
+        avoidCount: avoid.length,
+        hardAvoidCount: avoid.where((a) => (a as Map)['hard'] == true).length,
+      );
+    } on ApiException catch (e) {
+      if (e.status == 404) return null;
+      rethrow;
+    }
+  }
 
   /// Oy geçmişi: parça başına güncel oy, yeniden eskiye.
   Future<List<HistoryItem>> voteHistory({int limit = 200}) async =>

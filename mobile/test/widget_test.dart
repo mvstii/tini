@@ -1308,7 +1308,7 @@ void main() {
 
         await tester.tap(find.byKey(const ValueKey('tab-3')));
         await tester.pumpAndSettle();
-        expect(find.text('OY DAĞILIMI'), findsOneWidget);
+        expect(find.text('Oy dağılımın'), findsOneWidget);
         expect(tester.takeException(), isNull);
       },
     );

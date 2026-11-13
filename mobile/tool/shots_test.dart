@@ -184,6 +184,68 @@ void main() {
       await save('ui4-gerekce-${b.name}');
     });
   }
+  // UI-5 inceleme görüntüleri: Profil sekmesi.
+  for (final b in [Brightness.dark, Brightness.light]) {
+    testWidgets('profile ${b.name}', (t) async {
+      final names = ['Gece Yarısı', 'Beta', 'Delta', 'Omega', 'Sigma', 'Kappa'];
+      final history = [
+        for (final (i, n) in names.indexed)
+          {
+            'track': i + 1,
+            'title': n,
+            'artists': ['Sanatçı ${i + 1}'],
+            'vote': [6, 5, 4, 6, 3, 1][i],
+          },
+      ];
+      final a = Api(
+          client: MockClient((r) async {
+            switch (r.url.path) {
+              case '/votes/history':
+                return http.Response.bytes(
+                    utf8.encode(jsonEncode({'total': 412, 'items': history})), 200);
+              case '/profile':
+                return http.Response.bytes(
+                    utf8.encode(jsonEncode({
+                      'vote_count': 412,
+                      'clusters': [
+                        {'id': 1, 'weight': 0.34, 'artists': []},
+                        {'id': 2, 'weight': 0.27, 'artists': []},
+                        {'id': 3, 'weight': 0.21, 'artists': []},
+                        {'id': 4, 'weight': 0.12, 'artists': []},
+                        {'id': 5, 'weight': 0.06, 'artists': []},
+                      ],
+                      'avoid': [
+                        for (var i = 0; i < 9; i++) {'artist_id': i, 'strength': 1.0, 'hard': i < 3},
+                      ],
+                    })),
+                    200);
+            }
+            return http.Response('{}', 200);
+          }),
+          storage: _Mem());
+      await a.restore();
+      t.view.physicalSize = const Size(390 * 3, 1500 * 3);
+      t.view.devicePixelRatio = 3;
+      addTearDown(t.view.reset);
+      await t.pumpWidget(RepaintBoundary(
+          key: key,
+          child: MaterialApp(
+              debugShowCheckedModeBanner: false,
+              theme: _theme(b),
+              home: AppShell(api: a, onLogout: () {}))));
+      await t.pumpAndSettle();
+      await t.tap(find.byKey(const ValueKey('tab-3')));
+      await t.pumpAndSettle();
+      await t.runAsync(() async {
+        final r = key.currentContext!.findRenderObject() as RenderRepaintBoundary;
+        final img = await r.toImage(pixelRatio: 1);
+        final bytes = (await img.toByteData(format: ui.ImageByteFormat.png))!;
+        File('../docs/design/review/ui5-profil-${b.name}.png')
+          ..createSync(recursive: true)
+          ..writeAsBytesSync(bytes.buffer.asUint8List());
+      });
+    });
+  }
   testWidgets('login dark', (t) async {
     final a = api();
     await shot(t, MaterialApp(debugShowCheckedModeBanner: false, theme: _theme(Brightness.dark), home: LoginScreen(api: a, onDone: () {})), 'giris-dark');

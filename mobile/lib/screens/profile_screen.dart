@@ -2,13 +2,15 @@ import 'package:flutter/material.dart';
 
 import '../api.dart';
 import '../app_state.dart';
-import '../theme/cosmic_colors.dart';
-import '../widgets/studio.dart';
+import '../strings.dart';
+import '../theme/tini_tokens.dart';
+import '../ui/components/components.dart';
 import 'home_screen.dart';
 import 'tracks_screen.dart' show LaterScreen;
 
-/// Profil sekmesi: seviye özeti, canlı oy dağılımı ve son oylananlar (hepsi [AppState]'ten).
-class ProfileScreen extends StatelessWidget {
+/// Profil sekmesi: kullanıcı kartı, zevk modları, oy dağılımı, kaçınma bölgesi ve oy geçmişi.
+/// Oy sayıları [AppState]'ten, mod payları ve kaçınma sayıları sunucudaki son profilden gelir.
+class ProfileScreen extends StatefulWidget {
   const ProfileScreen({
     super.key,
     required this.api,
@@ -23,25 +25,74 @@ class ProfileScreen extends StatelessWidget {
   final ThemeMode themeMode;
   final ValueChanged<ThemeMode>? onThemeChanged;
 
+  @override
+  State<ProfileScreen> createState() => _ProfileScreenState();
+}
+
+class _ProfileScreenState extends State<ProfileScreen> {
+  TasteProfile? _profile;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadProfile();
+  }
+
+  Future<void> _loadProfile() async {
+    try {
+      final p = await widget.api.tasteProfile();
+      if (mounted) setState(() => _profile = p);
+    } catch (_) {
+      // Profil yoksa ya da sunucuya ulaşılamıyorsa mod/kaçınma bölümleri boş durumda kalır.
+    }
+  }
+
   /// Üstte açık sayfa varken çıkış yapılırsa yığın temizlenir (giriş ekranı üstte kalmasın).
   void _logout(BuildContext context) {
     Navigator.of(context).popUntil((r) => r.isFirst);
-    onLogout();
+    widget.onLogout();
+  }
+
+  void _openSettings(BuildContext context) {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => HomeScreen(
+          api: widget.api,
+          onLogout: () => _logout(context),
+          themeMode: widget.themeMode,
+          onThemeChanged: widget.onThemeChanged,
+        ),
+      ),
+    );
   }
 
   Future<void> _change(BuildContext context, HistoryItem h) async {
-    final c = TiniCosmicColors.of(context);
+    final t = TiniTokens.of(context);
     final picked = await showModalBottomSheet<int>(
       context: context,
+      backgroundColor: t.surface1,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(TiniTokens.rSheet),
+        ),
+      ),
       builder: (ctx) => SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            ListTile(title: Text(h.title ?? 'Parça ${h.track}')),
+            ListTile(
+              title: Text(
+                h.title ?? TiniStrings.trackFallback(h.track),
+                style: TiniTokens.cardTitle.copyWith(color: t.text),
+              ),
+            ),
             for (var v = 1; v <= 6; v++)
               ListTile(
-                leading: Icon(c.votes[v]!.icon, color: c.votes[v]!.fg),
-                title: Text('$v · ${c.votes[v]!.label}'),
+                leading: VoteBadge(vote: v),
+                title: Text(
+                  '$v · ${TiniStrings.voteLabels[v - 1]}',
+                  style: TiniTokens.bodyStrong.copyWith(color: t.text),
+                ),
                 selected: v == h.vote,
                 onTap: () => Navigator.pop(ctx, v),
               ),
@@ -51,201 +102,234 @@ class ProfileScreen extends StatelessWidget {
     );
     if (picked == null || picked == h.vote) return;
     try {
-      await api.castVote(h.track, picked); // yeni bir olay; eskisi silinmez
-      state.recordChange(h, picked);
+      await widget.api.castVote(
+        h.track,
+        picked,
+      ); // yeni bir olay; eskisi silinmez
+      widget.state.recordChange(h, picked);
     } on ApiException catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(e.message)));
       }
     } catch (_) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('Sunucuya ulaşılamadı')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text(TiniStrings.serverUnreachable)),
+        );
       }
     }
   }
 
+  List<ModeData> _modes() {
+    final w = _profile?.clusterWeights ?? const <double>[];
+    final sum = w.fold<double>(0, (a, b) => a + b);
+    if (sum <= 0) return const [];
+    return [
+      for (var i = 0; i < w.length; i++)
+        if (w[i] > 0)
+          ModeData(name: TiniStrings.modeName(i + 1), share: w[i] / sum),
+    ];
+  }
+
   @override
   Widget build(BuildContext context) {
-    final c = TiniCosmicColors.of(context);
-    final theme = Theme.of(context);
-    const tab = [FontFeature.tabularFigures()];
+    final t = TiniTokens.of(context);
     return Scaffold(
       backgroundColor: Colors.transparent,
       body: SafeArea(
         bottom: false,
         child: ListenableBuilder(
-          listenable: state,
+          listenable: widget.state,
           builder: (context, _) {
-            final counts = state.counts;
-            final max = counts.values.fold<int>(1, (m, v) => v > m ? v : m);
-            final avg = state.average;
+            final state = widget.state;
+            final counts = [for (var v = 1; v <= 6; v++) state.counts[v] ?? 0];
+            final modes = _modes();
             return ListView(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 80 + 24),
+              padding: const EdgeInsets.fromLTRB(
+                TiniTokens.pageMargin,
+                14,
+                TiniTokens.pageMargin,
+                80 + 24,
+              ),
               children: [
-                StudioSurface(
-                  padding: const EdgeInsets.all(16),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        TiniStrings.profileTitle,
+                        style: TiniTokens.screenTitle.copyWith(color: t.text),
+                      ),
+                    ),
+                    IconButton(
+                      key: const ValueKey('open-settings'),
+                      tooltip: TiniStrings.settings,
+                      onPressed: () => _openSettings(context),
+                      icon: Icon(Icons.settings_rounded, color: t.muted),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                _UserCard(state: state),
+                const SizedBox(height: TiniTokens.sectionGap),
+                Text(
+                  TiniStrings.tasteModes,
+                  style: TiniTokens.section.copyWith(color: t.text),
+                ),
+                const SizedBox(height: 10),
+                if (modes.isEmpty)
+                  Text(
+                    TiniStrings.modesEmpty,
+                    key: const ValueKey('modes-empty'),
+                    style: TiniTokens.body.copyWith(color: t.muted),
+                  )
+                else
+                  ModeBubbleField(
+                    key: const ValueKey('mode-field'),
+                    modes: modes,
+                    height: 240,
+                  ),
+                const SizedBox(height: TiniTokens.sectionGap),
+                Text(
+                  TiniStrings.yourVotes,
+                  style: TiniTokens.section.copyWith(color: t.text),
+                ),
+                const SizedBox(height: 12),
+                _Surface(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Seviye ${state.level}',
-                          style: studioTitle(context, base: theme.textTheme.headlineSmall)?.copyWith(color: c.primary)),
-                      const SizedBox(height: 12),
+                      VoteDistributionChart(counts: counts),
+                      const SizedBox(height: 6),
                       Row(
                         children: [
-                          _Stat('${state.total}', 'Oylanan', tab),
-                          _Stat('${state.unheardSession}', 'Dinlemedim\n(bu oturum)', tab),
-                          _Stat(avg == null ? '–' : avg.toStringAsFixed(1), 'Ortalama', tab),
+                          for (var v = 1; v <= 6; v++) ...[
+                            if (v > 1) const SizedBox(width: 14),
+                            Expanded(
+                              child: Text(
+                                '${counts[v - 1]}',
+                                key: ValueKey('count-$v'),
+                                textAlign: TextAlign.center,
+                                style: TiniTokens.secondary.copyWith(
+                                  color: t.muted,
+                                  fontFeatures: const [
+                                    FontFeature.tabularFigures(),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
                         ],
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        state.total >= tourVotes
+                            ? TiniStrings.calibrationDone
+                            : TiniStrings.calibrationLeft(
+                                tourVotes - state.total,
+                              ),
+                        key: const ValueKey('calibration-note'),
+                        style: TiniTokens.secondary.copyWith(color: t.muted),
                       ),
                     ],
                   ),
                 ),
-                const SizedBox(height: 16),
-                const SectionLabel('LİSTELERİM'),
-                const SizedBox(height: 8),
-                StudioSurface(
-                  child: Material(
-                    color: Colors.transparent,
-                    child: Column(
-                      children: [
-                        ListTile(
-                          key: const ValueKey('open-later-list'),
-                          leading: const Icon(Icons.bookmark_border_rounded),
-                          title: const Text('Sonra dinle'),
-                          trailing: const Icon(Icons.chevron_right_rounded),
-                          onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(
-                              builder: (_) => LaterScreen(api: api))),
+                const SizedBox(height: TiniTokens.sectionGap),
+                Text(
+                  TiniStrings.avoidZone,
+                  style: TiniTokens.section.copyWith(color: t.text),
+                ),
+                const SizedBox(height: 12),
+                _AvoidCard(profile: _profile),
+                const SizedBox(height: TiniTokens.sectionGap),
+                Text(
+                  TiniStrings.recentVotes,
+                  style: TiniTokens.section.copyWith(color: t.text),
+                ),
+                const SizedBox(height: 10),
+                if (state.recent.isEmpty)
+                  Text(
+                    TiniStrings.noVotesYet,
+                    style: TiniTokens.body.copyWith(color: t.muted),
+                  ),
+                for (final h in state.recent)
+                  _HistoryRow(item: h, onTap: () => _change(context, h)),
+                const SizedBox(height: TiniTokens.sectionGap),
+                Text(
+                  TiniStrings.myLists,
+                  style: TiniTokens.section.copyWith(color: t.text),
+                ),
+                const SizedBox(height: 10),
+                _Surface(
+                  padding: EdgeInsets.zero,
+                  child: Column(
+                    children: [
+                      _LinkTile(
+                        tileKey: const ValueKey('open-later-list'),
+                        icon: Icons.bookmark_border_rounded,
+                        label: TiniStrings.listenLater,
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) => LaterScreen(api: widget.api),
+                          ),
                         ),
-                        ListTile(
-                          key: const ValueKey('open-likes-list'),
-                          leading: const Icon(Icons.favorite_border_rounded),
-                          title: const Text('Beğendiklerim'),
-                          trailing: const Icon(Icons.chevron_right_rounded),
-                          onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(
-                              builder: (_) => LaterScreen(api: api, likes: true))),
+                      ),
+                      _LinkTile(
+                        tileKey: const ValueKey('open-likes-list'),
+                        icon: Icons.favorite_border_rounded,
+                        label: TiniStrings.myLikes,
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) =>
+                                LaterScreen(api: widget.api, likes: true),
+                          ),
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
                 ),
-                const SizedBox(height: 16),
-                const SectionLabel('GÖRÜNÜM'),
-                const SizedBox(height: 8),
+                const SizedBox(height: TiniTokens.sectionGap),
+                Text(
+                  TiniStrings.appearance,
+                  style: TiniTokens.section.copyWith(color: t.text),
+                ),
+                const SizedBox(height: 10),
                 SizedBox(
                   width: double.infinity,
                   child: SegmentedButton<ThemeMode>(
                     segments: const [
                       ButtonSegment(
-                          value: ThemeMode.system,
-                          icon: Icon(Icons.brightness_auto),
-                          label: Text('Sistem')),
-                      ButtonSegment(
-                          value: ThemeMode.light,
-                          icon: Icon(Icons.light_mode),
-                          label: Text('Açık')),
-                      ButtonSegment(
-                          value: ThemeMode.dark,
-                          icon: Icon(Icons.dark_mode),
-                          label: Text('Koyu')),
-                    ],
-                    selected: {themeMode},
-                    onSelectionChanged: (s) => onThemeChanged?.call(s.first),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                const SectionLabel('OY DAĞILIMI'),
-                const SizedBox(height: 8),
-                StudioSurface(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    children: [
-                      for (var v = 1; v <= 6; v++)
-                        Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 5),
-                          child: Row(
-                            children: [
-                              SizedBox(
-                                width: 84,
-                                child: Row(children: [
-                                  Icon(c.votes[v]!.icon, size: 16, color: c.votes[v]!.fg),
-                                  const SizedBox(width: 6),
-                                  Flexible(
-                                      child: Text('$v · ${c.votes[v]!.label}',
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                          style: theme.textTheme.labelMedium)),
-                                ]),
-                              ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: TweenAnimationBuilder<double>(
-                                  tween: Tween(end: counts[v]! / max),
-                                  duration: const Duration(milliseconds: 300),
-                                  curve: Curves.easeOutCubic,
-                                  builder: (_, t, _) => LinearProgressIndicator(
-                                    value: t,
-                                    minHeight: 10,
-                                    borderRadius: BorderRadius.circular(5),
-                                    color: c.votes[v]!.border,
-                                    backgroundColor: c.votes[v]!.fill,
-                                  ),
-                                ),
-                              ),
-                              SizedBox(
-                                width: 36,
-                                child: Text('${counts[v]}',
-                                    textAlign: TextAlign.right,
-                                    key: ValueKey('count-$v'),
-                                    style: theme.textTheme.labelMedium
-                                        ?.copyWith(fontFeatures: tab)),
-                              ),
-                            ],
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 16),
-                const SectionLabel('SON OYLANANLAR'),
-                const SizedBox(height: 8),
-                if (state.recent.isEmpty)
-                  const StateNote.empty('Henüz oy yok.', icon: Icons.how_to_vote_outlined),
-                for (final h in state.recent)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 6),
-                    child: StudioSurface(
-                      child: Material(
-                      color: Colors.transparent,
-                      child: ListTile(
-                        title: Text(h.title ?? 'Parça ${h.track}', maxLines: 1, overflow: TextOverflow.ellipsis),
-                        subtitle: Text(h.artists.join(', '), maxLines: 1, overflow: TextOverflow.ellipsis),
-                        trailing: _VoteBadge(style: c.votes[h.vote]!, vote: h.vote),
-                        onTap: () => _change(context, h),
+                        value: ThemeMode.system,
+                        icon: Icon(Icons.brightness_auto),
+                        label: Text(TiniStrings.themeSystem),
                       ),
-                    ),
+                      ButtonSegment(
+                        value: ThemeMode.light,
+                        icon: Icon(Icons.light_mode),
+                        label: Text(TiniStrings.themeLight),
+                      ),
+                      ButtonSegment(
+                        value: ThemeMode.dark,
+                        icon: Icon(Icons.dark_mode),
+                        label: Text(TiniStrings.themeDark),
+                      ),
+                    ],
+                    selected: {widget.themeMode},
+                    onSelectionChanged: (s) =>
+                        widget.onThemeChanged?.call(s.first),
                   ),
-                  ),
-                const SizedBox(height: 8),
-                OutlinedButton.icon(
-                  onPressed: () => Navigator.of(context).push(MaterialPageRoute<void>(
-                      builder: (_) => HomeScreen(
-                            api: api,
-                            onLogout: () => _logout(context),
-                            themeMode: themeMode,
-                            onThemeChanged: onThemeChanged,
-                          ))),
-                  icon: const Icon(Icons.settings_rounded),
-                  label: const Text('Bağlantılar ve ayarlar'),
                 ),
-                const SizedBox(height: 8),
-                TextButton.icon(
-                  onPressed: () async {
-                    await api.logout();
-                    if (context.mounted) _logout(context);
-                  },
-                  icon: const Icon(Icons.logout_rounded),
-                  label: const Text('Çıkış'),
+                const SizedBox(height: 10),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: TextButton.icon(
+                    onPressed: () async {
+                      await widget.api.logout();
+                      if (context.mounted) _logout(context);
+                    },
+                    icon: const Icon(Icons.logout_rounded),
+                    label: const Text(TiniStrings.logout),
+                  ),
                 ),
               ],
             );
@@ -254,51 +338,219 @@ class ProfileScreen extends StatelessWidget {
       ),
     );
   }
-
 }
 
-class _Stat extends StatelessWidget {
-  const _Stat(this.value, this.label, this.features);
-  final String value;
-  final String label;
-  final List<FontFeature> features;
+class _Surface extends StatelessWidget {
+  const _Surface({
+    required this.child,
+    this.padding = const EdgeInsets.all(16),
+  });
+  final Widget child;
+  final EdgeInsets padding;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Expanded(
-      child: Column(
+    final t = TiniTokens.of(context);
+    return Container(
+      width: double.infinity,
+      padding: padding,
+      decoration: BoxDecoration(
+        color: t.surface1,
+        borderRadius: BorderRadius.circular(TiniTokens.rCard),
+        border: Border.all(color: t.line),
+      ),
+      child: Material(type: MaterialType.transparency, child: child),
+    );
+  }
+}
+
+/// Kullanıcı kartı: avatar, "Seviye N" ve "412 oy · 38 Efsane · 27 Dinlemedin".
+/// Sunucu kullanıcı adı vermediği için ad yerine genel bir başlık kullanılır.
+class _UserCard extends StatelessWidget {
+  const _UserCard({required this.state});
+  final AppState state;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = TiniTokens.of(context);
+    return _Surface(
+      child: Row(
         children: [
-          Text(value, style: theme.textTheme.headlineSmall?.copyWith(fontFeatures: features)),
-          Text(label, textAlign: TextAlign.center, style: theme.textTheme.labelSmall),
+          Container(
+            width: 52,
+            height: 52,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: LinearGradient(
+                colors: [
+                  TiniCover.colorsFor('profile').$1,
+                  TiniCover.colorsFor('profile').$2,
+                ],
+              ),
+            ),
+            child: Icon(Icons.person_rounded, color: TiniTokens.onLightFill),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Text(
+                      TiniStrings.you,
+                      style: TiniTokens.cardTitle.copyWith(color: t.text),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      TiniStrings.levelLabel(state.level),
+                      style: TiniTokens.badge.copyWith(color: t.muted),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  TiniStrings.profileSummary(
+                    state.total,
+                    state.counts[6] ?? 0,
+                    state.unheardSession,
+                  ),
+                  key: const ValueKey('profile-summary'),
+                  style: TiniTokens.secondary.copyWith(color: t.muted),
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );
   }
 }
 
-class _VoteBadge extends StatelessWidget {
-  const _VoteBadge({required this.style, required this.vote});
-  final VoteStyle style;
-  final int vote;
+/// Kaçınma bölgesi: kırmızı tonlu kart. Sunucu yalnızca sayı verir (etiket/ad yok).
+class _AvoidCard extends StatelessWidget {
+  const _AvoidCard({required this.profile});
+  final TasteProfile? profile;
 
   @override
   Widget build(BuildContext context) {
+    final t = TiniTokens.of(context);
+    final danger = TiniVote.color(1);
+    final p = profile;
+    final soft = p == null ? 0 : p.avoidCount - p.hardAvoidCount;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      key: const ValueKey('avoid-card'),
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: style.fill,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: style.border, width: style.borderWidth),
+        color: danger.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(TiniTokens.rCard),
+        border: Border.all(color: danger.withValues(alpha: 0.35)),
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(style.icon, size: 16, color: style.fg),
-          const SizedBox(width: 4),
-          Text('$vote', style: TextStyle(color: style.fg, fontWeight: FontWeight.w800)),
-        ],
+      child: p == null || p.avoidCount == 0
+          ? Text(
+              TiniStrings.avoidEmpty,
+              style: TiniTokens.body.copyWith(color: t.muted),
+            )
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    if (p.hardAvoidCount > 0)
+                      TagChip(
+                        label: TiniStrings.avoidHard,
+                        count: p.hardAvoidCount,
+                        danger: true,
+                      ),
+                    if (soft > 0)
+                      TagChip(
+                        label: TiniStrings.avoidSoft,
+                        count: soft,
+                        danger: true,
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  TiniStrings.avoidHint,
+                  style: TiniTokens.secondary.copyWith(color: t.muted),
+                ),
+              ],
+            ),
+    );
+  }
+}
+
+class _HistoryRow extends StatelessWidget {
+  const _HistoryRow({required this.item, required this.onTap});
+  final HistoryItem item;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = TiniTokens.of(context);
+    final title = item.title ?? TiniStrings.trackFallback(item.track);
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(TiniTokens.rCard),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: Row(
+          children: [
+            TiniCover(seed: 'track-${item.track}', size: 46),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TiniTokens.bodyStrong.copyWith(color: t.text),
+                  ),
+                  Text(
+                    item.artists.join(', '),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TiniTokens.secondary.copyWith(color: t.muted),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 10),
+            VoteBadge(vote: item.vote, size: 30),
+          ],
+        ),
       ),
+    );
+  }
+}
+
+class _LinkTile extends StatelessWidget {
+  const _LinkTile({
+    required this.tileKey,
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+  final Key tileKey;
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = TiniTokens.of(context);
+    return ListTile(
+      key: tileKey,
+      leading: Icon(icon, color: t.muted),
+      title: Text(label, style: TiniTokens.bodyStrong.copyWith(color: t.text)),
+      trailing: Icon(Icons.chevron_right_rounded, color: t.muted2),
+      onTap: onTap,
     );
   }
 }
