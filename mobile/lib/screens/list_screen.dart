@@ -463,24 +463,26 @@ class _Header extends StatelessWidget {
               style: TiniTokens.caption.copyWith(color: t.muted2),
             ),
             const SizedBox(height: 16),
-            Wrap(
-              alignment: WrapAlignment.center,
-              spacing: 10,
-              runSpacing: 10,
+            Row(
               children: [
-                ServiceSaveButton(
-                  key: const ValueKey('save-apple'),
-                  service: ServiceKind.apple,
-                  state: SaveState.notConnected,
-                  compact: true,
-                  onPressed: onSaveApple,
+                Expanded(
+                  child: ServiceSaveButton(
+                    key: const ValueKey('save-apple'),
+                    service: ServiceKind.apple,
+                    state: SaveState.notConnected,
+                    compact: true,
+                    onPressed: onSaveApple,
+                  ),
                 ),
-                ServiceSaveButton(
-                  key: const ValueKey('save-spotify'),
-                  service: ServiceKind.spotify,
-                  state: spotify,
-                  compact: true,
-                  onPressed: onSaveSpotify,
+                const SizedBox(width: 10),
+                Expanded(
+                  child: ServiceSaveButton(
+                    key: const ValueKey('save-spotify'),
+                    service: ServiceKind.spotify,
+                    state: spotify,
+                    compact: true,
+                    onPressed: onSaveSpotify,
+                  ),
                 ),
               ],
             ),
@@ -653,11 +655,11 @@ class _WhySheetState extends State<_WhySheet> {
                           overflow: TextOverflow.ellipsis,
                           style: TiniTokens.secondary.copyWith(color: t.muted),
                         ),
-                      const SizedBox(height: 6),
-                      _SlotPill(slot: s.slot),
                     ],
                   ),
                 ),
+                const SizedBox(width: 10),
+                _SlotPill(slot: s.slot),
               ],
             ),
             const SizedBox(height: 22),
@@ -747,33 +749,18 @@ class _SlotPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final t = TiniTokens.of(context);
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
       decoration: BoxDecoration(
-        color: slot.color.withValues(alpha: 0.16),
+        color: slot.color,
         borderRadius: BorderRadius.circular(TiniTokens.rPill),
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 7,
-            height: 7,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: slot.color,
-            ),
-          ),
-          const SizedBox(width: 6),
-          Text(
-            slot.label,
-            style: TiniTokens.caption.copyWith(
-              color: t.text,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ],
+      child: Text(
+        slot.label,
+        style: TiniTokens.bodyStrong.copyWith(
+          color: TiniTokens.onLightFill,
+          fontWeight: FontWeight.w700,
+        ),
       ),
     );
   }

@@ -329,11 +329,11 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
                   key: ValueKey(_shuffle),
                   children: [
                     SizedBox(
-                      height: 190,
+                      height: 218,
                       child: ListView.separated(
                         scrollDirection: Axis.horizontal,
                         itemCount: carousel.length,
-                        separatorBuilder: (_, _) => const SizedBox(width: 12),
+                        separatorBuilder: (_, _) => const SizedBox(width: 14),
                         itemBuilder: (_, i) =>
                             _ReleaseCard(release: carousel[i]),
                       ),
@@ -599,41 +599,38 @@ class _ReleaseCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final t = TiniTokens.of(context);
+    // Tasarımdaki gibi: çerçevesiz büyük kapak, altında kalın ad ve soluk alt satır.
     return SizedBox(
-      width: 140,
-      child: StudioSurface(
-        radius: TiniTokens.rCard,
-        padding: const EdgeInsets.all(8),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Stack(
-              children: [
-                TiniCover(
-                  seed: '${release.title}|${release.artist}',
-                  url: release.cover,
-                  size: 124,
-                  radius: TiniTokens.rCoverSmall,
-                ),
-                const Positioned(left: 6, top: 6, child: NewBadge()),
-              ],
-            ),
-            const SizedBox(height: 6),
-            Text(
-              release.title,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: studioTitle(context, base: theme.textTheme.labelLarge),
-            ),
-            Text(
-              '${release.artist} · ${relativeDate(release.released)}',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: theme.textTheme.labelSmall,
-            ),
-          ],
-        ),
+      width: 150,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Stack(
+            children: [
+              TiniCover(
+                seed: '${release.title}|${release.artist}',
+                url: release.cover,
+                size: 150,
+                radius: TiniTokens.rCard,
+              ),
+              const Positioned(left: 8, top: 8, child: NewBadge()),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            release.title,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TiniTokens.bodyStrong.copyWith(color: t.text),
+          ),
+          Text(
+            '${release.artist} · ${relativeDate(release.released)}',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TiniTokens.caption.copyWith(color: t.muted),
+          ),
+        ],
       ),
     );
   }
@@ -766,9 +763,12 @@ class _PendingVotesCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = TiniTokens.of(context);
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    // Tahmini süre: oy başına ~20 sn (yaklaşık değer, sunucudan gelmez).
+    final minutes = math.max(1, (count / 3).round());
     return Container(
       key: const ValueKey('pending-votes-card'),
-      padding: const EdgeInsets.fromLTRB(16, 12, 12, 12),
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
       decoration: BoxDecoration(
         color: t.surface1,
         borderRadius: BorderRadius.circular(TiniTokens.rCard),
@@ -776,15 +776,57 @@ class _PendingVotesCard extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Expanded(
-            child: Text(
-              TiniStrings.pendingVotesCard(count),
-              style: TiniTokens.bodyStrong.copyWith(color: t.text),
+          // Üst üste binen üç kapak: sıradaki kartların önizlemesi.
+          SizedBox(
+            width: 64,
+            height: 34,
+            child: Stack(
+              children: [
+                for (final (i, s) in const ['kuyruk-1', 'kuyruk-2', 'kuyruk-3'].indexed)
+                  Positioned(
+                    left: i * 15.0,
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(
+                          TiniTokens.rCoverSmall,
+                        ),
+                        border: Border.all(color: t.surface1, width: 2),
+                      ),
+                      child: TiniCover(seed: s, size: 34),
+                    ),
+                  ),
+              ],
             ),
           ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  TiniStrings.pendingVotesCard(count),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TiniTokens.bodyStrong.copyWith(color: t.text),
+                ),
+                Text(
+                  '~$minutes dk · profilini netleştirir',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TiniTokens.caption.copyWith(color: t.muted),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
           FilledButton(
             key: const ValueKey('pending-votes-rate'),
             onPressed: onTap,
+            style: FilledButton.styleFrom(
+              backgroundColor: dark ? t.text : TiniTokens.onLightFill,
+              foregroundColor: dark ? TiniTokens.onLightFill : Colors.white,
+              shape: const StadiumBorder(),
+            ),
             child: const Text(TiniStrings.rate),
           ),
         ],

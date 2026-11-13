@@ -73,7 +73,7 @@ class TiniTokens extends ThemeExtension<TiniTokens> {
     bg: TiniCosmicColors.dark.scaffold,
     surface1: TiniCosmicColors.dark.card,
     surface2: TiniCosmicColors.dark.raised,
-    sheet: const Color(0xFF0D081A),
+    sheet: const Color(0xFF131316),
     line: const Color(0x14FFFFFF),
     text: const Color(0xFFF6F4FB),
     muted: TiniCosmicColors.dark.textSecondary,

@@ -510,6 +510,7 @@ class _RatingScreenState extends State<RatingScreen> {
       key: ValueKey(item.track),
       api: widget.api,
       item: item,
+      behind: _queue.cards.skip(1).take(2).toList(),
       color: c.card,
       enabled: canVote,
       peek: _peekPending,
@@ -571,12 +572,21 @@ class _TopBar extends StatelessWidget {
                   tween: Tween(begin: 0, end: state.inLevel / tourVotes),
                   duration: const Duration(milliseconds: 300),
                   curve: Curves.easeOutCubic,
-                  builder: (_, v, _) => LinearProgressIndicator(
-                    value: v,
-                    minHeight: 6,
-                    borderRadius: BorderRadius.circular(3),
-                    color: c.primary,
-                    backgroundColor: c.card,
+                  builder: (_, v, _) => ClipRRect(
+                    borderRadius: BorderRadius.circular(TiniTokens.rPill),
+                    child: Container(
+                      height: 4,
+                      color: c.raised,
+                      alignment: Alignment.centerLeft,
+                      child: FractionallySizedBox(
+                        key: const ValueKey('level-progress'),
+                        widthFactor: v.clamp(0.0, 1.0),
+                        child: const DecoratedBox(
+                          decoration: BoxDecoration(gradient: TiniTokens.brandGradient),
+                          child: SizedBox.expand(),
+                        ),
+                      ),
+                    ),
                   ),
                 ),
               ],
@@ -694,9 +704,11 @@ class _SwipeCard extends StatefulWidget {
     required this.onPeeked,
     required this.onLater,
     required this.onSkip,
+    this.behind = const [],
   });
   final Api api;
   final QueueItem item;
+  final List<QueueItem> behind;
   final Color color;
   final bool enabled;
   final bool peek;
@@ -795,9 +807,6 @@ class _SwipeCardState extends State<_SwipeCard>
       builder: (context, box) {
         _width = box.maxWidth;
         final compact = box.maxHeight < 250;
-        final hintStyle = theme.textTheme.labelSmall?.copyWith(
-          color: theme.colorScheme.onSurface,
-        );
         return Semantics(
           customSemanticsActions: widget.enabled
               ? {
@@ -839,44 +848,43 @@ class _SwipeCardState extends State<_SwipeCard>
                   ],
                 ),
               ),
-              child: Container(
-                decoration: _cardDecoration(context, widget.color),
-                padding: const EdgeInsets.all(14),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 14),
                 child: Column(
                   children: [
-                    if (!compact)
-                      Opacity(
-                        opacity: 0.6,
-                        child: Row(
-                          children: [
-                            Icon(
-                              Icons.chevron_left_rounded,
-                              size: 18,
-                              color: theme.colorScheme.onSurface,
-                            ),
-                            Text('Geç', style: hintStyle),
-                            const Spacer(),
-                            Text('Sonra dinle', style: hintStyle),
-                            Icon(
-                              Icons.chevron_right_rounded,
-                              size: 18,
-                              color: theme.colorScheme.onSurface,
-                            ),
-                          ],
-                        ),
-                      ),
                     Flexible(
                       child: Center(
                         child: AspectRatio(
                           aspectRatio: 1,
                           child: LayoutBuilder(
                             builder: (_, b) => Stack(
+                              clipBehavior: Clip.none,
                               children: [
+                                // Art arda dizilmiş sıradaki kartlar: hafif eğik, soluk.
+                                for (final (i, g) in widget.behind.indexed.toList().reversed)
+                                  Positioned.fill(
+                                    child: Opacity(
+                                      opacity: i == 0 ? 0.6 : 0.35,
+                                      child: Transform.rotate(
+                                        angle: (i == 0 ? -1 : 1) * (i == 0 ? 0.075 : 0.055),
+                                        child: Transform.translate(
+                                          offset: Offset(0, 10.0 * (i + 1)),
+                                          child: TiniCover(
+                                            key: ValueKey('behind-${g.track}'),
+                                            seed: '${g.title}|${g.artistLine}',
+                                            url: g.image,
+                                            size: b.biggest.shortestSide,
+                                            radius: TiniTokens.rSheet,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
                                 TiniCover(
                                   seed: '${item.title}|${item.artistLine}',
                                   url: item.image,
                                   size: b.biggest.shortestSide,
-                                  radius: TiniTokens.rHero,
+                                  radius: TiniTokens.rSheet,
                                 ),
                                 Positioned(
                                   top: 6,

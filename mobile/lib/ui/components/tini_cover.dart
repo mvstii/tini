@@ -1,5 +1,7 @@
+
 import 'package:flutter/material.dart';
 
+import '../../theme/cover_art.dart';
 import '../../theme/tini_tokens.dart';
 
 /// Kararlı (platformdan bağımsız) FNV-1a özeti: aynı dizge her zaman aynı sayıyı verir.
@@ -12,8 +14,9 @@ int tiniHash(String s) {
   return h;
 }
 
+
 /// Albüm kapağı. [url] yoksa ya da yüklenemezse [seed]'den türeyen, her zaman aynı olan
-/// bir gradyan gösterilir (uydurma kapak görseli yok).
+/// üretilmiş bir kapak çizilir (halkalar, bokeh, çizgiler, ufuk, küre; uydurma görsel yok).
 class TiniCover extends StatelessWidget {
   const TiniCover({
     super.key,
@@ -37,7 +40,7 @@ class TiniCover extends StatelessWidget {
     TiniVote.efsaneEnd,
   ];
 
-  /// Seed'den türeyen iki renk (testlerde de kullanılır).
+  /// Seed'den türeyen iki renk (avatar ve testlerde de kullanılır).
   static (Color, Color) colorsFor(String seed) {
     final h = tiniHash(seed);
     final a = _palette[h % _palette.length];
@@ -46,26 +49,15 @@ class TiniCover extends StatelessWidget {
     return (a, b);
   }
 
-  /// Yedek kapak tonu: renk özü korunur, parlaklık düşürülür; koyu ve doygun, göz yormaz.
-  static Color _deep(Color c, double lightness) {
-    final h = HSLColor.fromColor(c);
-    return h.withLightness(lightness).withSaturation((h.saturation * 0.85).clamp(0.0, 1.0)).toColor();
-  }
+  static CoverArtKind kindFor(String seed) =>
+      CoverArtKind.values[(tiniHash(seed) ~/ 13) % CoverArtKind.values.length];
 
   @override
   Widget build(BuildContext context) {
-    final (a, b) = colorsFor(seed);
-    final fallback = DecoratedBox(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [_deep(a, 0.40), _deep(b, 0.26)],
-        ),
-      ),
-      child: Center(
-        child: Icon(Icons.music_note_rounded, size: size * 0.42, color: Colors.white.withValues(alpha: 0.8)),
-      ),
+    final h = tiniHash(seed);
+    final fallback = CustomPaint(
+      key: const ValueKey('cover-art'),
+      painter: TiniCoverArtPainter(kindFor(seed), (h >> 5) & 1),
     );
     final u = url;
     return ClipRRect(
@@ -91,3 +83,4 @@ class TiniCover extends StatelessWidget {
     );
   }
 }
+

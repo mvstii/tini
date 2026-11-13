@@ -75,7 +75,7 @@ void main() {
     });
     testWidgets('url yoksa yedek kapak çizer', (tester) async {
       await tester.pumpWidget(host(const Align(alignment: Alignment.topLeft, child: TiniCover(seed: 's'))));
-      expect(find.byIcon(Icons.music_note_rounded), findsOneWidget);
+      expect(find.byKey(const ValueKey('cover-art')), findsOneWidget);
       expect(tester.getSize(find.byType(TiniCover)), const Size(50, 50));
     });
   });

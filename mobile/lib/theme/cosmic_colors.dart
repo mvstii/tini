@@ -52,8 +52,8 @@ class TiniCosmicColors extends ThemeExtension<TiniCosmicColors> {
 
   static const dark = TiniCosmicColors(
     scaffold: Color(0xFF050309),
-    card: Color(0xFF110B22),
-    raised: Color(0xFF1A1233),
+    card: Color(0xFF0F0E15),
+    raised: Color(0xFF181621),
     highlight: Color(0xFF2B1D50),
     textSecondary: Color(0xFFBCB4D2),
     textTertiary: Color(0xFF7B7396),

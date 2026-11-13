@@ -282,7 +282,7 @@ void main() {
       expect(find.text('Beta'), findsOneWidget);
       expect(find.byType(Image), findsNothing);
       expect(
-        find.byIcon(Icons.music_note_rounded),
+        find.byKey(const ValueKey('cover-art')),
         findsOneWidget,
       ); // gradyan yer tutucu
     });
@@ -480,10 +480,10 @@ void main() {
       );
       expect(
         tester
-            .widget<LinearProgressIndicator>(
-              find.byType(LinearProgressIndicator),
+            .widget<FractionallySizedBox>(
+              find.byKey(const ValueKey('level-progress')),
             )
-            .value,
+            .widthFactor,
         0.0,
       );
     });

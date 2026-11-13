@@ -237,7 +237,6 @@ class UnheardButton extends StatelessWidget {
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             child: Row(
-              mainAxisSize: MainAxisSize.min,
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Icon(added ? Icons.check_rounded : Icons.hearing_rounded, size: 18, color: color),

@@ -84,7 +84,52 @@ void main() {
             return http.Response('{"total": 12, "items": []}', 200);
           case '/votes/queue':
             return http.Response.bytes(
-                utf8.encode('{"remaining": 9, "stale": 0, "items": [{"track": 1, "title": "Gece Yarısı", "artists": ["Gama", "Ekin"]}, {"track": 2, "title": "Beta", "artists": ["B"]}]}'),
+                utf8.encode('{"remaining": 9, "stale": 0, "items": [{"track": 1, "title": "Gece Yarısı", "artists": ["Gama", "Ekin"]}, {"track": 2, "title": "Beta", "artists": ["B"]}, {"track": 3, "title": "Delta", "artists": ["D"]}]}'),
+                200);
+          case '/releases/new-tracks':
+            return http.Response.bytes(
+                utf8.encode(jsonEncode({
+                  'items': [
+                    for (final (i, n) in ['Sigma', 'Omega', 'Kappa'].indexed)
+                      {
+                        'deezer_id': i + 1,
+                        'title': n,
+                        'artist': 'Sanatçı ${i + 1}',
+                        'release': 'Yeni single',
+                        'released': '2026-11-1${i + 1}',
+                      },
+                  ],
+                })),
+                200);
+          case '/releases/new':
+            return http.Response.bytes(
+                utf8.encode(jsonEncode({
+                  'items': [
+                    for (final (i, n) in ['Altın Gün', 'Beach Club', 'Yeni Dalga', 'Mavi Saat'].indexed)
+                      {
+                        'title': n,
+                        'type': ['single', 'album', 'ep', 'single'][i],
+                        'released': '2026-11-1${i + 1}',
+                        'artist': 'Sanatçı ${i + 1}',
+                        'follow': 'auto',
+                      },
+                  ],
+                })),
+                200);
+          case '/recommend/daily':
+            return http.Response.bytes(
+                utf8.encode(jsonEncode({
+                  'list_id': 1,
+                  'track': 9,
+                  'position': 1,
+                  'name': 'Gama',
+                  'title': 'Gece Yarısı',
+                  'artists': ['Gama'],
+                  'reasons': [
+                    {'seed_id': 10, 'seed_name': 'Çapa A', 'share': 0.6, 'is_anchor': true},
+                    {'seed_id': 11, 'seed_name': 'Çapa B', 'share': 0.4, 'is_anchor': false},
+                  ],
+                })),
                 200);
         }
         return http.Response('{}', 200);
