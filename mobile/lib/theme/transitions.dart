@@ -1,9 +1,16 @@
 import 'package:flutter/material.dart';
 
-/// Tını sayfa geçişi: yeni sayfa hafifçe sağdan kayarak belirir, eski sayfa geriye çekilip solar.
-/// Platform bağımsızdır (Android ve iOS aynı hissi verir); geri hareketi tersine oynar.
+/// Tını sayfa geçişi: yeni sayfa sağdan kısa bir kayışla gelir ve ilk yarıda opaklaşır; eski sayfa
+/// yalnızca hafifçe geri kayar (solmaz, böylece iki yarı saydam sayfa üst üste "kalmaz").
+/// Süreler kısadır (açılış 220 ms, geri 180 ms); geri hareketi tersine oynar.
 class TiniPageTransitionsBuilder extends PageTransitionsBuilder {
   const TiniPageTransitionsBuilder();
+
+  @override
+  Duration get transitionDuration => const Duration(milliseconds: 220);
+
+  @override
+  Duration get reverseTransitionDuration => const Duration(milliseconds: 180);
 
   @override
   Widget buildTransitions<T>(
@@ -14,18 +21,16 @@ class TiniPageTransitionsBuilder extends PageTransitionsBuilder {
     Widget child,
   ) {
     final enter = CurvedAnimation(
-        parent: animation, curve: Curves.easeOutCubic, reverseCurve: Curves.easeInCubic);
-    final exit = CurvedAnimation(parent: secondaryAnimation, curve: Curves.easeInOutCubic);
-    return FadeTransition(
-      opacity: Tween<double>(begin: 1, end: 0.0).animate(exit),
-      child: SlideTransition(
-        position: Tween<Offset>(begin: Offset.zero, end: const Offset(-0.06, 0)).animate(exit),
-        child: FadeTransition(
-          opacity: enter,
-          child: SlideTransition(
-            position: Tween<Offset>(begin: const Offset(0.08, 0), end: Offset.zero).animate(enter),
-            child: child,
-          ),
+        parent: animation, curve: Curves.easeOutQuart, reverseCurve: Curves.easeInCubic);
+    final fadeIn = CurvedAnimation(parent: animation, curve: const Interval(0, 0.5));
+    final exit = CurvedAnimation(parent: secondaryAnimation, curve: Curves.easeOutCubic);
+    return SlideTransition(
+      position: Tween<Offset>(begin: Offset.zero, end: const Offset(-0.04, 0)).animate(exit),
+      child: FadeTransition(
+        opacity: fadeIn,
+        child: SlideTransition(
+          position: Tween<Offset>(begin: const Offset(0.10, 0), end: Offset.zero).animate(enter),
+          child: child,
         ),
       ),
     );
@@ -55,7 +60,9 @@ class TabPane extends StatefulWidget {
 class _TabPaneState extends State<TabPane> with SingleTickerProviderStateMixin {
   late final AnimationController _c = AnimationController(
     vsync: this,
-    duration: const Duration(milliseconds: 260),
+    // Gelen sekme 180 ms'de belirir; giden sekme 70 ms'de çekilir (iki sekme üst üste kalmaz).
+    duration: const Duration(milliseconds: 180),
+    reverseDuration: const Duration(milliseconds: 70),
     value: widget.active ? 1 : 0,
   )..addStatusListener((_) => setState(() {}));
   late final Animation<double> _curve = CurvedAnimation(parent: _c, curve: Curves.easeOutCubic);

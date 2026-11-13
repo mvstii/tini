@@ -5,75 +5,30 @@ import 'package:flutter/services.dart' show PlatformException;
 import 'package:url_launcher/url_launcher.dart';
 
 import '../api.dart';
+import '../strings.dart';
 import '../theme/cosmic_colors.dart';
+import '../theme/tini_tokens.dart';
+import '../ui/components/components.dart';
 import '../widgets/artist_avatar.dart';
-import '../widgets/preview_button.dart';
 import '../widgets/studio.dart';
 
 /// Gerekçe cümlesi: en büyük paylı çapalar, yüzdeyle (hesabın kendisinden gelir).
 String reasonText(ListEntry e, {int top = 3}) {
   // Gerekçe uydurulmaz: hesap çapa döndürmediyse bunu açıkça söyleriz.
-  if (e.reasons.isEmpty) return 'Bu öneri için çapa gerekçesi hesaplanamadı';
+  if (e.reasons.isEmpty) return TiniStrings.noAnchorReason;
   final sorted = [...e.reasons]..sort((a, b) => b.share.compareTo(a.share));
   final parts = sorted
       .take(top)
-      .map((r) => '${r.isAnchor ? '★ ' : ''}${r.seedName} %${(r.share * 100).round()}');
+      .map(
+        (r) =>
+            '${r.isAnchor ? '★ ' : ''}${r.seedName} %${(r.share * 100).round()}',
+      );
   return 'Sevdiğin sanatçılara benzediği için: ${parts.join(', ')}';
 }
 
-/// "Neden önerdik": en büyük paylı çapalar küçük çipler olarak (gerekçe hesabın kendisinden).
-class _ReasonChips extends StatelessWidget {
-  const _ReasonChips({required this.entry});
-  final ListEntry entry;
-
-  @override
-  Widget build(BuildContext context) {
-    final c = TiniCosmicColors.of(context);
-    final theme = Theme.of(context);
-    final top = ([...entry.reasons]..sort((a, b) => b.share.compareTo(a.share))).take(3);
-    if (top.isEmpty) {
-      return Row(children: [
-        Icon(Icons.insights_rounded, size: 14, color: c.primary),
-        const SizedBox(width: 6),
-        Flexible(
-            child: Text('Bu öneri için çapa gerekçesi hesaplanamadı',
-                style: theme.textTheme.bodySmall)),
-      ]);
-    }
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(children: [
-          Icon(Icons.insights_rounded, size: 14, color: c.primary),
-          const SizedBox(width: 6),
-          const SectionLabel('NEDEN SANA?'),
-        ]),
-        const SizedBox(height: 8),
-        Wrap(
-          spacing: 6,
-          runSpacing: 6,
-          children: [
-            for (final r in top)
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                decoration: BoxDecoration(
-                  color: c.primary.withValues(alpha: 0.14),
-                  borderRadius: BorderRadius.circular(999),
-                ),
-                child: Text.rich(TextSpan(children: [
-                  if (r.isAnchor) TextSpan(text: '★ ', style: TextStyle(color: c.primary)),
-                  TextSpan(text: r.seedName),
-                  TextSpan(
-                      text: '  %${(r.share * 100).round()}',
-                      style: TextStyle(fontWeight: FontWeight.w700, color: c.primary)),
-                ]), style: theme.textTheme.labelMedium),
-              ),
-          ],
-        ),
-      ],
-    );
-  }
-}
+List<Reason> _topReasons(ListEntry e, [int n = 3]) => ([
+  ...e.reasons,
+]..sort((a, b) => b.share.compareTo(a.share))).take(n).toList();
 
 Future<bool> _launchExternal(String url) =>
     launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
@@ -102,10 +57,12 @@ class ListScreen extends StatefulWidget {
 class _ListScreenState extends State<ListScreen> {
   DiscoveryList? _list;
   bool _busy = false;
-  bool _exporting = false;
+  SaveState _spotify = SaveState.idle;
   String? _error;
-  VoidCallback? _retry; // üstteki hata bandının "Yeniden dene"si: hatayı doğuran işlem
-  int _gen = 0; // liste nesli: eski listenin geç gelen başlıkları yenisine yazılmasın
+  VoidCallback?
+  _retry; // üstteki hata bandının "Yeniden dene"si: hatayı doğuran işlem
+  int _gen =
+      0; // liste nesli: eski listenin geç gelen başlıkları yenisine yazılmasın
   final Map<int, String?> _photos = {};
   final Map<int, String> _titles = {};
 
@@ -120,7 +77,7 @@ class _ListScreenState extends State<ListScreen> {
     }
   }
 
-  /// Önbellekte olmayan sanatçı portrelerini arka planda ister; kartlar geldikçe güncellenir.
+  /// Önbellekte olmayan sanatçı portrelerini arka planda ister; kapaklar geldikçe güncellenir.
   void _loadPhotos(DiscoveryList l) {
     final missing = [
       for (final e in l.items)
@@ -158,25 +115,28 @@ class _ListScreenState extends State<ListScreen> {
         setState(() {
           _list = l;
           _titles.clear();
+          _spotify = SaveState.idle;
         });
       }
       _loadPhotos(l);
       unawaited(_loadTitles(l, gen));
     } on ApiException catch (e) {
       if (e.status == 401) {
-        if (mounted && Navigator.of(context).canPop()) Navigator.of(context).pop();
+        if (mounted && Navigator.of(context).canPop()) {
+          Navigator.of(context).pop();
+        }
         return widget.onLogout?.call();
       }
       if (mounted) {
         setState(() {
-          _error = e.status == 404 ? 'Önce oylayıp profilini kur.' : e.message;
+          _error = e.status == 404 ? TiniStrings.noProfile : e.message;
           _retry = _generate;
         });
       }
     } catch (_) {
       if (mounted) {
         setState(() {
-          _error = 'Sunucuya ulaşılamadı';
+          _error = TiniStrings.unreachable;
           _retry = _generate;
         });
       }
@@ -185,10 +145,10 @@ class _ListScreenState extends State<ListScreen> {
     }
   }
 
-  Future<void> _export() async {
+  Future<void> _saveSpotify() async {
+    if (_spotify == SaveState.notConnected) return _connectSpotify();
     setState(() {
-      _exporting = true;
-      _busy = true;
+      _spotify = SaveState.saving;
       _error = null;
     });
     try {
@@ -197,33 +157,45 @@ class _ListScreenState extends State<ListScreen> {
       final named = r.skippedNames.where((n) => n.isNotEmpty).toList();
       final detail = named.isEmpty ? '' : ' (${named.join(', ')})';
       final msg = r.added == 0
-          ? 'Bu listedeki öğelerin çalınabilir parçası bulunamadı.$detail'
-          : "Spotify'a kaydedildi: ${r.added} parça"
-              "${r.skipped > 0 ? ', ${r.skipped} öğe atlandı$detail' : ''}";
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+          ? '${TiniStrings.noPlayableTracks}$detail'
+          : TiniStrings.savedToSpotify(r.added, r.skipped, detail);
+      setState(
+        () => _spotify = r.added == 0 ? SaveState.idle : SaveState.saved,
+      );
+      _toast(msg);
     } on ApiException catch (ex) {
-      if (mounted) {
-        setState(() {
-          _error = ex.status == 409
-              ? "Spotify'ı (yeniden) bağla; çalma listesi izni gerekebilir."
-              : ex.message;
-          _retry = _export;
-        });
-      }
+      if (!mounted) return;
+      setState(() {
+        if (ex.status == 409) {
+          _spotify = SaveState.notConnected;
+          _error = TiniStrings.reconnectSpotify;
+        } else {
+          _spotify = SaveState.idle;
+          _error = ex.message;
+        }
+        _retry = _saveSpotify;
+      });
     } catch (_) {
-      if (mounted) {
-        setState(() {
-          _error = 'Sunucuya ulaşılamadı';
-          _retry = _export;
-        });
-      }
-    } finally {
-      if (mounted) {
-        setState(() {
-          _busy = false;
-          _exporting = false;
-        });
-      }
+      if (!mounted) return;
+      setState(() {
+        _spotify = SaveState.idle;
+        _error = TiniStrings.unreachable;
+        _retry = _saveSpotify;
+      });
+    }
+  }
+
+  /// Bağlı değilse bağlama akışı: yetkilendirme sayfası servis uygulamasında/tarayıcıda açılır.
+  Future<void> _connectSpotify() async {
+    try {
+      final url = await widget.api.spotifyAuthorizeUrl();
+      await widget.launch(url);
+    } on ApiException catch (ex) {
+      _toast(ex.message);
+    } on PlatformException {
+      _toast(TiniStrings.spotifyOpenFailed);
+    } catch (_) {
+      _toast(TiniStrings.unreachable);
     }
   }
 
@@ -236,15 +208,29 @@ class _ListScreenState extends State<ListScreen> {
       } on PlatformException {
         // Uygulama kurulu değilse launchUrl istisna fırlatabilir.
       }
-      if (!opened) _toast('Spotify açılamadı. Uygulama kurulu mu?');
+      if (!opened) _toast(TiniStrings.spotifyOpenFailed);
     } on ApiException catch (ex) {
-      _toast(ex.status == 409 ? "Önce Spotify'ı bağla." : ex.message);
+      _toast(ex.status == 409 ? TiniStrings.connectSpotifyFirst : ex.message);
     } catch (_) {
-      _toast('Sunucuya ulaşılamadı');
+      _toast(TiniStrings.unreachable);
     }
   }
 
-  /// Kart eylemlerinin hatası, kullanıcının baktığı yerde (sayfa tepesindeki bant ekran dışında kalır).
+  /// Gerekçe itirazı: tek dokunuşla tüm gerekçe için kaydedilir (algoritmaya etkisi sonraki faz).
+  Future<bool> _object(ListEntry e) async {
+    try {
+      await widget.api.reasonFeedback(_list!.id, e.position);
+      _toast(TiniStrings.objectionSaved);
+      return true;
+    } on ApiException catch (ex) {
+      _toast(ex.message);
+    } catch (_) {
+      _toast(TiniStrings.unreachable);
+    }
+    return false;
+  }
+
+  /// Eylemlerin hatası, kullanıcının baktığı yerde (sayfa tepesindeki bant ekran dışında kalır).
   void _toast(String msg) {
     if (!mounted) return;
     ScaffoldMessenger.of(context)
@@ -252,163 +238,545 @@ class _ListScreenState extends State<ListScreen> {
       ..showSnackBar(SnackBar(content: Text(msg)));
   }
 
-  Future<void> _object(ListEntry e) async {
-    final list = _list!;
-    // -1: tüm gerekçe; aksi halde itiraz edilen çapanın kimliği
-    final picked = await showModalBottomSheet<int>(
+  String? _portrait(ListEntry e) => _photos[e.artistId] ?? e.artistImage;
+
+  /// Parça/yayın kapağı; yoksa (ya da yüklenemezse) sanatçı portresi.
+  String? _cover(ListEntry e) => e.image ?? _portrait(e);
+
+  /// Asıl kapak varsa ve yüklenemezse portre devreye girer.
+  String? _coverFallback(ListEntry e) => e.image == null ? null : _portrait(e);
+
+  _Shown _shown(ListEntry e) {
+    final song = e.title ?? _titles[e.position];
+    if (e.release != null) {
+      return _Shown(e.release!.title, e.name, TrackSlot.fresh, true);
+    }
+    if (song != null) return _Shown(song, e.name, TrackSlot.explore, false);
+    return _Shown(e.name, '', TrackSlot.explore, false);
+  }
+
+  void _showWhy(ListEntry e) {
+    final t = TiniTokens.of(context);
+    final shown = _shown(e);
+    showModalBottomSheet<void>(
       context: context,
-      builder: (ctx) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const ListTile(title: Text('Hangi gerekçe yanlış?')),
-            ListTile(title: const Text('Tümü'), onTap: () => Navigator.pop(ctx, -1)),
-            for (final r in e.reasons)
-              ListTile(title: Text(r.seedName), onTap: () => Navigator.pop(ctx, r.seedId)),
-          ],
+      isScrollControlled: true,
+      useSafeArea: false,
+      backgroundColor: t.surface1,
+      barrierColor: t.scrim,
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.sizeOf(context).height - 112,
+      ),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(TiniTokens.rSheet),
         ),
       ),
+      builder: (_) => _WhySheet(
+        entry: e,
+        shown: shown,
+        coverUrl: _cover(e),
+        coverFallbackUrl: _coverFallback(e),
+        onObject: () => _object(e),
+        onOpen: () => _open(e),
+      ),
     );
-    if (picked == null) return;
-    try {
-      await widget.api.reasonFeedback(list.id, e.position, seedId: picked == -1 ? null : picked);
-      if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('Geri bildirimin kaydedildi')));
-      }
-    } on ApiException catch (ex) {
-      _toast(ex.message);
-    } catch (_) {
-      _toast('Sunucuya ulaşılamadı');
-    }
   }
 
   @override
   Widget build(BuildContext context) {
     final list = _list;
     final c = TiniCosmicColors.of(context);
-    final theme = Theme.of(context);
+    final topPad = widget.embedded
+        ? MediaQuery.paddingOf(context).top + 16
+        : 8.0;
     return Scaffold(
       backgroundColor: widget.embedded ? Colors.transparent : c.scaffold,
-      appBar: widget.embedded ? null : AppBar(title: const Text('Keşif listesi')),
-      body: ListView(
-        padding: EdgeInsets.fromLTRB(
-            16, widget.embedded ? MediaQuery.paddingOf(context).top + 16 : 16, 16, widget.embedded ? 96 : 16),
-        children: [
-          if (widget.embedded)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: Text('Sana özel öneriler',
-                  style: studioTitle(context, base: theme.textTheme.headlineSmall)),
+      appBar: widget.embedded
+          ? null
+          : AppBar(
+              backgroundColor: Colors.transparent,
+              scrolledUnderElevation: 0,
             ),
-          StudioButton(
-            icon: list == null ? Icons.auto_awesome_rounded : Icons.refresh_rounded,
-            label: list == null ? 'Liste üret' : 'Yeniden üret',
-            busy: _busy && !_exporting,
-            onPressed: _busy ? null : _generate,
+      extendBodyBehindAppBar: false,
+      body: ListView(
+        padding: EdgeInsets.only(bottom: widget.embedded ? 96 : 24),
+        children: [
+          _Header(
+            list: list,
+            topPad: topPad,
+            covers: [
+              if (list != null)
+                for (final e in list.items.take(4))
+                  (
+                    seed: '${_shown(e).title}|${e.name}',
+                    url: _cover(e),
+                    fallback: _coverFallback(e),
+                  ),
+            ],
+            title: widget.embedded && list == null
+                ? TiniStrings.listEmbeddedTitle
+                : TiniStrings.listTitle,
+            freshCount: list?.items.where((e) => e.release != null).length ?? 0,
+            busy: _busy && _spotify != SaveState.saving,
+            spotify: _spotify,
+            onGenerate: _busy ? null : _generate,
+            onSaveSpotify: _list == null ? null : _saveSpotify,
+            onSaveApple: () => _toast(TiniStrings.appleNotAvailable),
           ),
-          if (list != null && list.items.isNotEmpty) ...[
-            const SizedBox(height: 10),
-            StudioButton(
-              primary: false,
-              icon: Icons.playlist_add_rounded,
-              label: "Spotify'a kaydet",
-              busy: _exporting,
-              onPressed: _busy ? null : _export,
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              TiniTokens.listMargin,
+              12,
+              TiniTokens.listMargin,
+              0,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (_error != null)
+                  StateNote.error(
+                    _error!,
+                    onRetry: _busy ? null : (_retry ?? _generate),
+                  ),
+                if (_busy && list == null)
+                  for (var i = 0; i < 6; i++)
+                    const Padding(
+                      padding: EdgeInsets.only(bottom: 8),
+                      child: SkeletonCard(height: 66),
+                    ),
+                if (list != null && list.items.isEmpty)
+                  const StateNote.empty(
+                    TiniStrings.listEmpty,
+                    icon: Icons.queue_music_rounded,
+                  ),
+                if (list != null)
+                  for (final (i, e) in list.items.indexed)
+                    StaggerIn(
+                      key: ValueKey('${list.id}-${e.position}'),
+                      index: i,
+                      child: Builder(
+                        builder: (_) {
+                          final s = _shown(e);
+                          final top = _topReasons(e, 1);
+                          return TrackRow(
+                            key: ValueKey('track-${list.id}-${e.position}'),
+                            title: s.title,
+                            artist: s.artist,
+                            slot: s.slot,
+                            isNew: s.isNew,
+                            coverSeed: '${s.title}|${e.name}',
+                            coverUrl: _cover(e),
+                            coverFallbackUrl: _coverFallback(e),
+                            reason: top.isEmpty
+                                ? TiniStrings.noAnchorReason
+                                : TiniStrings.reasonShort(
+                                    top.first.seedName,
+                                    (top.first.share * 100).round(),
+                                  ),
+                            onTap: () => _showWhy(e),
+                          );
+                        },
+                      ),
+                    ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Satırda gösterilen başlık/sanatçı ve slot (arayüz sunumu; veri uydurmaz).
+class _Shown {
+  const _Shown(this.title, this.artist, this.slot, this.isNew);
+  final String title;
+  final String artist;
+  final TrackSlot slot;
+  final bool isNew;
+}
+
+/// Listeye göre renklenen gradyan başlık: 2×2 kapak kolajı, ad, alt başlık, kaydet düğmeleri.
+class _Header extends StatelessWidget {
+  const _Header({
+    required this.list,
+    required this.topPad,
+    required this.covers,
+    required this.title,
+    required this.freshCount,
+    required this.busy,
+    required this.spotify,
+    required this.onGenerate,
+    required this.onSaveSpotify,
+    required this.onSaveApple,
+  });
+  final DiscoveryList? list;
+  final double topPad;
+  final List<({String seed, String? url, String? fallback})> covers;
+  final String title;
+  final int freshCount;
+  final bool busy;
+  final SaveState spotify;
+  final VoidCallback? onGenerate;
+  final VoidCallback? onSaveSpotify;
+  final VoidCallback onSaveApple;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = TiniTokens.of(context);
+    final l = list;
+    final (a, _) = TiniCover.colorsFor('list-${l?.id ?? 0}');
+    final tint = Color.alphaBlend(a.withValues(alpha: 0.28), t.bg);
+    final hasItems = l != null && l.items.isNotEmpty;
+    final n = l?.items.length ?? 0;
+    final explore = n - freshCount;
+    return Container(
+      padding: EdgeInsets.fromLTRB(
+        TiniTokens.pageMargin,
+        topPad,
+        TiniTokens.pageMargin,
+        20,
+      ),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            tint,
+            Color.alphaBlend(a.withValues(alpha: 0.10), t.bg),
+            t.bg,
+          ],
+        ),
+      ),
+      child: Column(
+        children: [
+          if (hasItems) ...[
+            _Collage(covers: covers),
+            const SizedBox(height: 16),
+          ],
+          Text(
+            title,
+            textAlign: TextAlign.center,
+            style: TiniTokens.screenTitle.copyWith(color: t.text),
+          ),
+          if (hasItems) ...[
+            const SizedBox(height: 4),
+            Text(
+              TiniStrings.listForYou(n),
+              style: TiniTokens.secondary.copyWith(color: t.muted),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              [
+                if (explore > 0) '${TiniStrings.slotExplore} $explore',
+                if (freshCount > 0) '${TiniStrings.slotFresh} $freshCount',
+              ].join(' · '),
+              style: TiniTokens.caption.copyWith(color: t.muted2),
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: ServiceSaveButton(
+                    key: const ValueKey('save-apple'),
+                    service: ServiceKind.apple,
+                    state: SaveState.notConnected,
+                    compact: true,
+                    onPressed: onSaveApple,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: ServiceSaveButton(
+                    key: const ValueKey('save-spotify'),
+                    service: ServiceKind.spotify,
+                    state: spotify,
+                    compact: true,
+                    onPressed: onSaveSpotify,
+                  ),
+                ),
+              ],
             ),
           ],
-          const SizedBox(height: 14),
-          if (_error != null)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: StateNote.error(_error!, onRetry: _busy ? null : (_retry ?? _generate)),
+          const SizedBox(height: 12),
+          StudioButton(
+            icon: l == null
+                ? Icons.auto_awesome_rounded
+                : Icons.refresh_rounded,
+            label: l == null ? TiniStrings.generate : TiniStrings.regenerate,
+            busy: busy,
+            primary: l == null,
+            dense: l != null,
+            onPressed: onGenerate,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// 190 pt'lik 2×2 kapak kolajı; eksik kapaklar kararlı yedek gradyanla dolar.
+class _Collage extends StatelessWidget {
+  const _Collage({required this.covers});
+  final List<({String seed, String? url, String? fallback})> covers;
+
+  @override
+  Widget build(BuildContext context) {
+    const size = 190.0;
+    const gap = 2.0;
+    const cell = (size - gap) / 2;
+    Widget at(int i) => i < covers.length
+        ? TiniCover(
+            seed: covers[i].seed,
+            url: covers[i].url,
+            fallbackUrl: covers[i].fallback,
+            size: cell,
+            radius: 0,
+          )
+        : SizedBox(
+            width: cell,
+            height: cell,
+            child: TiniCover(seed: 'collage-$i', size: cell, radius: 0),
+          );
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(TiniTokens.rCard),
+      child: SizedBox(
+        key: const ValueKey('list-collage'),
+        width: size,
+        height: size,
+        child: Column(
+          children: [
+            Row(
+              children: [
+                at(0),
+                const SizedBox(width: gap),
+                at(1),
+              ],
             ),
-          if (_busy && !_exporting && list == null)
-            for (var i = 0; i < 4; i++)
-              const Padding(padding: EdgeInsets.only(bottom: 8), child: SkeletonCard(height: 120)),
-          if (list != null && list.items.isEmpty)
-            const StateNote.empty('Öneri çıkmadı.', icon: Icons.queue_music_rounded),
-          if (list != null)
-            for (final (i, e) in list.items.indexed)
-              StaggerIn(
-                key: ValueKey('${list.id}-${e.position}'),
-                index: i,
-                child: Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: StudioSurface(
-                child: Padding(
-                  padding: const EdgeInsets.all(12),
+            const SizedBox(height: gap),
+            Row(
+              children: [
+                at(2),
+                const SizedBox(width: gap),
+                at(3),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Gerekçe paneli: kapak, başlık, slot, "neden bu şarkı?" cümlesi ve en büyük paylı çapalar.
+class _WhySheet extends StatefulWidget {
+  const _WhySheet({
+    required this.entry,
+    required this.shown,
+    required this.coverUrl,
+    this.coverFallbackUrl,
+    required this.onObject,
+    required this.onOpen,
+  });
+  final ListEntry entry;
+  final _Shown shown;
+  final String? coverUrl;
+  final String? coverFallbackUrl;
+  final Future<bool> Function() onObject;
+  final VoidCallback onOpen;
+
+  @override
+  State<_WhySheet> createState() => _WhySheetState();
+}
+
+class _WhySheetState extends State<_WhySheet> {
+  bool _saving = false;
+  bool _objected = false;
+
+  Future<void> _object() async {
+    setState(() => _saving = true);
+    final ok = await widget.onObject();
+    if (mounted) {
+      setState(() {
+        _saving = false;
+        _objected = ok;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final t = TiniTokens.of(context);
+    final e = widget.entry;
+    final s = widget.shown;
+    final top = _topReasons(e);
+    final total = top.fold<double>(0, (a, r) => a + r.share);
+    final year = e.release != null && e.release!.released.length >= 4
+        ? e.release!.released.substring(0, 4)
+        : null;
+    final sub = [
+      if (s.artist.isNotEmpty) s.artist,
+      ?year,
+    ].join(' · ');
+    return SafeArea(
+      top: false,
+      child: SingleChildScrollView(
+        key: const ValueKey('why-sheet'),
+        padding: const EdgeInsets.fromLTRB(
+          TiniTokens.pageMargin,
+          10,
+          TiniTokens.pageMargin,
+          20,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: t.line,
+                  borderRadius: BorderRadius.circular(TiniTokens.rPill),
+                ),
+              ),
+            ),
+            const SizedBox(height: 18),
+            Row(
+              children: [
+                TiniCover(
+                  seed: '${s.title}|${e.name}',
+                  url: widget.coverUrl,
+                  fallbackUrl: widget.coverFallbackUrl,
+                  size: 64,
+                  radius: TiniTokens.rCard,
+                ),
+                const SizedBox(width: 14),
+                Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Gerekçe rozeti: metin hesabın kendisinden (PPR çapa payları) gelir.
-                      _ReasonChips(entry: e),
-                      const SizedBox(height: 10),
-                      Row(children: [
-                        ArtistAvatar(
-                            name: e.name, url: _photos[e.artistId] ?? e.artistImage, size: 64),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text('${e.position}. ${e.name}',
-                                  style: studioTitle(context),
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis),
-                              if ((e.title ?? _titles[e.position]) != null)
-                                Text(e.title ?? _titles[e.position]!),
-                              if (e.release != null)
-                                Text(
-                                    '${e.release!.title} · ${e.release!.type} · ${e.release!.released}'),
-                            ],
-                          ),
-                        ),
-                        if (e.artistId != null && e.release == null)
-                          PreviewButton(
-                              api: widget.api,
-                              previewKey: 'list-${list.id}-${e.position}',
-                              artistId: e.artistId),
-                        // Varsayılan "keşif" etiketi gürültüydü; yalnızca yeni yayınlar işaretlenir.
-                        if (e.release != null) ...[
-                          const SizedBox(width: 6),
-                          Chip(
-                            label: Text(e.slot),
-                            visualDensity: VisualDensity.compact,
-                            labelStyle: theme.textTheme.labelSmall,
-                            padding: EdgeInsets.zero,
-                          ),
-                        ],
-                      ]),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.end,
-                        children: [
-                          TextButton(
-                            onPressed: () => _object(e),
-                            style: TextButton.styleFrom(
-                                foregroundColor: theme.colorScheme.onSurfaceVariant,
-                                textStyle: theme.textTheme.labelMedium),
-                            child: const Text('Bu gerekçe yanlış'),
-                          ),
-                          const SizedBox(width: 6),
-                          SizedBox(
-                            width: 176,
-                            child: StudioButton(
-                              dense: true,
-                              icon: Icons.open_in_new_rounded,
-                              label: "Spotify'da aç",
-                              onPressed: () => _open(e),
-                            ),
-                          ),
-                        ],
+                      Text(
+                        s.title,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: TiniTokens.cardTitle.copyWith(color: t.text),
                       ),
+                      if (sub.isNotEmpty)
+                        Text(
+                          sub,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TiniTokens.secondary.copyWith(color: t.muted),
+                        ),
                     ],
                   ),
                 ),
+                const SizedBox(width: 10),
+                _SlotPill(slot: s.slot),
+              ],
+            ),
+            const SizedBox(height: 22),
+            Text(
+              TiniStrings.whyTitle,
+              style: TiniTokens.section.copyWith(color: t.text),
+            ),
+            const SizedBox(height: 6),
+            if (top.isEmpty)
+              Text(
+                TiniStrings.noAnchorReason,
+                style: TiniTokens.body.copyWith(color: t.muted),
+              )
+            else ...[
+              Text(
+                TiniStrings.whySentence((total * 100).round(), top.length),
+                style: TiniTokens.body.copyWith(color: t.muted),
+              ),
+              const SizedBox(height: 14),
+              for (final r in top)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: AnchorRow(
+                    title: r.seedName,
+                    vote: r.isAnchor ? 6 : null,
+                    share: r.share,
+                  ),
                 ),
-              ),
-              ),
-        ],
+            ],
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    key: const ValueKey('object-similarity'),
+                    onPressed: _saving || _objected ? null : _object,
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: TiniVote.c1,
+                      disabledForegroundColor: t.muted2,
+                      side: BorderSide(color: _objected ? t.line : TiniVote.c1),
+                      minimumSize: const Size.fromHeight(50),
+                      shape: const StadiumBorder(),
+                      textStyle: TiniTokens.bodyStrong.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    child: Text(
+                      _objected
+                          ? TiniStrings.objectionSaved
+                          : TiniStrings.objectSimilarity,
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: FilledButton(
+                    key: const ValueKey('open-in-spotify'),
+                    onPressed: widget.onOpen,
+                    style: FilledButton.styleFrom(
+                      backgroundColor: Colors.white,
+                      foregroundColor: TiniTokens.onLightFill,
+                      minimumSize: const Size.fromHeight(50),
+                      shape: const StadiumBorder(),
+                      textStyle: TiniTokens.bodyStrong.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    child: const Text(
+                      TiniStrings.openInSpotify,
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SlotPill extends StatelessWidget {
+  const _SlotPill({required this.slot});
+  final TrackSlot slot;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      decoration: BoxDecoration(
+        color: slot.color,
+        borderRadius: BorderRadius.circular(TiniTokens.rPill),
+      ),
+      child: Text(
+        slot.label,
+        style: TiniTokens.bodyStrong.copyWith(
+          color: TiniTokens.onLightFill,
+          fontWeight: FontWeight.w700,
+        ),
       ),
     );
   }

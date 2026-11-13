@@ -10,7 +10,9 @@ from app.config import ArtworkSettings
 from app.models import Artist, ArtistImage
 from app.sources.http import SourceError
 
-SOURCE = "deezer"
+# Kaynak sürümü: albüm kapağı yedeği gelmeden önce yazılmış "bulunamadı" kayıtları ("deezer")
+# geçersiz sayılır ve bir kez yeniden denenir; bulunmuş URL'ler etkilenmez.
+SOURCE = "deezer-2"
 
 
 def cached_images(db: Session, ids: Iterable[int], now: datetime) -> dict[int, str | None]:
@@ -20,7 +22,9 @@ def cached_images(db: Session, ids: Iterable[int], now: datetime) -> dict[int, s
         return {}
     rows = db.execute(
         select(ArtistImage.artist_id, ArtistImage.url).where(
-            ArtistImage.artist_id.in_(ids), ArtistImage.expires_at > now
+            ArtistImage.artist_id.in_(ids),
+            ArtistImage.expires_at > now,
+            ArtistImage.url.is_not(None) | (ArtistImage.source == SOURCE),
         )
     ).all()
     return dict(rows)

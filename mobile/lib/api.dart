@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io' show SocketException;
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart' show ThemeMode, ValueNotifier;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -15,6 +16,8 @@ const appVersion = String.fromEnvironment('APP_VERSION', defaultValue: '1.0.0');
 
 /// Render ücretsiz katmanı soğuk başlangıçta ~20 sn sürebilir; bundan uzun süren istek hataya çevrilir.
 const requestTimeout = Duration(seconds: 45);
+/// Fotoğraf yükleme/indirme (≤256 KB) için biraz daha geniş süre.
+const photoTimeout = Duration(seconds: 60);
 
 /// Kuyruk isteği kısa sürede dönmeli (hızlı yol); uzun sürerse denetleyici sessizce yeniden dener.
 const queueTimeout = Duration(seconds: 15);
@@ -127,7 +130,28 @@ class HistoryItem {
   final int vote;
   final String? title;
   final List<String> artists;
+
+  /// Önbellekteki kapak URL'si; yoksa boyalı yer tutucu çizilir.
   final String? image;
+}
+
+/// Zevk profilinin arayüzün kullandığı özeti. Mod adları/etiketleri sunucudan gelir; eski
+/// sunucu ya da etiketsiz küme için ad null kalır ve arayüz "Mod N" gösterir.
+class TasteProfile {
+  const TasteProfile({
+    required this.voteCount,
+    required this.clusterWeights,
+    required this.avoidCount,
+    required this.hardAvoidCount,
+    this.clusterNames = const [],
+    this.clusterTags = const [],
+  });
+  final int voteCount;
+  final List<double> clusterWeights;
+  final List<String?> clusterNames;
+  final List<List<String>> clusterTags;
+  final int avoidCount;
+  final int hardAvoidCount;
 }
 
 class ExportResult {
@@ -151,12 +175,15 @@ class DailySong {
 
 class ListEntry {
   ListEntry(this.position, this.name, this.title, this.reasons,
-      {this.release, this.artistId, this.artistImage});
+      {this.release, this.artistId, this.artistImage, this.image});
   final int position;
 
   /// Sanatçı kimliği ve (varsa) önbellekteki portre URL'si; fotoğraf sonradan doldurulabilir.
   final int? artistId;
   final String? artistImage;
+
+  /// Parça kapağı (kullanıcı önbelleği) ya da yayın kapağı; yoksa sanatçı portresi kullanılır.
+  final String? image;
   final String name;
   final String? title;
   final List<Reason> reasons;
@@ -176,8 +203,10 @@ class ReleaseInfo {
 }
 
 class NewTrack {
-  NewTrack(this.deezerId, this.title, this.artist, this.release, this.released, {this.cover});
+  NewTrack(this.deezerId, this.title, this.artist, this.release, this.released,
+      {this.cover, this.artistId});
   final String? cover;
+  final int? artistId;
   final int deezerId;
   final String title;
   final String artist;
@@ -186,8 +215,10 @@ class NewTrack {
 }
 
 class NewRelease {
-  NewRelease(this.title, this.type, this.released, this.artist, this.follow, {this.cover});
+  NewRelease(this.title, this.type, this.released, this.artist, this.follow,
+      {this.cover, this.artistId});
   final String? cover;
+  final int? artistId;
   final String title;
   final String type;
   final String released;
@@ -390,6 +421,40 @@ class Api {
 
   Future<void> rebuildProfile() => _send('POST', '/profile/rebuild');
 
+  /// Son zevk profili; henüz üretilmediyse (404) null. Sunucu yalnızca kimlik ve ağırlık verir.
+  Future<TasteProfile?> tasteProfile() async {
+    try {
+      final b = await _send('GET', '/profile');
+      final clusters = (b['clusters'] as List?) ?? const [];
+      final avoid = (b['avoid'] as List?) ?? const [];
+      return TasteProfile(
+        voteCount: (b['vote_count'] as num?)?.toInt() ?? 0,
+        clusterWeights: [
+          for (final c in clusters) ((c as Map)['weight'] as num?)?.toDouble() ?? 0.0,
+        ],
+        clusterNames: [
+          for (final c in clusters)
+            switch ((c as Map)['name']) {
+              final String n when n.isNotEmpty => n,
+              _ => null,
+            },
+        ],
+        clusterTags: [
+          for (final c in clusters)
+            [
+              for (final t in ((c as Map)['tags'] as List?) ?? const [])
+                if (t is String) t,
+            ],
+        ],
+        avoidCount: avoid.length,
+        hardAvoidCount: avoid.where((a) => (a as Map)['hard'] == true).length,
+      );
+    } on ApiException catch (e) {
+      if (e.status == 404) return null;
+      rethrow;
+    }
+  }
+
   /// Oy geçmişi: parça başına güncel oy, yeniden eskiye.
   Future<List<HistoryItem>> voteHistory({int limit = 200}) async =>
       (await voteSummary(limit: limit)).items;
@@ -456,7 +521,7 @@ class Api {
     return (body['items'] as List)
         .map((e) => NewRelease(e['title'] as String, e['type'] as String,
             e['released'] as String, (e['artist'] as String?) ?? '?', e['follow'] as String,
-            cover: e['cover'] as String?))
+            cover: e['cover'] as String?, artistId: (e['artist_id'] as num?)?.toInt()))
         .toList();
   }
 
@@ -466,7 +531,7 @@ class Api {
     return (body['items'] as List)
         .map((e) => NewTrack(e['deezer_id'] as int, e['title'] as String,
             (e['artist'] as String?) ?? '?', e['release'] as String, e['released'] as String,
-            cover: e['cover'] as String?))
+            cover: e['cover'] as String?, artistId: (e['artist_id'] as num?)?.toInt()))
         .toList();
   }
 
@@ -485,6 +550,7 @@ class Api {
                     .toList(),
                 artistId: e['artist_id'] as int?,
                 artistImage: e['artist_image'] as String?,
+                image: (e['image'] as String?) ?? (e['release']?['cover'] as String?),
                 release: e['release'] == null
                     ? null
                     : ReleaseInfo(e['release']['title'] as String, e['release']['type'] as String,
@@ -537,12 +603,49 @@ class Api {
   Future<Map<String, dynamic>> _send(String method, String path,
       [Object? json, Duration timeout = requestTimeout]) async {
     final req = http.Request(method, Uri.parse('$apiBase$path'));
-    if (_session != null) req.headers['Authorization'] = 'Bearer $_session';
     if (json != null) {
       req.headers['Content-Type'] = 'application/json';
       req.body = jsonEncode(json);
     }
-    final http.Response res;
+    final res = await _exec(req, timeout);
+    await _throwIfError(res);
+    final text = utf8.decode(res.bodyBytes);
+    if (text.isEmpty) return {};
+    final decoded = jsonDecode(text);
+    return decoded is List ? {'_list': decoded} : decoded as Map<String, dynamic>;
+  }
+
+  /// Profil fotoğrafını sunucuya yazar (`PUT /me/photo`, ham JPEG); döner: yeni ETag.
+  Future<String> putPhoto(Uint8List jpeg) async {
+    final req = http.Request('PUT', Uri.parse('$apiBase/me/photo'))
+      ..headers['Content-Type'] = 'image/jpeg'
+      ..bodyBytes = jpeg;
+    final res = await _exec(req, photoTimeout);
+    await _throwIfError(res);
+    return (jsonDecode(utf8.decode(res.bodyBytes)) as Map)['etag'] as String;
+  }
+
+  /// `GET /me/photo`; [etag] verilirse değişmediyse [PhotoFetch.notModified], sunucuda
+  /// fotoğraf yoksa [PhotoFetch.gone] döner.
+  Future<PhotoFetch> getPhoto({String? etag}) async {
+    final req = http.Request('GET', Uri.parse('$apiBase/me/photo'));
+    if (etag != null) req.headers['If-None-Match'] = '"$etag"';
+    final res = await _exec(req, photoTimeout);
+    if (res.statusCode == 304) return const PhotoFetch.notModified();
+    if (res.statusCode == 404) return const PhotoFetch.gone();
+    await _throwIfError(res);
+    final raw = res.headers['etag'] ?? '';
+    return PhotoFetch.ok(res.bodyBytes, raw.replaceAll('"', ''));
+  }
+
+  Future<void> deletePhoto() async {
+    final res = await _exec(http.Request('DELETE', Uri.parse('$apiBase/me/photo')), photoTimeout);
+    await _throwIfError(res);
+  }
+
+  /// Ortak aktarım: oturum başlığı, zaman aşımı, çevrimdışı ve "sunucu uyanıyor" ipucu.
+  Future<http.Response> _exec(http.Request req, Duration timeout) async {
+    if (_session != null) req.headers['Authorization'] = 'Bearer $_session';
     // Soğuk başlangıçta (sunucu uyku) uzun süren istek: kullanıcıya "uyanıyor" ipucu göster.
     var slow = false;
     final slowTimer = Timer(slowRequestHint, () {
@@ -550,7 +653,7 @@ class Api {
       slowRequests.value++;
     });
     try {
-      res = await (() async => http.Response.fromStream(await _http.send(req)))()
+      return await (() async => http.Response.fromStream(await _http.send(req)))()
           .timeout(timeout);
     } on TimeoutException {
       throw ApiException(0, 'Sunucu yanıt vermedi (uyanıyor olabilir), biraz sonra tekrar dene',
@@ -563,21 +666,37 @@ class Api {
       slowTimer.cancel();
       if (slow) slowRequests.value--;
     }
-    final text = utf8.decode(res.bodyBytes);
-    if (res.statusCode >= 400) {
-      var message = friendlyStatus(res.statusCode);
-      try {
-        final d = (jsonDecode(text) as Map)['detail'];
-        if (d is String) message = d;
-      } catch (_) {}
-      if (res.statusCode == 401) {
-        _session = null;
-        await _storage.delete(key: _key);
-      }
-      throw ApiException(res.statusCode, message);
+  }
+
+  Future<void> _throwIfError(http.Response res) async {
+    if (res.statusCode < 400) return;
+    var message = friendlyStatus(res.statusCode);
+    try {
+      final d = (jsonDecode(utf8.decode(res.bodyBytes)) as Map)['detail'];
+      if (d is String) message = d;
+    } catch (_) {}
+    if (res.statusCode == 401) {
+      _session = null;
+      await _storage.delete(key: _key);
     }
-    if (text.isEmpty) return {};
-    final decoded = jsonDecode(text);
-    return decoded is List ? {'_list': decoded} : decoded as Map<String, dynamic>;
+    throw ApiException(res.statusCode, message);
   }
 }
+
+/// `GET /me/photo` sonucu: 200 (bayt + ETag), 304 (değişmedi) ya da 404 (sunucuda yok).
+class PhotoFetch {
+  const PhotoFetch.ok(Uint8List this.bytes, String this.etag) : state = PhotoState.ok;
+  const PhotoFetch.notModified()
+      : state = PhotoState.notModified,
+        bytes = null,
+        etag = null;
+  const PhotoFetch.gone()
+      : state = PhotoState.gone,
+        bytes = null,
+        etag = null;
+  final PhotoState state;
+  final Uint8List? bytes;
+  final String? etag;
+}
+
+enum PhotoState { ok, notModified, gone }

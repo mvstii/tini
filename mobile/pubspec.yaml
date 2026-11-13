@@ -38,6 +38,8 @@ dependencies:
   flutter_secure_storage: ^11.2.0
   url_launcher: ^6.3.3
   just_audio: ^0.10.6
+  image_picker: ^1.2.4
+  path_provider: ^2.1.6
 
 dev_dependencies:
   flutter_test:
@@ -65,6 +67,10 @@ flutter:
     - family: PlusJakartaSans
       fonts:
       - asset: assets/fonts/PlusJakartaSans.ttf
+    # Inter (OFL): değişken yazı tipi; wght ve opsz eksenleri. Başlıklarda opsz=32 (Inter Display).
+    - family: Inter
+      fonts:
+      - asset: assets/fonts/Inter.ttf
 
   # To add assets to your application, add an assets section, like this:
   # assets:

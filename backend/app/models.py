@@ -42,6 +42,20 @@ class User(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=_now)
 
 
+class UserPhoto(Base):
+    """Kişisel: profil fotoğrafı (512 px JPEG, en çok PHOTO_MAX_BYTES). Hesapla silinir."""
+
+    __tablename__ = "user_photo"
+
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("user_account.id", ondelete="CASCADE"), primary_key=True
+    )
+    content: Mapped[bytes] = mapped_column(LargeBinary)
+    mime: Mapped[str] = mapped_column(String(32))
+    etag: Mapped[str] = mapped_column(String(40))
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=_now)
+
+
 class ServiceConnection(Base):
     """Kullanıcının bağladığı müzik servisi. Token'lar Fernet ile şifreli."""
 

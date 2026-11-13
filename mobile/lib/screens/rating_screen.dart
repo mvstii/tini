@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'dart:math' as math;
+
 import 'package:flutter/semantics.dart' show CustomSemanticsAction;
 
 import 'package:flutter/material.dart';
@@ -12,9 +12,10 @@ import '../app_state.dart';
 import '../preview_player.dart';
 import '../queue_controller.dart';
 import '../theme/cosmic_colors.dart';
-import '../widgets/cover_art.dart';
+import '../theme/tini_tokens.dart';
 import '../widgets/like_button.dart';
-import '../widgets/preview_button.dart';
+import '../widgets/preview_widgets.dart';
+import '../ui/components/components.dart';
 import '../widgets/studio.dart';
 import 'list_screen.dart';
 import 'tracks_screen.dart';
@@ -28,13 +29,18 @@ export '../app_state.dart' show tourVotes;
 Future<void> openInSpotify(String title, String artist) async {
   final q = Uri.encodeComponent('$title $artist'.trim());
   try {
-    if (await launchUrl(Uri.parse('spotify:search:$q'), mode: LaunchMode.externalApplication)) {
+    if (await launchUrl(
+      Uri.parse('spotify:search:$q'),
+      mode: LaunchMode.externalApplication,
+    )) {
       return;
     }
   } catch (_) {}
   try {
-    await launchUrl(Uri.parse('https://open.spotify.com/search/$q'),
-        mode: LaunchMode.externalApplication);
+    await launchUrl(
+      Uri.parse('https://open.spotify.com/search/$q'),
+      mode: LaunchMode.externalApplication,
+    );
   } catch (_) {}
 }
 
@@ -132,9 +138,11 @@ class _RatingScreenState extends State<RatingScreen> {
     final on = !PreviewController.autoplay.value;
     PreviewController.autoplay.value = on;
     if (!on) PreviewController.instance.stop();
-    unawaited(const FlutterSecureStorage()
-        .write(key: _autoplayKey, value: on ? '1' : '0')
-        .catchError((_) {}));
+    unawaited(
+      const FlutterSecureStorage()
+          .write(key: _autoplayKey, value: on ? '1' : '0')
+          .catchError((_) {}),
+    );
   }
 
   /// Otomatik çalma açıkken üstteki kart değişince önizlemesi kendiliğinden başlar.
@@ -146,7 +154,15 @@ class _RatingScreenState extends State<RatingScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted || _current?.track != item.track) return;
       PreviewController.instance.toggle(
-          'vote-${item.track}', () => widget.api.previewUrl(trackId: item.track));
+        'vote-${item.track}',
+        () => widget.api.previewUrl(trackId: item.track),
+        meta: PreviewMeta(
+          title: item.title,
+          artist: item.artistLine,
+          image: item.image,
+          track: item.track,
+        ),
+      );
     });
   }
 
@@ -163,6 +179,8 @@ class _RatingScreenState extends State<RatingScreen> {
   void _onState() {
     if (!mounted) return;
     setState(() {});
+    // Tab çubuğundaki rozet: kuyrukta bekleyen şarkı sayısı (kabuk AppState'ten okur).
+    _state.setPendingVotes(_queue.cards.length);
     _maybeAutoplay(); // kart/otomatik çalma değişimine olay olarak tepki (build içinde değil)
   }
 
@@ -171,7 +189,9 @@ class _RatingScreenState extends State<RatingScreen> {
       await action();
     } on ApiException catch (e) {
       if (e.status == 401) {
-        if (mounted && Navigator.of(context).canPop()) Navigator.of(context).pop();
+        if (mounted && Navigator.of(context).canPop()) {
+          Navigator.of(context).pop();
+        }
         return widget.onLogout?.call();
       }
       if (mounted) setState(() => _error = e.message);
@@ -242,8 +262,12 @@ class _RatingScreenState extends State<RatingScreen> {
       if (saved) {
         ScaffoldMessenger.of(context)
           ..clearSnackBars()
-          ..showSnackBar(const SnackBar(
-              content: Text('Sonra dinle listesine eklendi'), duration: Duration(seconds: 2)));
+          ..showSnackBar(
+            const SnackBar(
+              content: Text('Sonra dinle listesine eklendi'),
+              duration: Duration(seconds: 2),
+            ),
+          );
       }
     }
   }
@@ -254,16 +278,28 @@ class _RatingScreenState extends State<RatingScreen> {
   Future<void> _undo() async {
     if (_history.isEmpty || _busy) return;
     final step = _history.removeLast();
-    if (step.later) unawaited(widget.api.removeLater(step.item.track).catchError((_) {}));
+    if (step.later) {
+      unawaited(widget.api.removeLater(step.item.track).catchError((_) {}));
+    }
     _queue.putBack(step.item);
     final prev = step.prevVote;
     final cur = step.vote;
     if (step.later || cur == null || prev == null || prev == cur) return;
-    setState(() => _busy = true); // geri yazma bitmeden yeni oy gitmesin (sıra bozulmasın)
+    setState(
+      () => _busy = true,
+    ); // geri yazma bitmeden yeni oy gitmesin (sıra bozulmasın)
     await _guard(() async {
       await widget.api.castVote(step.item.track, prev);
       _state.recordChange(
-          HistoryItem(step.item.track, cur, step.item.title, step.item.artists, step.item.image), prev);
+        HistoryItem(
+          step.item.track,
+          cur,
+          step.item.title,
+          step.item.artists,
+          step.item.image,
+        ),
+        prev,
+      );
     });
     if (mounted) setState(() => _busy = false);
   }
@@ -272,8 +308,11 @@ class _RatingScreenState extends State<RatingScreen> {
   void _openDiscover() {
     final open = widget.onOpenRecommendations;
     if (open != null) return open();
-    Navigator.of(context).push(MaterialPageRoute<void>(
-        builder: (_) => ListScreen(api: widget.api, onLogout: widget.onLogout)));
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => ListScreen(api: widget.api, onLogout: widget.onLogout),
+      ),
+    );
   }
 
   Future<void> _buildProfile() async {
@@ -288,8 +327,12 @@ class _RatingScreenState extends State<RatingScreen> {
       final open = widget.onOpenRecommendations;
       if (open != null) return open();
       // Profil hazır: keşif listesine geç (oylamaya geri dönülebilir).
-      await Navigator.of(context).push(MaterialPageRoute<void>(
-          builder: (_) => ListScreen(api: widget.api, onLogout: widget.onLogout)));
+      await Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) =>
+              ListScreen(api: widget.api, onLogout: widget.onLogout),
+        ),
+      );
     });
     if (mounted) setState(() => _busy = false);
   }
@@ -297,7 +340,8 @@ class _RatingScreenState extends State<RatingScreen> {
   @override
   Widget build(BuildContext context) {
     final c = TiniCosmicColors.of(context);
-    final canVote = !_busy &&
+    final canVote =
+        !_busy &&
         !_loading &&
         _current != null &&
         _state.forced == UiState.normal;
@@ -306,7 +350,12 @@ class _RatingScreenState extends State<RatingScreen> {
       body: SafeArea(
         bottom: false,
         child: Padding(
-          padding: EdgeInsets.fromLTRB(16, 0, 16, widget.bottomInset + 8),
+          padding: EdgeInsets.fromLTRB(
+            TiniTokens.listMargin,
+            0,
+            TiniTokens.listMargin,
+            widget.bottomInset + 12,
+          ),
           child: Column(
             children: [
               _TopBar(
@@ -315,10 +364,16 @@ class _RatingScreenState extends State<RatingScreen> {
                 onUndo: _undo,
                 autoplay: PreviewController.autoplay.value,
                 onAutoplay: _toggleAutoplay,
-                onSearch: () => Navigator.of(context).push(MaterialPageRoute<void>(
-                    builder: (_) => SearchScreen(api: widget.api))),
-                onLater: () => Navigator.of(context).push(MaterialPageRoute<void>(
-                    builder: (_) => LaterScreen(api: widget.api))),
+                onSearch: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => SearchScreen(api: widget.api),
+                  ),
+                ),
+                onLater: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => LaterScreen(api: widget.api),
+                  ),
+                ),
               ),
               AnimatedSize(
                 duration: const Duration(milliseconds: 220),
@@ -328,7 +383,10 @@ class _RatingScreenState extends State<RatingScreen> {
                   children: [
                     if (_state.unlocked)
                       _ProfileBand(
-                          built: _state.profileBuilt, busy: _busy, onBuild: _buildProfile),
+                        built: _state.profileBuilt,
+                        busy: _busy,
+                        onBuild: _buildProfile,
+                      ),
                     // Profil/özet yüklenemediyse seviye 0 görünür; hata ve yeniden deneme göster.
                     if (_error != null && (_current != null || !_state.loaded))
                       Padding(
@@ -336,15 +394,20 @@ class _RatingScreenState extends State<RatingScreen> {
                         child: Row(
                           children: [
                             Expanded(
-                              child: Text(_error!,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(color: Theme.of(context).colorScheme.error)),
+                              child: Text(
+                                _error!,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  color: Theme.of(context).colorScheme.error,
+                                ),
+                              ),
                             ),
                             if (!_state.loaded)
                               TextButton(
-                                  onPressed: _loading ? null : _init,
-                                  child: const Text('Yeniden dene')),
+                                onPressed: _loading ? null : _init,
+                                child: const Text('Yeniden dene'),
+                              ),
                           ],
                         ),
                       ),
@@ -353,12 +416,23 @@ class _RatingScreenState extends State<RatingScreen> {
               ),
               const SizedBox(height: 8),
               Expanded(child: _cardArea(c, canVote)),
-              const SizedBox(height: 10),
+              const SizedBox(height: 12),
               // Kayıt sürerken dokunma kapalı ama düğmeler solmaz (her oyda titreme olmasın).
-              _VoteGrid(
+              Opacity(
+                opacity:
+                    _loading ||
+                        _current == null ||
+                        _state.forced != UiState.normal
+                    ? 0.45
+                    : 1,
+                child: VoteRow(
                   enabled: canVote,
-                  dimmed: _loading || _current == null || _state.forced != UiState.normal,
-                  onVote: _answer),
+                  showLabels: true,
+                  onVote: _answer,
+                ),
+              ),
+              const SizedBox(height: 12),
+              UnheardButton(onTap: canVote ? () => _answer(null) : null),
             ],
           ),
         ),
@@ -369,7 +443,9 @@ class _RatingScreenState extends State<RatingScreen> {
   Widget _cardArea(TiniCosmicColors c, bool canVote) {
     final forced = _state.forced;
     final item = _current;
-    if (forced == UiState.loading || _loading) return _SkeletonCard(color: c.card);
+    if (forced == UiState.loading || _loading) {
+      return _SkeletonCard(color: c.card);
+    }
     if (forced == UiState.error) {
       return _MessageCard(
         color: c.card,
@@ -440,6 +516,7 @@ class _RatingScreenState extends State<RatingScreen> {
       key: ValueKey(item.track),
       api: widget.api,
       item: item,
+      behind: _queue.cards.skip(1).take(2).toList(),
       color: c.card,
       enabled: canVote,
       peek: _peekPending,
@@ -488,8 +565,12 @@ class _TopBar extends StatelessWidget {
                 FittedBox(
                   fit: BoxFit.scaleDown,
                   alignment: Alignment.centerLeft,
-                  child: Text(label,
-                      style: theme.textTheme.labelMedium?.copyWith(fontFeatures: _tabular)),
+                  child: Text(
+                    label,
+                    style: theme.textTheme.labelMedium?.copyWith(
+                      fontFeatures: _tabular,
+                    ),
+                  ),
                 ),
                 const SizedBox(height: 4),
                 TweenAnimationBuilder<double>(
@@ -497,12 +578,21 @@ class _TopBar extends StatelessWidget {
                   tween: Tween(begin: 0, end: state.inLevel / tourVotes),
                   duration: const Duration(milliseconds: 300),
                   curve: Curves.easeOutCubic,
-                  builder: (_, v, _) => LinearProgressIndicator(
-                    value: v,
-                    minHeight: 6,
-                    borderRadius: BorderRadius.circular(3),
-                    color: c.primary,
-                    backgroundColor: c.card,
+                  builder: (_, v, _) => ClipRRect(
+                    borderRadius: BorderRadius.circular(TiniTokens.rPill),
+                    child: Container(
+                      height: 4,
+                      color: c.raised,
+                      alignment: Alignment.centerLeft,
+                      child: FractionallySizedBox(
+                        key: const ValueKey('level-progress'),
+                        widthFactor: v.clamp(0.0, 1.0),
+                        child: const DecoratedBox(
+                          decoration: BoxDecoration(gradient: TiniTokens.brandGradient),
+                          child: SizedBox.expand(),
+                        ),
+                      ),
+                    ),
                   ),
                 ),
               ],
@@ -545,7 +635,11 @@ class _TopBar extends StatelessWidget {
 }
 
 class _ProfileBand extends StatelessWidget {
-  const _ProfileBand({required this.built, required this.busy, required this.onBuild});
+  const _ProfileBand({
+    required this.built,
+    required this.busy,
+    required this.onBuild,
+  });
   final bool built;
   final bool busy;
   final VoidCallback onBuild;
@@ -566,10 +660,12 @@ class _ProfileBand extends StatelessWidget {
           Icon(Icons.graphic_eq_rounded, size: 20, color: c.primary),
           const SizedBox(width: 8),
           Expanded(
-            child: Text('Tını profilin hazır',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: Theme.of(context).textTheme.labelLarge),
+            child: Text(
+              'Tını profilin hazır',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.labelLarge,
+            ),
           ),
           SizedBox(
             width: 168,
@@ -588,24 +684,17 @@ class _ProfileBand extends StatelessWidget {
 }
 
 BoxDecoration _cardDecoration(BuildContext context, Color color) {
-  final dark = Theme.of(context).brightness == Brightness.dark;
-  final tok = TiniCosmicColors.of(context);
+  final t = TiniTokens.of(context);
   return BoxDecoration(
-    borderRadius: BorderRadius.circular(24),
-    gradient: LinearGradient(
-      begin: Alignment.topCenter,
-      end: Alignment.bottomCenter,
-      // Dolu, katmanlı yüzey: açık temada da beyaz boşluk yerine lavanta geçiş.
-      colors: dark ? [tok.raised, tok.card] : [Colors.white, tok.raised],
-    ),
-    border: Border.all(
-        color: dark ? Colors.white.withValues(alpha: 0.10) : tok.primary.withValues(alpha: 0.18)),
+    borderRadius: BorderRadius.circular(TiniTokens.rHero),
+    color: t.surface1,
+    border: Border.all(color: t.line),
     boxShadow: [
       BoxShadow(
-          color: tok.primary.withValues(alpha: dark ? 0.16 : 0.14),
-          blurRadius: 30,
-          offset: const Offset(0, 12)),
-      if (dark) const BoxShadow(color: Color(0x99000000), blurRadius: 14, offset: Offset(0, 4)),
+        color: t.scrim.withValues(alpha: 0.25),
+        blurRadius: 24,
+        offset: const Offset(0, 10),
+      ),
     ],
   );
 }
@@ -621,9 +710,11 @@ class _SwipeCard extends StatefulWidget {
     required this.onPeeked,
     required this.onLater,
     required this.onSkip,
+    this.behind = const [],
   });
   final Api api;
   final QueueItem item;
+  final List<QueueItem> behind;
   final Color color;
   final bool enabled;
   final bool peek;
@@ -635,7 +726,8 @@ class _SwipeCard extends StatefulWidget {
   State<_SwipeCard> createState() => _SwipeCardState();
 }
 
-class _SwipeCardState extends State<_SwipeCard> with SingleTickerProviderStateMixin {
+class _SwipeCardState extends State<_SwipeCard>
+    with SingleTickerProviderStateMixin {
   final _dx = ValueNotifier<double>(0);
   late final AnimationController _ctl = AnimationController(vsync: this);
   Animation<double>? _anim;
@@ -670,7 +762,9 @@ class _SwipeCardState extends State<_SwipeCard> with SingleTickerProviderStateMi
   void dispose() {
     // Kart gidince (oy, geçiş) bu şarkının önizlemesi de susar; ağaç kilitliyken bildirim atılmaz.
     final preview = PreviewController.instance;
-    if (preview.key == 'vote-${widget.item.track}') scheduleMicrotask(preview.stop);
+    if (preview.key == 'vote-${widget.item.track}') {
+      scheduleMicrotask(preview.stop);
+    }
     _ctl.dispose();
     _dx.dispose();
     super.dispose();
@@ -678,9 +772,10 @@ class _SwipeCardState extends State<_SwipeCard> with SingleTickerProviderStateMi
 
   void _snapBack() {
     if (!mounted) return;
-    _anim = Tween(begin: _dx.value, end: 0.0)
-        .chain(CurveTween(curve: Curves.easeOutCubic))
-        .animate(_ctl);
+    _anim = Tween(
+      begin: _dx.value,
+      end: 0.0,
+    ).chain(CurveTween(curve: Curves.easeOutCubic)).animate(_ctl);
     _ctl.duration = const Duration(milliseconds: 180);
     _ctl.forward(from: 0);
   }
@@ -714,158 +809,162 @@ class _SwipeCardState extends State<_SwipeCard> with SingleTickerProviderStateMi
     final theme = Theme.of(context);
     final c = TiniCosmicColors.of(context);
     final item = widget.item;
-    return LayoutBuilder(builder: (context, box) {
-      _width = box.maxWidth;
-      final compact = box.maxHeight < 250;
-      final hintStyle = theme.textTheme.labelSmall?.copyWith(color: theme.colorScheme.onSurface);
-      return Semantics(
-        customSemanticsActions: widget.enabled
-            ? {
-                const CustomSemanticsAction(label: 'Sonra dinle'): widget.onLater,
-                const CustomSemanticsAction(label: 'Dinlemedim, geç'): widget.onSkip,
-              }
-            : const {},
-        child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onHorizontalDragUpdate: _update,
-        onHorizontalDragEnd: _end,
-        onHorizontalDragCancel: _snapBack,
-        child: ValueListenableBuilder<double>(
-          valueListenable: _dx,
-          builder: (context, dx, child) => Transform(
-            alignment: Alignment.bottomCenter,
-            transform: Matrix4.identity()
-              ..translateByDouble(dx, 0, 0, 1)
-              ..rotateZ(dx / _width * 0.12),
-            child: Stack(
-              children: [
-                child!,
-                if (dx.abs() > 20)
-                  Positioned.fill(
-                    child: IgnorePointer(
-                      child: _SwipeOverlay(
-                        right: dx > 0,
-                        strength: ((dx.abs() - 20) / _threshold).clamp(0.0, 1.0),
-                        style: dx > 0 ? c.votes[4]! : c.skip,
-                        label: dx > 0 ? 'SONRA DİNLE' : 'DİNLEMEDİM · GEÇ',
+    return LayoutBuilder(
+      builder: (context, box) {
+        _width = box.maxWidth;
+        final compact = box.maxHeight < 250;
+        return Semantics(
+          customSemanticsActions: widget.enabled
+              ? {
+                  const CustomSemanticsAction(label: 'Sonra dinle'):
+                      widget.onLater,
+                  const CustomSemanticsAction(label: 'Dinlemedim, geç'):
+                      widget.onSkip,
+                }
+              : const {},
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onHorizontalDragUpdate: _update,
+            onHorizontalDragEnd: _end,
+            onHorizontalDragCancel: _snapBack,
+            child: ValueListenableBuilder<double>(
+              valueListenable: _dx,
+              builder: (context, dx, child) => Transform(
+                alignment: Alignment.bottomCenter,
+                transform: Matrix4.identity()
+                  ..translateByDouble(dx, 0, 0, 1)
+                  ..rotateZ(dx / _width * 0.12),
+                child: Stack(
+                  children: [
+                    child!,
+                    if (dx.abs() > 20)
+                      Positioned.fill(
+                        child: IgnorePointer(
+                          child: _SwipeOverlay(
+                            right: dx > 0,
+                            strength: ((dx.abs() - 20) / _threshold).clamp(
+                              0.0,
+                              1.0,
+                            ),
+                            style: dx > 0 ? c.votes[4]! : c.skip,
+                            label: dx > 0 ? 'SONRA DİNLE' : 'DİNLEMEDİM · GEÇ',
+                          ),
+                        ),
                       ),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-          child: Container(
-            decoration: _cardDecoration(context, widget.color),
-            padding: const EdgeInsets.all(14),
-            child: Column(
-              children: [
-                if (!compact)
-                  Opacity(
-                    opacity: 0.6,
-                    child: Row(
-                      children: [
-                        Icon(Icons.chevron_left_rounded, size: 18, color: theme.colorScheme.onSurface),
-                        Text('Geç', style: hintStyle),
-                        const Spacer(),
-                        Text('Sonra dinle', style: hintStyle),
-                        Icon(Icons.chevron_right_rounded, size: 18, color: theme.colorScheme.onSurface),
-                      ],
-                    ),
-                  ),
-                Flexible(
-                  child: Center(
-                    child: AspectRatio(
-                      aspectRatio: 1,
-                      child: LayoutBuilder(
-                        builder: (_, b) => Stack(
-                          children: [
-                            CoverArt(
-                              url: item.image,
-                              size: b.biggest.shortestSide,
-                              radius: 16,
-                              gradientSeed: item.title,
-                              glow: true,
+                  ],
+                ),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 14),
+                child: Column(
+                  children: [
+                    Flexible(
+                      child: Center(
+                        child: AspectRatio(
+                          aspectRatio: 1,
+                          child: LayoutBuilder(
+                            builder: (_, b) => Stack(
+                              clipBehavior: Clip.none,
+                              children: [
+                                // Art arda dizilmiş sıradaki kartlar: hafif eğik, soluk.
+                                for (final (i, g) in widget.behind.indexed.toList().reversed)
+                                  Positioned.fill(
+                                    child: Opacity(
+                                      opacity: i == 0 ? 0.6 : 0.35,
+                                      child: Transform.rotate(
+                                        angle: (i == 0 ? -1 : 1) * (i == 0 ? 0.075 : 0.055),
+                                        child: Transform.translate(
+                                          offset: Offset(0, 10.0 * (i + 1)),
+                                          child: TiniCover(
+                                            key: ValueKey('behind-${g.track}'),
+                                            seed: '${g.title}|${g.artistLine}',
+                                            url: g.image,
+                                            size: b.biggest.shortestSide,
+                                            radius: TiniTokens.rSheet,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                TiniCover(
+                                  seed: '${item.title}|${item.artistLine}',
+                                  url: item.image,
+                                  size: b.biggest.shortestSide,
+                                  radius: TiniTokens.rSheet,
+                                ),
+                                Positioned(
+                                  top: 6,
+                                  right: 6,
+                                  child: LikeButton(
+                                    api: widget.api,
+                                    track: item.track,
+                                    liked: item.liked,
+                                    overlay: true,
+                                    onChanged: (v) => item.liked = v,
+                                  ),
+                                ),
+                              ],
                             ),
-                            Positioned(
-                              top: 6,
-                              right: 6,
-                              child: LikeButton(
-                                api: widget.api,
-                                track: item.track,
-                                liked: item.liked,
-                                overlay: true,
-                                onChanged: (v) => item.liked = v,
-                              ),
-                            ),
-                          ],
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                ),
-                const SizedBox(height: 10),
-                Text(item.title,
-                    textAlign: TextAlign.center,
-                    maxLines: compact ? 1 : 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: studioTitle(context, base: theme.textTheme.titleLarge)),
-                Text(item.artistLine,
-                    textAlign: TextAlign.center,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: theme.textTheme.bodyMedium
-                        ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
-                if (item.source == 'suggested' && !compact)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 4),
-                    child: Text(
-                      item.reasonSeed != null
-                          ? "${item.reasonSeed}'i sevdiğin için"
-                          : 'Senin için önerildi',
-                      key: const ValueKey('source-badge'),
+                    const SizedBox(height: 10),
+                    Text(
+                      item.title,
+                      textAlign: TextAlign.center,
+                      maxLines: compact ? 1 : 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: studioTitle(
+                        context,
+                        base: theme.textTheme.titleLarge,
+                      ),
+                    ),
+                    Text(
+                      item.artistLine,
                       textAlign: TextAlign.center,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.labelMedium?.copyWith(color: c.primary),
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
                     ),
-                  ),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    PreviewButton(
-                        api: widget.api,
-                        previewKey: 'vote-${item.track}',
-                        trackId: item.track),
-                    const SizedBox(width: 8),
-                    StudioLinkPill(
-                      key: const ValueKey('open-spotify'),
-                      onPressed: () => openInSpotify(item.title, item.artistLine),
-                      icon: Icons.open_in_new_rounded,
-                      label: "Spotify'da aç",
-                      accent: Theme.of(context).brightness == Brightness.dark
-                          ? const Color(0xFF1DB954)
-                          : const Color(0xFF138A3D),
-                    ),
-                    const SizedBox(width: 6),
-                    Expanded(
-                      child: Align(
-                        alignment: Alignment.centerRight,
-                        child: FittedBox(
-                          fit: BoxFit.scaleDown,
-                          alignment: Alignment.centerRight,
-                          child: _SkipPill(
-                              style: c.skip, enabled: widget.enabled, onTap: widget.onSkip),
+                    if (item.source == 'suggested' && !compact)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: Text(
+                          item.reasonSeed != null
+                              ? "${item.reasonSeed}'i sevdiğin için"
+                              : 'Senin için önerildi',
+                          key: const ValueKey('source-badge'),
+                          textAlign: TextAlign.center,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.labelMedium?.copyWith(
+                            color: c.primary,
+                          ),
                         ),
                       ),
+                    const SizedBox(height: 10),
+                    PreviewClip(
+                      api: widget.api,
+                      previewKey: 'vote-${item.track}',
+                      trackId: item.track,
+                      title: item.title,
+                      artist: item.artistLine,
+                      image: item.image,
+                      source: item.source == 'suggested' ? 'Öneri' : null,
+                      onOpenExternal: () =>
+                          openInSpotify(item.title, item.artistLine),
                     ),
                   ],
                 ),
-              ],
+              ),
             ),
           ),
-        ),
-      ));
-    });
+        );
+      },
+    );
   }
 }
 
@@ -894,274 +993,12 @@ class _SwipeOverlay extends StatelessWidget {
       alignment: Alignment.center,
       child: Opacity(
         opacity: 0.4 + 0.6 * strength,
-        child: Text(label,
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                color: style.fg,
-                fontWeight: FontWeight.w800,
-                letterSpacing: 1)),
-      ),
-    );
-  }
-}
-
-class _SkipPill extends StatelessWidget {
-  const _SkipPill({required this.style, required this.enabled, required this.onTap});
-  final VoteStyle style;
-  final bool enabled;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Hoverable(
-      enabled: enabled,
-      child: Opacity(
-      opacity: enabled ? 1 : 0.45,
-      child: Material(
-        color: style.fill,
-        shape: StadiumBorder(side: BorderSide(color: style.border)),
-        child: InkWell(
-          key: const ValueKey('skip-pill'),
-          customBorder: const StadiumBorder(),
-          onTap: enabled ? onTap : null,
-          child: SizedBox(
-            height: 40,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 14),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(style.icon, size: 20, color: style.fg),
-                  const SizedBox(width: 6),
-                  Flexible(
-                    child: Text(style.label,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: Theme.of(context)
-                            .textTheme
-                            .labelLarge
-                            ?.copyWith(color: style.fg)),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
-      ),
-    );
-  }
-}
-
-class _VoteGrid extends StatelessWidget {
-  const _VoteGrid({required this.enabled, required this.dimmed, required this.onVote});
-  final bool enabled;
-  final bool dimmed;
-  final ValueChanged<int> onVote;
-
-  @override
-  Widget build(BuildContext context) {
-    final c = TiniCosmicColors.of(context);
-    // Sabit yükseklik yerine alt sınır: büyük yazı ölçeğinde düğmeler büyür, taşmaz.
-    Widget row(List<int> ids, double h) => ConstrainedBox(
-          constraints: BoxConstraints(minHeight: h),
-          child: IntrinsicHeight(
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-              for (var i = 0; i < ids.length; i++) ...[
-                if (i > 0) const SizedBox(width: 8),
-                Expanded(
-                  child: _VoteButton(
-                    value: ids[i],
-                    style: c.votes[ids[i]]!,
-                    enabled: enabled,
-                    dimmed: dimmed,
-                    onTap: () => onVote(ids[i]),
-                  ),
-                ),
-              ],
-            ],
-            ),
-          ),
-        );
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        row(const [1, 2, 3], 50),
-        const SizedBox(height: 8),
-        row(const [4, 5, 6], 54),
-      ],
-    );
-  }
-}
-
-class _VoteButton extends StatefulWidget {
-  const _VoteButton(
-      {required this.value,
-      required this.style,
-      required this.enabled,
-      required this.dimmed,
-      required this.onTap});
-  final int value;
-  final VoteStyle style;
-  final bool enabled;
-  final bool dimmed;
-  final VoidCallback onTap;
-
-  @override
-  State<_VoteButton> createState() => _VoteButtonState();
-}
-
-class _VoteButtonState extends State<_VoteButton> with SingleTickerProviderStateMixin {
-  bool _pressed = false;
-  bool _hover = false;
-
-  /// Dokunuşta bir kez oynar (tekrarlı değil): halka dışa yayılır, ikon zıplar, yüzey parlar.
-  late final AnimationController _burst =
-      AnimationController(vsync: this, duration: const Duration(milliseconds: 520));
-
-  @override
-  void dispose() {
-    _burst.dispose();
-    super.dispose();
-  }
-
-  void _tap() {
-    HapticFeedback.selectionClick();
-    if (!MediaQuery.disableAnimationsOf(context)) _burst.forward(from: 0);
-    widget.onTap();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final s = widget.style;
-    final dark = Theme.of(context).brightness == Brightness.dark;
-    final live = widget.enabled && !widget.dimmed;
-    final lit = live && (_pressed || _hover);
-    // Yüksek oylar daha sıcak ışır: 6 en güçlü, 1 en sönük.
-    final heat = 0.6 + 0.4 * (widget.value / 6);
-    final glow = !live
-        ? <BoxShadow>[]
-        : [
-            BoxShadow(
-                color: s.border.withValues(alpha: (lit ? 0.55 : (dark ? 0.24 : 0.20)) * heat),
-                blurRadius: lit ? 20 : 12,
-                offset: Offset(0, lit ? 3 : 5)),
-          ];
-    return Semantics(
-      button: true,
-      enabled: widget.enabled,
-      label: '${widget.value}, ${s.label}',
-      excludeSemantics: true,
-      onTap: widget.enabled ? widget.onTap : null,
-      child: Opacity(
-        opacity: widget.dimmed ? 0.45 : 1,
-        child: AnimatedScale(
-          scale: _pressed ? 0.93 : (_hover && widget.enabled ? 1.05 : 1),
-          duration: Duration(milliseconds: _pressed ? 90 : 280),
-          curve: _pressed ? Curves.easeOut : Curves.easeOutBack,
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 220),
-            curve: Curves.easeOutCubic,
-            decoration: BoxDecoration(borderRadius: BorderRadius.circular(14), boxShadow: glow),
-            child: Ink(
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: s.border, width: s.borderWidth),
-                // Sol üstten gelen ışık: üstte açılmış, altta kendi rengine inen geçiş.
-                gradient: LinearGradient(
-                  begin: const Alignment(-0.6, -1),
-                  end: const Alignment(0.4, 1),
-                  colors: [
-                    Color.alphaBlend(Colors.white.withValues(alpha: lit ? 0.18 : 0.12), s.fill),
-                    s.fill,
-                    Color.alphaBlend(s.border.withValues(alpha: dark ? 0.10 : 0.06), s.fill),
-                  ],
-                  stops: const [0, 0.55, 1],
-                ),
-              ),
-              child: InkWell(
-                key: ValueKey('vote-${widget.value}'),
-                customBorder: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                onHighlightChanged: (v) => setState(() => _pressed = v),
-                onHover: (v) => setState(() => _hover = v),
-                onTap: widget.enabled ? _tap : null,
-                child: AnimatedBuilder(
-                  animation: _burst,
-                  builder: (_, child) {
-                    final t = _burst.value;
-                    final active = _burst.isAnimating;
-                    return Stack(
-                      alignment: Alignment.center,
-                      clipBehavior: Clip.none,
-                      children: [
-                        if (active) ...[
-                          // Parlama: yüzey kısa süre aydınlanıp söner.
-                          Positioned.fill(
-                            child: DecoratedBox(
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(14),
-                                color: s.fg.withValues(alpha: 0.28 * (1 - Curves.easeOut.transform(t))),
-                              ),
-                            ),
-                          ),
-                          // Halka: düğme çevresinden dışa yayılıp solar.
-                          Positioned.fill(
-                            child: Transform.scale(
-                              scale: 1 + 0.35 * Curves.easeOutCubic.transform(t),
-                              child: DecoratedBox(
-                                decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(14),
-                                  border: Border.all(
-                                      color: s.fg.withValues(alpha: 0.7 * (1 - t)), width: 2),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                        child!,
-                      ],
-                    );
-                  },
-                  child: Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text('${widget.value}',
-                                style: TextStyle(
-                                    fontSize: 15,
-                                    color: s.fg,
-                                    fontWeight: FontWeight.w700,
-                                    fontFeatures: _tabular)),
-                            const SizedBox(width: 4),
-                            // İkon: dokunuşta yaylanarak büyüyüp döner, sonra yerine oturur.
-                            AnimatedBuilder(
-                              animation: _burst,
-                              builder: (_, child) {
-                                final k = math.sin(math.pi * Curves.easeOut.transform(_burst.value));
-                                return Transform.rotate(
-                                  angle: 0.35 * k * (widget.value.isEven ? -1 : 1),
-                                  child: Transform.scale(scale: 1 + 0.55 * k, child: child),
-                                );
-                              },
-                              child: Icon(s.icon, size: 18, color: s.fg),
-                            ),
-                          ],
-                        ),
-                        Text(s.label,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                                fontSize: 12, fontWeight: FontWeight.w600, color: s.fg, height: 1.1)),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ),
+        child: Text(
+          label,
+          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+            color: style.fg,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 1,
           ),
         ),
       ),
@@ -1177,9 +1014,12 @@ class _SkeletonCard extends StatefulWidget {
   State<_SkeletonCard> createState() => _SkeletonCardState();
 }
 
-class _SkeletonCardState extends State<_SkeletonCard> with SingleTickerProviderStateMixin {
+class _SkeletonCardState extends State<_SkeletonCard>
+    with SingleTickerProviderStateMixin {
   late final AnimationController _ctl = AnimationController(
-      vsync: this, duration: const Duration(milliseconds: 900));
+    vsync: this,
+    duration: const Duration(milliseconds: 900),
+  );
 
   @override
   void didChangeDependencies() {
@@ -1202,9 +1042,13 @@ class _SkeletonCardState extends State<_SkeletonCard> with SingleTickerProviderS
   Widget build(BuildContext context) {
     final bar = Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.12);
     Widget block(double? w, double h, double r) => Container(
-        width: w,
-        height: h,
-        decoration: BoxDecoration(color: bar, borderRadius: BorderRadius.circular(r)));
+      width: w,
+      height: h,
+      decoration: BoxDecoration(
+        color: bar,
+        borderRadius: BorderRadius.circular(r),
+      ),
+    );
     return Container(
       decoration: _cardDecoration(context, widget.color),
       padding: const EdgeInsets.all(14),
@@ -1218,7 +1062,9 @@ class _SkeletonCardState extends State<_SkeletonCard> with SingleTickerProviderS
                   aspectRatio: 1,
                   child: Container(
                     decoration: BoxDecoration(
-                        color: bar, borderRadius: BorderRadius.circular(16)),
+                      color: bar,
+                      borderRadius: BorderRadius.circular(16),
+                    ),
                   ),
                 ),
               ),
@@ -1269,7 +1115,11 @@ class _MessageCard extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               if (busy)
-                const SizedBox(width: 40, height: 40, child: CircularProgressIndicator())
+                const SizedBox(
+                  width: 40,
+                  height: 40,
+                  child: CircularProgressIndicator(),
+                )
               else if (icon != null)
                 Icon(icon, size: 48, color: c.primary),
               const SizedBox(height: 16),
@@ -1280,7 +1130,10 @@ class _MessageCard extends StatelessWidget {
               ],
               if (secondaryAction != null) ...[
                 const SizedBox(height: 8),
-                TextButton(onPressed: onSecondary, child: Text(secondaryAction!)),
+                TextButton(
+                  onPressed: onSecondary,
+                  child: Text(secondaryAction!),
+                ),
               ],
             ],
           ),

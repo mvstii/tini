@@ -1,14 +1,20 @@
 import 'package:flutter/material.dart';
 
+import '../strings.dart';
+import 'tini_tokens.dart';
+
 /// Oy kademesinin (veya "Dinlemedim"in) görünümü: dolgu, metin/simge, kenarlık.
 class VoteStyle {
-  const VoteStyle(this.fill, this.fg, this.border, this.icon, this.label, {this.borderWidth = 1.5});
+  const VoteStyle(this.fill, this.fg, this.border, this.icon, this.label, {this.borderWidth = 1.5, this.gradient});
   final Color fill;
   final Color fg;
   final Color border;
   final IconData icon;
   final String label;
   final double borderWidth;
+
+  /// Efsane (6) için marka gradyanı; diğer kademelerde null. Doluysa dolgu yerine bu çizilir.
+  final Gradient? gradient;
 }
 
 /// "Kozmik Spektrum" paleti (buzdan altına geçiş); açık ve koyu temada tüm oylama
@@ -46,29 +52,29 @@ class TiniCosmicColors extends ThemeExtension<TiniCosmicColors> {
 
   static const dark = TiniCosmicColors(
     scaffold: Color(0xFF050309),
-    card: Color(0xFF110B22),
-    raised: Color(0xFF1A1233),
+    card: Color(0xFF0F0E15),
+    raised: Color(0xFF181621),
     highlight: Color(0xFF2B1D50),
     textSecondary: Color(0xFFBCB4D2),
     textTertiary: Color(0xFF7B7396),
     primary: Color(0xFFD0BCFF),
     votes: {
-      1: VoteStyle(Color(0xFF162030), Color(0xFF99B8F0), Color(0xFF2E4566),
-          Icons.heart_broken_rounded, 'Berbat'),
-      2: VoteStyle(Color(0xFF1E2040), Color(0xFFB0B5F5), Color(0xFF3D4180),
-          Icons.thumb_down_off_alt_rounded, 'Kötü'),
-      3: VoteStyle(Color(0xFF2A223D), Color(0xFFC9B8EB), Color(0xFF534378),
-          Icons.remove_circle_outline_rounded, 'Eh'),
-      4: VoteStyle(Color(0xFF3E1F5E), Color(0xFFE2B8FF), Color(0xFF7B3FB8),
-          Icons.thumb_up_off_alt_rounded, 'İyi'),
-      5: VoteStyle(Color(0xFF59184A), Color(0xFFFFB0E8), Color(0xFFB33095),
-          Icons.favorite_border_rounded, 'Harika'),
-      6: VoteStyle(Color(0xFF4F3606), Color(0xFFFFE07D), Color(0xFFF5B82E),
-          Icons.auto_awesome_rounded, 'Efsane',
-          borderWidth: 2),
+      1: VoteStyle(Color(0xFF3C172D), Color(0xFFFF9DA6), Color(0xFFFF4D5E),
+          Icons.heart_broken_rounded, TiniStrings.voteN1),
+      2: VoteStyle(Color(0xFF3C222A), Color(0xFFFFBF9D), Color(0xFFFF8A4C),
+          Icons.thumb_down_off_alt_rounded, TiniStrings.voteN2),
+      3: VoteStyle(Color(0xFF3C2C29), Color(0xFFFFDD9C), Color(0xFFFFC24B),
+          Icons.remove_circle_outline_rounded, TiniStrings.voteN3),
+      4: VoteStyle(Color(0xFF2B312C), Color(0xFFCCEEA5), Color(0xFFA3E05C),
+          Icons.thumb_up_off_alt_rounded, TiniStrings.voteN4),
+      5: VoteStyle(Color(0xFF19303C), Color(0xFF94EAD6), Color(0xFF3DD9B5),
+          Icons.favorite_border_rounded, TiniStrings.voteN5),
+      6: VoteStyle(Color(0xFF271C4A), Color(0xFFFFFFFF), Color(0xFF8A6BFF),
+          Icons.auto_awesome_rounded, TiniStrings.voteN6,
+          gradient: TiniVote.efsaneGradient, borderWidth: 2),
     },
     skip: VoteStyle(Color(0xFF14121D), Color(0xFF8A8496), Color(0xFF363242),
-        Icons.skip_next_rounded, 'Dinlemedim · Geç'),
+        Icons.skip_next_rounded, TiniStrings.skip),
   );
 
   static const light = TiniCosmicColors(
@@ -80,22 +86,22 @@ class TiniCosmicColors extends ThemeExtension<TiniCosmicColors> {
     textTertiary: Color(0xFF7A7489),
     primary: Color(0xFF6750A4),
     votes: {
-      1: VoteStyle(Color(0xFFDCE6F7), Color(0xFF0D1B33), Color(0xFF7A99C9),
-          Icons.heart_broken_rounded, 'Berbat'),
-      2: VoteStyle(Color(0xFFE1E2FA), Color(0xFF14163D), Color(0xFF858AD6),
-          Icons.thumb_down_off_alt_rounded, 'Kötü'),
-      3: VoteStyle(Color(0xFFEAE3F7), Color(0xFF221838), Color(0xFF9E8AC9),
-          Icons.remove_circle_outline_rounded, 'Eh'),
-      4: VoteStyle(Color(0xFFF3DCFF), Color(0xFF2D0A4E), Color(0xFFA86ADD),
-          Icons.thumb_up_off_alt_rounded, 'İyi'),
-      5: VoteStyle(Color(0xFFFFD9F2), Color(0xFF3D002E), Color(0xFFD959B8),
-          Icons.favorite_border_rounded, 'Harika'),
-      6: VoteStyle(Color(0xFFFFECB3), Color(0xFF261900), Color(0xFFD49B00),
-          Icons.auto_awesome_rounded, 'Efsane',
-          borderWidth: 2),
+      1: VoteStyle(Color(0xFFFFDBDF), Color(0xFF52191E), Color(0xFFFF4D5E),
+          Icons.heart_broken_rounded, TiniStrings.voteN1),
+      2: VoteStyle(Color(0xFFFFE8DB), Color(0xFF522C18), Color(0xFFFF8A4C),
+          Icons.thumb_down_off_alt_rounded, TiniStrings.voteN2),
+      3: VoteStyle(Color(0xFFFFF3DB), Color(0xFF523E18), Color(0xFFFFC24B),
+          Icons.remove_circle_outline_rounded, TiniStrings.voteN3),
+      4: VoteStyle(Color(0xFFEDF9DE), Color(0xFF34481D), Color(0xFFA3E05C),
+          Icons.thumb_up_off_alt_rounded, TiniStrings.voteN4),
+      5: VoteStyle(Color(0xFFD8F7F0), Color(0xFF14453A), Color(0xFF3DD9B5),
+          Icons.favorite_border_rounded, TiniStrings.voteN5),
+      6: VoteStyle(Color(0xFFE8E1FF), Color(0xFFFFFFFF), Color(0xFF8A6BFF),
+          Icons.auto_awesome_rounded, TiniStrings.voteN6,
+          gradient: TiniVote.efsaneGradient, borderWidth: 2),
     },
     skip: VoteStyle(Color(0xFFE6E2EE), Color(0xFF4D4857), Color(0xFF9993A6),
-        Icons.skip_next_rounded, 'Dinlemedim · Geç'),
+        Icons.skip_next_rounded, TiniStrings.skip),
   );
 
   /// Temaya kayıtlı uzantıyı verir; kayıtlı değilse (ör. düz `MaterialApp`) parlaklığa göre seçer.

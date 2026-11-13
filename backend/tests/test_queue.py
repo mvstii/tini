@@ -138,6 +138,21 @@ def test_history_returns_latest_vote_per_track(client, db):
     ] == t2.id
 
 
+def test_history_carries_cached_cover_image(client, db):
+    h = register(client, "q2i@example.com")
+    a = mk_artist(db, "QHI")
+    t1 = lib_track(db, "q2i@example.com", "ZZQ000000021", a, "Kapakli")
+    t2 = lib_track(db, "q2i@example.com", "ZZQ000000022", a, "Kapaksiz")
+    meta = db.scalar(select(UserTrackMeta).where(UserTrackMeta.track_id == t1.id))
+    meta.image_url = "http://img/cover.jpg"
+    db.flush()
+    client.post("/votes", json={"track": t1.id, "vote": 5}, headers=h)
+    client.post("/votes", json={"track": t2.id, "vote": 4}, headers=h)
+    items = client.get("/votes/history", headers=h).json()["items"]
+    images = {i["track"]: i["image"] for i in items}
+    assert images == {t1.id: "http://img/cover.jpg", t2.id: None}
+
+
 def test_queue_and_history_are_private(client, db):
     h1 = register(client, "q3@example.com")
     a = mk_artist(db, "QP")

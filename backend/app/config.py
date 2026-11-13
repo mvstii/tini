@@ -54,6 +54,16 @@ class AuthSettings(BaseSettings):
     register_window_seconds: int = 3600
 
 
+class PhotoSettings(BaseSettings):
+    """Profil fotoğrafı sınırları; ortamdan PHOTO_ önekiyle ezilir."""
+
+    model_config = SettingsConfigDict(env_file=".env", env_prefix="PHOTO_", extra="ignore")
+
+    max_bytes: int = 262144
+    put_limit: int = 10
+    put_window_seconds: int = 3600
+
+
 class GraphSettings(BaseSettings):
     """Katalog/grafik parametreleri; gömülü sabit yok. Ortamdan GRAPH_ önekiyle ezilir."""
 
@@ -300,7 +310,7 @@ class ArtworkSettings(BaseSettings):
     deezer_min_interval_seconds: float = 0.25
     ttl_days: int = 14  # bulunan fotoğraf URL'sinin tazelik süresi
     miss_ttl_days: int = 3  # bulunamayanı yeniden deneme aralığı
-    fill_limit: int = 8  # tek istekte en çok kaç sanatçı sorgulanır
+    fill_limit: int = 16  # tek istekte en çok kaç sanatçı sorgulanır
     preview_enabled: bool = True  # kapalıysa /preview boş döner; istemci dinle düğmesini gizler
 
 

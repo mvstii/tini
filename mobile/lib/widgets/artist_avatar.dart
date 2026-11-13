@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../api.dart';
 import '../theme/cosmic_colors.dart';
+import '../theme/tini_tokens.dart';
 
 /// Spotify sanatçı sayfası tarzı yuvarlak portre. Fotoğraf yoksa ya da yüklenemezse adın baş
 /// harfi, addan türeyen Kozmik Spektrum geçişi üzerinde gösterilir.
@@ -18,10 +19,7 @@ class ArtistAvatar extends StatelessWidget {
     final initial = name.trim().isEmpty ? '?' : name.trim().characters.first.toUpperCase();
     final fallback = Center(
       child: Text(initial,
-          style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.92),
-              fontSize: size * 0.42,
-              fontWeight: FontWeight.w700)),
+          style: TiniTokens.initial(size).copyWith(color: Colors.white.withValues(alpha: 0.92))),
     );
     final u = url;
     return Container(
@@ -62,14 +60,19 @@ class ArtistAvatar extends StatelessWidget {
   }
 }
 
+/// Geçici hatadan sonra yeniden denemeden önceki bekleme; testler sıfırlar.
+@visibleForTesting
+Duration artistPhotoRetryDelay = const Duration(seconds: 2);
+
 /// Liste yüklenince eksik portreleri sunucudan ister; sunucu her istekte az sayıda doldurduğu
 /// için `pending` bitene dek (en çok [rounds] kez) yeniler. Hata sessizce yutulur: fotoğraf süstür.
 Future<void> loadArtistPhotos(
   Api api,
   Iterable<int> ids,
   void Function(Map<int, String?> found) onFound, {
-  int rounds = 4,
+  int rounds = 6,
   bool Function() alive = _always,
+  Duration? retryDelay,
 }) async {
   final want = ids.toSet().toList();
   for (var r = 0; r < rounds && want.isNotEmpty && alive(); r++) {
@@ -80,7 +83,10 @@ Future<void> loadArtistPhotos(
       want.removeWhere(res.images.containsKey);
       if (res.pending == 0) return;
     } catch (_) {
-      return;
+      // Geçici hata (soğuk sunucu, ağ kesintisi): kısa bekleyip en çok iki kez yeniden dene.
+      final wait = retryDelay ?? artistPhotoRetryDelay;
+      if (wait > Duration.zero) await Future<void>.delayed(wait);
+      if (r >= 1) return;
     }
   }
 }

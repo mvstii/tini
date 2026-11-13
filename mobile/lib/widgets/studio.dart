@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import '../theme/cosmic_colors.dart';
+import '../theme/tini_tokens.dart';
 import '../theme/tokens.dart';
 
 /// Tüm ekranların arkasındaki galaksi zemini: simsiyah-mor taban, iki nebula ışığı ve sabit bir
@@ -15,9 +16,9 @@ class AmbientBackground extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final dark = Theme.of(context).brightness == Brightness.dark;
-    final base = dark ? const Color(0xFF050309) : const Color(0xFFF3EEFC);
-    final top = dark ? const Color(0xFF4B1F8C) : const Color(0xFFB9A4E8);
-    final bottom = dark ? const Color(0xFF2A2F6B) : const Color(0xFFC9CCEE);
+    final base = TiniCosmicColors.of(context).scaffold;
+    final top = dark ? TiniTokens.nebulaTopDark : TiniTokens.nebulaTopLight;
+    final bottom = dark ? TiniTokens.nebulaBottomDark : TiniTokens.nebulaBottomLight;
     Widget glow(Alignment at, double radius, Color color, double alpha) => Positioned.fill(
           child: IgnorePointer(
             child: DecoratedBox(
@@ -34,9 +35,9 @@ class AmbientBackground extends StatelessWidget {
       color: base,
       child: Stack(
         children: [
-          glow(const Alignment(1.0, -1.0), 1.3, top, dark ? 0.34 : 0.26),
-          glow(const Alignment(-1.0, 1.0), 1.1, bottom, 0.12),
-          glow(const Alignment(-0.9, -0.3), 0.7, top, dark ? 0.10 : 0.08),
+          glow(const Alignment(1.0, -1.0), 1.3, top, dark ? 0.12 : 0.26),
+          glow(const Alignment(-1.0, 1.0), 1.1, bottom, dark ? 0.06 : 0.20),
+          glow(const Alignment(-0.9, -0.3), 0.7, top, dark ? 0.03 : 0.08),
           Positioned.fill(
             child: IgnorePointer(
               child: RepaintBoundary(
@@ -66,7 +67,7 @@ class _StarDust extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final p = Paint();
     for (final (x, y, rad, a) in _stars) {
-      p.color = (dark ? const Color(0xFFE9DEFF) : const Color(0xFF8B6FD6))
+      p.color = (dark ? TiniTokens.starDark : TiniTokens.starLight)
           .withValues(alpha: dark ? a : a * 0.35);
       canvas.drawCircle(Offset(x * size.width, y * size.height), rad, p);
     }
@@ -104,12 +105,12 @@ class StudioSurface extends StatelessWidget {
     final fillColors = fill ??
         (dark
             ? [tok.raised, tok.card]
-            : const [Color(0xFFFFFFFF), Color(0xFFFAF8FF)]);
+            : const [TiniTokens.lightCardTop, TiniTokens.lightCardBottom]);
     final (hi, lo) = edge ??
         (dark
             ? (Colors.white.withValues(alpha: 0.12), Colors.white.withValues(alpha: 0.04))
-            : (const Color(0xFF6750A4).withValues(alpha: 0.16),
-                const Color(0xFF6750A4).withValues(alpha: 0.05)));
+            : (TiniTokens.lightAccent.withValues(alpha: 0.16),
+                TiniTokens.lightAccent.withValues(alpha: 0.05)));
     return DecoratedBox(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(radius),
@@ -120,11 +121,11 @@ class StudioSurface extends StatelessWidget {
                     color: tok.primary.withValues(alpha: 0.10),
                     blurRadius: 28,
                     offset: const Offset(0, 10)),
-                const BoxShadow(color: Color(0x99000000), blurRadius: 14, offset: Offset(0, 4)),
+                const BoxShadow(color: TiniTokens.shadowDeep, blurRadius: 14, offset: Offset(0, 4)),
               ]
             : [
                 BoxShadow(
-                    color: const Color(0xFF4A3A8C).withValues(alpha: 0.10),
+                    color: TiniTokens.shadowTintLight.withValues(alpha: 0.10),
                     blurRadius: 22,
                     offset: const Offset(0, 8)),
               ],
@@ -154,9 +155,7 @@ class SectionLabel extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Text(
         text,
-        style: TextStyle(
-          fontSize: 11,
-          fontWeight: FontWeight.w700,
+        style: TiniTokens.kickerLarge.copyWith(
           letterSpacing: 1.4,
           color: color ?? Theme.of(context).colorScheme.onSurfaceVariant,
         ),
@@ -270,15 +269,15 @@ class _StudioButtonState extends State<StudioButton> {
     final enabled = widget.onPressed != null && !widget.busy;
     final lit = enabled && (_down || _hover);
     final radius = BorderRadius.circular(widget.dense ? 12 : 16);
-    // Tek tonluk, ince geçiş: renk değiştirmez, yalnızca alta doğru hafifçe koyulaşır.
     final gradient = [
       scheme.primary,
-      Color.lerp(scheme.primary, Colors.black, 0.12)!,
+      Color.lerp(scheme.primary, TiniTokens.pink, 0.35)!,
+      Color.lerp(scheme.primary, TiniTokens.pink, 0.75)!,
     ];
     // Karanlık temada birincil renk açık lavantadır; beyaz yazı okunmaz. Gradyanın en açık
     // ucuna göre kontrastı yüksek olan yazı rengi seçilir.
     final lightest = gradient.reduce((a, b) => a.computeLuminance() >= b.computeLuminance() ? a : b);
-    const dark = Color(0xFF1B1030);
+    const dark = TiniTokens.onLightFill;
     final fg = !widget.primary
         ? scheme.onSurface
         : (lightest.computeLuminance() > 0.18 ? dark : Colors.white);

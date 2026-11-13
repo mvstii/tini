@@ -130,23 +130,23 @@ def new_tracks(
     follows = user_follows(db, user.id)
     since = datetime.now(UTC).date() - timedelta(days=min(days or cfg.new_tracks_days, 60))
     rows = db.execute(
-        select(Release, Artist.name)
+        select(Release, Artist.name, Artist.id)
         .join(ReleaseArtist, ReleaseArtist.release_id == Release.id)
         .join(Artist, Artist.id == ReleaseArtist.artist_id)
         .where(ReleaseArtist.artist_id.in_(list(follows)), Release.first_release_date >= since)
         .order_by(Release.first_release_date.desc(), Release.id, Artist.id)
     ).all()
     releases, seen = [], set()
-    for r, name in rows:
+    for r, name, aid in rows:
         if r.id not in seen and name:
             seen.add(r.id)
-            releases.append((r, name))
+            releases.append((r, name, aid))
     ttl = cfg.tracks_cache_hours * 3600
     items: list[dict] = []
-    for r, artist in releases[: cfg.new_tracks_max_releases]:
+    for r, artist, aid in releases[: cfg.new_tracks_max_releases]:
         for t in _tracks_of(deezer, r, artist, ttl):
             items.append({
-                "deezer_id": t["id"], "title": t["title"], "artist": artist,
+                "deezer_id": t["id"], "title": t["title"], "artist": artist, "artist_id": aid,
                 "release": r.title, "type": r.primary_type,
                 "released": r.first_release_date.isoformat(),
                 "cover": cover_url(cfg.cover_base_url, r),
