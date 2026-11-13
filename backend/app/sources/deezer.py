@@ -36,6 +36,22 @@ def pick_picture(data: dict | None, name: str) -> str | None:
     return None
 
 
+def pick_album_cover(data: dict | None, name: str) -> str | None:
+    """Parça aramasından, sanatçısı adıyla birebir eşleşen ilk parçanın albüm kapağı.
+
+    Portresi olmayan (ya da adı sanatçı aramasında eşleşmeyen) sanatçı için yedek görsel."""
+    want = normalize_name(name)
+    for t in (data or {}).get("data") or []:
+        if normalize_name(((t or {}).get("artist") or {}).get("name") or "") != want:
+            continue
+        album = t.get("album") or {}
+        for key in ("cover_xl", "cover_big", "cover_medium"):
+            url = album.get(key)
+            if url and "/cover//" not in url:
+                return url
+    return None
+
+
 class DeezerClient:
     def __init__(self, http: SourceClient, base_url: str) -> None:
         self._http = http
@@ -45,8 +61,13 @@ class DeezerClient:
         return check_error(self._http.get_json(url, params))
 
     def artist_picture(self, name: str) -> str | None:
+        """Sanatçı portresi; yoksa sanatçının bir parçasının albüm kapağı (boş kalmasın)."""
         data = self._get(f"{self._base}/search/artist", {"q": name, "limit": "5"})
-        return pick_picture(data, name)
+        found = pick_picture(data, name)
+        if found:
+            return found
+        tracks = self._get(f"{self._base}/search", {"q": f'artist:"{name}"', "limit": "10"})
+        return pick_album_cover(tracks, name)
 
     def album_tracks(self, artist: str, title: str) -> list[dict]:
         """Yayının parça listesi: [{id, title}] (önizleme URL'si süreli olduğundan alınmaz)."""

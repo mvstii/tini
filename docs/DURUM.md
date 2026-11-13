@@ -12,6 +12,10 @@ Son güncelleme: 13 Kasım 2026 · Her aşama (PR) sonrasında güncellenir.
 
 - `/votes/history` ve `/lists` yanıtlarına kapak eklendi (parça önbelleği `image`, yayın `release.cover`); istemci kapak yüklenemezse sanatçı portresine düşer. Canlıda doğrulanmadı; kapak, kullanıcı parça önbelleği doluysa görünür.
 
+## Portre yedeği (13 Kasım 2026)
+
+- Sanatçı portresi yoksa sanatçının Deezer albüm kapağı kullanılır; eski "bulunamadı" kayıtları bir kez yeniden denenir (`artist_image.source` = `deezer-2`). Canlıda doğrulanmadı.
+
 ## Arayüz yeniden tasarımı (dal `ui/redesign`, 13 Kasım 2026)
 
 İstem: Claude Docs "Tını — Claude Code İstemi (Arayüz Tasarımı)". Karar: açık tema korunur, galaksi teması üzerine kurulur (istemin "yalnız koyu / nötr siyah" kısmı bilerek uygulanmaz).
