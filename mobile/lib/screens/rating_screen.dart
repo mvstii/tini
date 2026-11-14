@@ -955,6 +955,58 @@ class _SwipeCardState extends State<_SwipeCard>
                           ),
                         ),
                       ),
+                    if (item.isDiscovery && !compact)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: InkWell(
+                          key: const ValueKey('discovery-badge'),
+                          borderRadius: BorderRadius.circular(8),
+                          onTap: () => showTiniInfoSheet(
+                            context,
+                            title: TiniStrings.discoveryInfoTitle,
+                            body: TiniStrings.discoveryInfoBody(
+                              item.coverageSub == null
+                                  ? null
+                                  : TiniStrings.subGenreLabel(item.coverageSub!),
+                              joker: item.source == 'joker',
+                            ),
+                          ),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Flexible(
+                                  child: Text(
+                                    [
+                                      item.source == 'joker'
+                                          ? TiniStrings.discoveryJoker
+                                          : TiniStrings.discoveryProbe,
+                                      if (item.coverageSub != null)
+                                        TiniStrings.subGenreLabel(
+                                          item.coverageSub!,
+                                        ),
+                                    ].join(' · '),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: theme.textTheme.labelMedium
+                                        ?.copyWith(color: c.primary),
+                                  ),
+                                ),
+                                const SizedBox(width: 4),
+                                Icon(
+                                  Icons.info_outline,
+                                  size: 14,
+                                  color: c.primary,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
                     const SizedBox(height: 10),
                     PreviewClip(
                       api: widget.api,
@@ -963,7 +1015,12 @@ class _SwipeCardState extends State<_SwipeCard>
                       title: item.title,
                       artist: item.artistLine,
                       image: item.image,
-                      source: item.source == 'suggested' ? 'Öneri' : null,
+                      source: switch (item.source) {
+                        'suggested' => 'Öneri',
+                        'probe' => TiniStrings.discoveryProbe,
+                        'joker' => TiniStrings.discoveryJoker,
+                        _ => null,
+                      },
                       onOpenExternal: () =>
                           openInSpotify(item.title, item.artistLine),
                     ),

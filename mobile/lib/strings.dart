@@ -110,7 +110,41 @@ abstract final class TiniStrings {
   // Açıklama sayfaları
   static const infoClose = 'Anladım';
   static const infoTooltip = 'Bu ne demek?';
-  static const unheardInfoTitle = 'Dinlemedim ne işe yarar?';
+  static const discoveryProbe = 'Keşif';
+  static const discoveryJoker = 'Sürpriz';
+  static const discoveryInfoTitle = 'Bu şarkı neden burada?';
+  static String discoveryInfoBody(String? sub, {required bool joker}) {
+    final where = sub == null ? 'Bu türden' : '$sub türünden';
+    return joker
+        ? '$where henüz hiç ya da çok az şarkı oyladın. Zevkinin dışına küçük bir sürpriz: '
+            'beğenmezsen düşük oy ver, bu türden daha az gösteririz.'
+        : '$where henüz az şarkı oyladın. Zevkini daha iyi tanımak için bir örnek gösteriyoruz; '
+            'oyun bu türün sana ne kadar önerileceğini belirler.';
+  }
+
+  /// Alt tür anahtarını okunur ada çevirir ("classic_rock" → "Classic Rock").
+  static String subGenreLabel(String key) =>
+      _subGenreNames[key] ??
+      key
+          .split('_')
+          .where((w) => w.isNotEmpty)
+          .map((w) => w[0].toUpperCase() + w.substring(1))
+          .join(' ');
+
+  static const _subGenreNames = {
+    'contemporary_rnb': 'Contemporary R&B',
+    'k_pop': 'K-Pop',
+    'j_pop': 'J-Pop',
+    'lofi': 'Lo-Fi',
+    'edm': 'EDM',
+    'drum_and_bass': 'Drum & Bass',
+    'alt_rock': 'Alternatif Rock',
+    'turkce_pop': 'Türkçe Pop',
+    'turkce_rap': 'Türkçe Rap',
+    'turk_halk': 'Türk Halk Müziği',
+    'turk_sanat': 'Türk Sanat Müziği',
+  };
+  static const unheardInfoTitle ='Dinlemedim ne işe yarar?';
   static const unheardInfoBody =
       'Şarkıyı tanımıyorsan oy vermek zorunda değilsin. Dinlemedim oy sayılmaz ve zevk '
       'profilini bozmaz; şarkı keşif havuzunda aday olarak kalır ve sana tekrar gösterilebilir. '

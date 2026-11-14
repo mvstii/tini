@@ -63,7 +63,7 @@ class ImportResult {
 
 class QueueItem {
   QueueItem(this.track, this.title, this.artists,
-      [this.image, this.liked = false, this.source, this.reasonSeed]);
+      [this.image, this.liked = false, this.source, this.reasonSeed, this.coverageSub]);
   final int track;
   final String title;
   final List<String> artists;
@@ -74,6 +74,12 @@ class QueueItem {
 
   /// Öneri gerekçesinin ana çapası (sanatçı adı); yoksa null.
   final String? reasonSeed;
+
+  /// Sonda/joker kartının kapsama gerekçesindeki alt tür anahtarı ("classic_rock"); yoksa null.
+  final String? coverageSub;
+
+  /// Keşif kartı mı (tür omurgasından gelen sonda ya da joker)?
+  bool get isDiscovery => source == 'probe' || source == 'joker';
 
   /// Sunucuya bildirilen kart kaynağı: library | suggested | probe | joker.
   String get sourceLabel => source ?? 'library';
@@ -347,9 +353,17 @@ class Api {
           .map((e) => QueueItem(
               e['track'] as int, e['title'] as String, (e['artists'] as List).cast<String>(),
               e['image'] as String?, e['liked'] == true, e['source'] as String?,
-              _reasonSeed(e['reasons'])))
+              _reasonSeed(e['reasons']), _coverageSub(e['reasons'])))
           .toList(),
     );
+  }
+
+  static String? _coverageSub(Object? reasons) {
+    if (reasons is! List) return null;
+    for (final r in reasons) {
+      if (r is Map && r['kind'] == 'coverage') return r['sub_genre'] as String?;
+    }
+    return null;
   }
 
   static String? _reasonSeed(Object? reasons) {
