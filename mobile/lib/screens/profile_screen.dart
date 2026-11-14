@@ -39,10 +39,13 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen> {
   TasteProfile? _profile;
   File? _photo;
+  late int _seenRevision;
 
   @override
   void initState() {
     super.initState();
+    _seenRevision = widget.state.profileRevision;
+    widget.state.addListener(_onState);
     _loadProfile();
     // Önce yerel kare hemen görünür, sonra sunucuyla sessizce eşitlenir.
     ProfilePhotoStore.load().then((f) {
@@ -51,6 +54,38 @@ class _ProfileScreenState extends State<ProfileScreen> {
     ProfilePhotoStore.sync(widget.api).then((f) {
       if (mounted) setState(() => _photo = f);
     });
+  }
+
+  /// Profil başka bir sekmeden yeniden kurulunca sunucudaki yeni profil okunur.
+  void _onState() {
+    if (widget.state.profileRevision == _seenRevision) return;
+    _seenRevision = widget.state.profileRevision;
+    _loadProfile();
+  }
+
+  @override
+  void dispose() {
+    widget.state.removeListener(_onState);
+    super.dispose();
+  }
+
+  /// Aşağı çekince oy özeti ve zevk profili sunucudan yeniden okunur.
+  Future<void> _refresh() async {
+    try {
+      await Future.wait([widget.state.load(), _loadProfile()]);
+    } on ApiException catch (e) {
+      if (e.status == 401) return widget.onLogout();
+      _toast(e.message);
+    } catch (_) {
+      _toast(TiniStrings.serverUnreachable);
+    }
+  }
+
+  void _toast(String msg) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(msg)));
   }
 
   Future<void> _editPhoto() async {
@@ -218,7 +253,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
             final state = widget.state;
             final counts = [for (var v = 1; v <= 6; v++) state.counts[v] ?? 0];
             final modes = _modes();
-            return ListView(
+            return RefreshIndicator(
+              key: const ValueKey('profile-refresh'),
+              onRefresh: _refresh,
+              child: ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
               padding: const EdgeInsets.fromLTRB(
                 TiniTokens.pageMargin,
                 14,
@@ -456,7 +495,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                 ),
               ],
-            );
+            ));
           },
         ),
       ),

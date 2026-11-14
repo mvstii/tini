@@ -41,6 +41,7 @@ abstract final class TiniStrings {
   static const pause = 'Durdur';
   static const close = 'Kapat';
   static String pendingVotes(int n) => '$n bekleyen oy';
+  static const newRecsSemantics = 'yeni öneriler var';
   static String tabSemantics(String label, int badge) =>
       badge > 0 ? '$label, $badge bekleyen' : label;
   static const clipSemantics = '30 sn önizleme';

@@ -1466,5 +1466,165 @@ void main() {
         expect(tester.takeException(), isNull);
       },
     );
+
+    group('stale list refresh', () {
+      late List<String> calls;
+      late int voted;
+      late Api api;
+
+      Future<void> openShell(WidgetTester tester) async {
+        tester.view.physicalSize = const Size(360, 640);
+        tester.view.devicePixelRatio = 1;
+        addTearDown(tester.view.reset);
+        calls = [];
+        voted = 0;
+        final queue = [
+          for (var i = 1; i <= 40; i++)
+            {
+              'track': i,
+              'title': 'Song $i',
+              'artists': ['Art $i'],
+            },
+        ];
+        api = _api((req) async {
+          calls.add('${req.method} ${req.url.path}');
+          switch (req.url.path) {
+            case '/votes/history':
+              return http.Response(
+                jsonEncode({'total': tourVotes + voted, 'items': []}),
+                200,
+              );
+            case '/votes/queue':
+              return http.Response.bytes(
+                utf8.encode(
+                  jsonEncode({
+                    'remaining': 40,
+                    'stale': 0,
+                    'items': queue.skip(voted).toList(),
+                  }),
+                ),
+                200,
+              );
+            case '/votes':
+              voted++;
+              return http.Response('{}', 201);
+            case '/lists/generate':
+              return http.Response.bytes(
+                utf8.encode(
+                  jsonEncode({
+                    'id': 1,
+                    'items': [
+                      {
+                        'position': 1,
+                        'name': 'Beta',
+                        'title': null,
+                        'reasons': [
+                          {
+                            'seed_id': 10,
+                            'seed_name': 'Seed A',
+                            'share': 1.0,
+                            'is_anchor': true,
+                          },
+                        ],
+                      },
+                    ],
+                  }),
+                ),
+                201,
+              );
+          }
+          return http.Response('{}', 200);
+        }, _MemoryStorage()..data['session'] = 'T');
+        await api.restore();
+        await tester.pumpWidget(
+          MaterialApp(
+            home: AppShell(api: api, onLogout: () {}),
+          ),
+        );
+        await tester.pumpAndSettle();
+      }
+
+      Future<void> generateFirstList(WidgetTester tester) async {
+        await tester.tap(find.byKey(const ValueKey('tab-2')));
+        await tester.pumpAndSettle();
+        await tester.pumpAndSettle(); // ilk liste sekme açılınca kendiliğinden üretilir
+        expect(find.text('Beta'), findsOneWidget);
+      }
+
+      Future<void> voteTimes(WidgetTester tester, int n) async {
+        await tester.tap(find.byKey(const ValueKey('tab-1')));
+        await tester.pumpAndSettle();
+        for (var i = 0; i < n; i++) {
+          await tester.tap(find.byKey(const ValueKey('vote-4')));
+          await tester.pumpAndSettle();
+        }
+      }
+
+      testWidgets('dot appears after $listRefreshVotes votes and the list '
+          'is rebuilt then regenerated when the tab opens', (tester) async {
+        await openShell(tester);
+        await generateFirstList(tester);
+        expect(find.byKey(const ValueKey('recs-dot')), findsNothing);
+
+        await voteTimes(tester, listRefreshVotes - 1);
+        expect(find.byKey(const ValueKey('recs-dot')), findsNothing);
+        await voteTimes(tester, 1);
+        expect(find.byKey(const ValueKey('recs-dot')), findsOneWidget);
+
+        calls.clear();
+        await tester.tap(find.byKey(const ValueKey('tab-2')));
+        await tester.pumpAndSettle();
+        final rebuild = calls.indexOf('POST /profile/rebuild');
+        final generate = calls.indexOf('POST /lists/generate');
+        expect(rebuild, isNonNegative);
+        expect(generate, greaterThan(rebuild));
+        expect(find.byKey(const ValueKey('recs-dot')), findsNothing);
+        expect(tester.takeException(), isNull);
+      });
+
+      testWidgets('fewer votes than the threshold do not regenerate', (
+        tester,
+      ) async {
+        await openShell(tester);
+        await generateFirstList(tester);
+        await voteTimes(tester, listRefreshVotes - 1);
+        calls.clear();
+        await tester.tap(find.byKey(const ValueKey('tab-2')));
+        await tester.pumpAndSettle();
+        expect(calls, isNot(contains('POST /lists/generate')));
+        expect(calls, isNot(contains('POST /profile/rebuild')));
+      });
+
+      testWidgets('profile build lands on the profile tab', (tester) async {
+        await openShell(tester);
+        await tester.tap(find.byKey(const ValueKey('tab-1')));
+        await tester.pumpAndSettle();
+        await tester.tap(find.byKey(const ValueKey('vote-4')));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Profili Kur'));
+        await tester.pumpAndSettle();
+        expect(calls, contains('POST /profile/rebuild'));
+        expect(find.text('Oy dağılımın'), findsOneWidget);
+        expect(find.byType(ListScreen), findsNothing);
+      });
+
+      testWidgets('pull-to-refresh on the profile reloads votes', (
+        tester,
+      ) async {
+        await openShell(tester);
+        await tester.tap(find.byKey(const ValueKey('tab-3')));
+        await tester.pumpAndSettle();
+        calls.clear();
+        await tester.fling(
+          find.byKey(const ValueKey('profile-refresh')),
+          const Offset(0, 400),
+          1000,
+        );
+        await tester.pumpAndSettle();
+        expect(calls, contains('GET /votes/history'));
+        expect(calls, contains('GET /profile'));
+        expect(tester.takeException(), isNull);
+      });
+    });
   });
 }

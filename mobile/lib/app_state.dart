@@ -8,6 +8,10 @@ enum UiState { normal, loading, queueFetching, error }
 /// Başlangıç turu uzunluğu; bu kadar oydan sonra profil kurulabilir, öneriler açılır.
 const tourVotes = 30;
 
+/// Profil son kurulduğundan beri bu kadar oy verilince keşif listesi bayatlar; Öneriler
+/// sekmesi açılınca profil yeniden kurulup liste yenilenir.
+const listRefreshVotes = 10;
+
 /// Oylama, Öneriler ve Profil ekranlarının paylaştığı tek durum. Sunucu tek gerçek
 /// kaynaktır: [load] onu okur, oy/geri alma sonrası yerel kopya sunucunun yapacağıyla aynı
 /// şekilde güncellenir (oy silinmez; aynı parçaya yeni oy öncekinin yerini alır).
@@ -21,6 +25,24 @@ class AppState extends ChangeNotifier {
   bool profileBuilt = false;
   bool loaded = false;
   UiState forced = UiState.normal;
+
+  /// Profil son kurulduğundan beri verilen oy sayısı (kurulunca sıfırlanır).
+  int votesSinceRebuild = 0;
+
+  /// Öneriler sekmesi bu oturumda en az bir kez liste üretti mi (ilk üretimi ayrı akış yürütür).
+  bool listGenerated = false;
+
+  /// Profil, listenin üretildiği andan sonra yeniden kuruldu: liste profilin gerisinde.
+  bool listBehind = false;
+
+  /// Her profil kurulumunda artar; Profil sekmesi sunucudaki yeni profili bundan anlar.
+  int profileRevision = 0;
+
+  bool get profileNeedsRebuild => votesSinceRebuild >= listRefreshVotes;
+
+  /// Öneriler sekmesindeki liste yenilenmeli (rozet bunu gösterir).
+  bool get listNeedsRefresh =>
+      unlocked && listGenerated && (profileNeedsRebuild || listBehind);
 
   /// Parça kimliği → güncel oy (sunucunun döndürdüğü son 200 parça + bu oturumdakiler).
   final Map<int, int> votes = {};
@@ -59,6 +81,7 @@ class AppState extends ChangeNotifier {
 
   void recordVote(QueueItem item, int vote) {
     if (!votes.containsKey(item.track)) _serverTotal++;
+    votesSinceRebuild++;
     votes[item.track] = vote;
     recent.removeWhere((h) => h.track == item.track);
     recent.insert(0, HistoryItem(item.track, vote, item.title, item.artists, item.image));
@@ -90,6 +113,16 @@ class AppState extends ChangeNotifier {
 
   void markProfileBuilt() {
     profileBuilt = true;
+    votesSinceRebuild = 0;
+    listBehind = true;
+    profileRevision++;
+    notifyListeners();
+  }
+
+  /// Öneriler sekmesi güncel profille yeni bir liste üretti.
+  void markListGenerated() {
+    listGenerated = true;
+    listBehind = false;
     notifyListeners();
   }
 

@@ -123,10 +123,13 @@ class MiniPlayer extends StatelessWidget {
 
 /// Alt gezinme: Keşfet, Oyla, Listeler, Profil. Oyla'da bekleyen oy sayısı kırmızı rozetle.
 class TiniTabBar extends StatelessWidget {
-  const TiniTabBar({super.key, required this.index, required this.onSelect, this.pendingVotes = 0});
+  const TiniTabBar({super.key, required this.index, required this.onSelect, this.pendingVotes = 0, this.recsFresh = false});
   final int index;
   final ValueChanged<int> onSelect;
   final int pendingVotes;
+
+  /// Öneriler sekmesindeki liste bayat: sekmede nokta gösterilir.
+  final bool recsFresh;
 
   static const _labels = [
     TiniStrings.tabDiscover,
@@ -169,6 +172,7 @@ class TiniTabBar extends StatelessWidget {
                         icon: index == i ? _iconsActive[i] : _icons[i],
                         active: index == i,
                         badge: i == 1 ? pendingVotes : 0,
+                        dot: i == 2 && recsFresh,
                         onTap: () => onSelect(i),
                       ),
                     ),
@@ -190,11 +194,13 @@ class _TabItem extends StatelessWidget {
     required this.active,
     required this.badge,
     required this.onTap,
+    this.dot = false,
   });
   final String label;
   final IconData icon;
   final bool active;
   final int badge;
+  final bool dot;
   final VoidCallback onTap;
 
   @override
@@ -203,7 +209,9 @@ class _TabItem extends StatelessWidget {
     return Semantics(
       button: true,
       selected: active,
-      label: TiniStrings.tabSemantics(label, badge),
+      label: dot
+          ? '${TiniStrings.tabSemantics(label, badge)}, ${TiniStrings.newRecsSemantics}'
+          : TiniStrings.tabSemantics(label, badge),
       excludeSemantics: true,
       onTap: onTap,
       child: InkWell(
@@ -215,6 +223,17 @@ class _TabItem extends StatelessWidget {
               clipBehavior: Clip.none,
               children: [
                 Icon(icon, size: 26, color: active ? TiniTokens.activeTab : t.muted2),
+                if (dot)
+                  Positioned(
+                    left: 20,
+                    top: -2,
+                    child: Container(
+                      key: const ValueKey('recs-dot'),
+                      width: 8,
+                      height: 8,
+                      decoration: const BoxDecoration(color: TiniVote.c1, shape: BoxShape.circle),
+                    ),
+                  ),
                 if (badge > 0)
                   Positioned(
                     left: 14,
