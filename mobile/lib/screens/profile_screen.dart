@@ -11,7 +11,7 @@ import '../strings.dart';
 import '../theme/tini_tokens.dart';
 import '../ui/components/components.dart';
 import '../widgets/info_sheet.dart';
-import '../widgets/studio.dart' show Haptics;
+import '../widgets/studio.dart' show Haptics, SkeletonCard, StateNote;
 import 'home_screen.dart';
 import 'intro_screen.dart';
 import 'tracks_screen.dart' show LaterScreen;
@@ -39,6 +39,8 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   TasteProfile? _profile;
+  bool _profileLoading = true;
+  String? _profileError;
   File? _photo;
   late int _seenRevision;
 
@@ -139,13 +141,31 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (f != null) await ProfilePhotoStore.upload(widget.api);
   }
 
+  /// Profil yoksa (404) `null` döner ve bölümler boş durumda kalır; sunucuya ulaşılamazsa
+  /// "profil yok" gibi görünmesin diye hata ayrı tutulur ve yeniden deneme sunulur.
   Future<void> _loadProfile() async {
+    if (_profileError != null) setState(() => _profileError = null);
+    String? error;
     try {
       final p = await widget.api.tasteProfile();
       if (mounted) setState(() => _profile = p);
+    } on ApiException catch (e) {
+      if (e.status == 401) return widget.onLogout();
+      error = e.message;
     } catch (_) {
-      // Profil yoksa ya da sunucuya ulaşılamıyorsa mod/kaçınma bölümleri boş durumda kalır.
+      error = TiniStrings.unreachable;
     }
+    if (mounted) {
+      setState(() {
+        _profileLoading = false;
+        _profileError = error;
+      });
+    }
+  }
+
+  static String _date(DateTime d) {
+    final l = d.toLocal();
+    return '${l.day.toString().padLeft(2, '0')}.${l.month.toString().padLeft(2, '0')}.${l.year}';
   }
 
   /// Üstte açık sayfa varken çıkış yapılırsa yığın temizlenir (giriş ekranı üstte kalmasın).
@@ -293,17 +313,34 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   style: TiniTokens.section.copyWith(color: t.text),
                 ),
                 const SizedBox(height: 10),
-                if (modes.isEmpty)
-                  Text(
+                if (_profileError != null && _profile == null)
+                  StateNote.error(
+                    _profileError!,
+                    key: const ValueKey('profile-error'),
+                    onRetry: _loadProfile,
+                  )
+                else if (_profileLoading && _profile == null)
+                  const SkeletonCard(key: ValueKey('profile-loading'))
+                else if (modes.isEmpty)
+                  const StateNote.empty(
                     TiniStrings.modesEmpty,
-                    key: const ValueKey('modes-empty'),
-                    style: TiniTokens.body.copyWith(color: t.muted),
+                    key: ValueKey('modes-empty'),
+                    icon: Icons.bubble_chart_outlined,
                   )
                 else
                   ModeBubbleField(
                     key: const ValueKey('mode-field'),
                     modes: modes,
                     height: 220,
+                  ),
+                if (_profile?.version != null && _profile?.createdAt != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: Text(
+                      TiniStrings.profileStamp(_profile!.version!, _date(_profile!.createdAt!)),
+                      key: const ValueKey('profile-stamp'),
+                      style: TiniTokens.body.copyWith(color: t.muted),
+                    ),
                   ),
                 const SizedBox(height: TiniTokens.sectionGap),
                 Text(
@@ -402,9 +439,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
                 const SizedBox(height: 10),
                 if (state.recent.isEmpty)
-                  Text(
+                  const StateNote.empty(
                     TiniStrings.noVotesYet,
-                    style: TiniTokens.body.copyWith(color: t.muted),
+                    icon: Icons.how_to_vote_outlined,
                   ),
                 for (final h in state.recent)
                   _HistoryRow(item: h, onTap: () => _change(context, h)),
@@ -491,7 +528,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   alignment: Alignment.centerLeft,
                   child: TextButton.icon(
                     onPressed: () async {
-                      await widget.api.logout();
+                      try {
+                        await widget.api.logout();
+                      } catch (_) {
+                        // Yerel oturum silinemedi: çıkmış gibi göstermeyelim.
+                        Haptics.warn();
+                        return _toast(TiniStrings.unreachable);
+                      }
                       if (context.mounted) _logout(context);
                     },
                     icon: const Icon(Icons.logout_rounded),

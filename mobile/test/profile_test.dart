@@ -139,6 +139,60 @@ void main() {
           : http.Response('{}', 200),
     );
     expect(find.byKey(const ValueKey('modes-empty')), findsOneWidget);
+    expect(find.byKey(const ValueKey('profile-error')), findsNothing);
     expect(find.text('Henüz kaçındığımız bir şey yok.'), findsOneWidget);
+  });
+
+  testWidgets('a failed profile load is shown as an error, not as "no profile", and retry recovers',
+      (tester) async {
+    var fail = true;
+    await _pump(tester, (req) async {
+      if (req.url.path == '/profile') {
+        if (fail) return http.Response('{"detail":"Sunucu hatası"}', 500);
+        return http.Response.bytes(
+          utf8.encode(jsonEncode({
+            'version': 7,
+            'created_at': '2026-11-14T10:00:00+00:00',
+            'vote_count': 40,
+            'clusters': [
+              {'id': 1, 'weight': 1.0, 'artists': []},
+            ],
+            'avoid': [],
+          })),
+          200,
+        );
+      }
+      return http.Response('{}', 200);
+    });
+    expect(find.byKey(const ValueKey('profile-error')), findsOneWidget);
+    expect(find.byKey(const ValueKey('modes-empty')), findsNothing);
+    expect(find.byKey(const ValueKey('profile-stamp')), findsNothing);
+
+    fail = false;
+    await tester.tap(find.text('Yeniden dene'));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('profile-error')), findsNothing);
+    expect(find.byKey(const ValueKey('mode-field')), findsOneWidget);
+    expect(find.textContaining('Profil sürümü 7 · '), findsOneWidget);
+  });
+
+  testWidgets('profile without version metadata shows no stamp', (tester) async {
+    await _pump(tester, (req) async {
+      if (req.url.path == '/profile') {
+        return http.Response.bytes(
+          utf8.encode(jsonEncode({
+            'vote_count': 40,
+            'clusters': [
+              {'id': 1, 'weight': 1.0, 'artists': []},
+            ],
+            'avoid': [],
+          })),
+          200,
+        );
+      }
+      return http.Response('{}', 200);
+    });
+    expect(find.byKey(const ValueKey('mode-field')), findsOneWidget);
+    expect(find.byKey(const ValueKey('profile-stamp')), findsNothing);
   });
 }
