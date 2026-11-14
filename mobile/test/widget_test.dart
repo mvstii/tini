@@ -357,6 +357,68 @@ void main() {
       },
     );
 
+    testWidgets('probe card shows the coverage badge and explains it', (
+      tester,
+    ) async {
+      final f = fake(
+        items: [
+          {
+            'track': 1,
+            'title': 'Alpha',
+            'artists': ['A'],
+            'source': 'probe',
+            'reasons': [
+              {
+                'kind': 'coverage',
+                'main_genre': 'rock',
+                'sub_genre': 'classic_rock',
+                'band': 'mid',
+                'shown': 0,
+              },
+            ],
+          },
+        ],
+      );
+      await open(tester, f.api);
+
+      expect(find.text('Keşif · Classic Rock'), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('discovery-badge')));
+      await tester.pumpAndSettle();
+      expect(find.text('Bu şarkı neden burada?'), findsOneWidget);
+      expect(find.textContaining('Classic Rock türünden'), findsOneWidget);
+    });
+
+    testWidgets(
+      'joker card shows the surprise badge; no reason falls back to a plain one',
+      (tester) async {
+        final f = fake(
+          items: [
+            {
+              'track': 1,
+              'title': 'Alpha',
+              'artists': ['A'],
+              'source': 'joker',
+              'reasons': [
+                {'kind': 'coverage', 'sub_genre': 'turk_halk'},
+              ],
+            },
+            {
+              'track': 2,
+              'title': 'Beta',
+              'artists': ['B'],
+              'source': 'probe',
+            },
+          ],
+        );
+        await open(tester, f.api);
+        expect(find.text('Sürpriz · Türk Halk Müziği'), findsOneWidget);
+
+        await tester.tap(find.byKey(const ValueKey('vote-4')));
+        await tester.pumpAndSettle();
+        expect(find.text('Keşif'), findsOneWidget);
+      },
+    );
+
     testWidgets(
       'swipe right adds to listen-later (no vote), swipe left skips',
       (tester) async {
