@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
 import '../../strings.dart';
 import '../../theme/tini_tokens.dart';
+import '../../widgets/studio.dart';
 
 /// Oy düğmesinin durumu: normal, seçili (%112 büyür, 5 pt hale) ya da pasif (başka oy seçili).
 enum VoteButtonState { normal, selected, passive }
@@ -123,7 +123,7 @@ class VoteRow extends StatelessWidget {
                       : (selected == v ? VoteButtonState.selected : VoteButtonState.passive),
                   onTap: enabled
                       ? () {
-                          HapticFeedback.selectionClick();
+                          Haptics.select();
                           onVote(v);
                         }
                       : null,

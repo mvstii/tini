@@ -199,7 +199,6 @@ abstract final class TiniStrings {
   static const themeLight = 'Açık';
   static const themeDark = 'Koyu';
   static const logout = 'Çıkış';
-  static const serverUnreachable = 'Sunucuya ulaşılamadı';
   static String trackFallback(int n) => 'Parça $n';
 
   static String savedToSpotify(int added, int skipped, String detail) =>

@@ -11,6 +11,7 @@ import '../strings.dart';
 import '../theme/tini_tokens.dart';
 import '../ui/components/components.dart';
 import '../widgets/info_sheet.dart';
+import '../widgets/studio.dart' show Haptics;
 import 'home_screen.dart';
 import 'intro_screen.dart';
 import 'tracks_screen.dart' show LaterScreen;
@@ -77,7 +78,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       if (e.status == 401) return widget.onLogout();
       _toast(e.message);
     } catch (_) {
-      _toast(TiniStrings.serverUnreachable);
+      _toast(TiniStrings.unreachable);
     }
   }
 
@@ -207,15 +208,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
         picked,
       ); // yeni bir olay; eskisi silinmez
       widget.state.recordChange(h, picked);
+      Haptics.success();
     } on ApiException catch (e) {
+      Haptics.warn();
       if (context.mounted) {
         ScaffoldMessenger.of(context)
             .showSnackBar(SnackBar(content: Text(e.message)));
       }
     } catch (_) {
+      Haptics.warn();
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text(TiniStrings.serverUnreachable)),
+          const SnackBar(content: Text(TiniStrings.unreachable)),
         );
       }
     }

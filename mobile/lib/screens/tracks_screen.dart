@@ -6,6 +6,7 @@ import '../api.dart';
 import '../theme/cosmic_colors.dart';
 import '../widgets/like_button.dart';
 import '../widgets/preview_button.dart';
+import '../widgets/studio.dart';
 import 'rating_screen.dart' show openInSpotify;
 
 String _msg(Object e) => e is ApiException ? e.message : 'Bağlantı hatası, tekrar dene';
@@ -28,6 +29,22 @@ class _Thumb extends StatelessWidget {
     );
   }
 }
+
+/// Tam ekran hata: ortak kart + "Yeniden dene".
+Widget _errorState(String text, VoidCallback onRetry) => Center(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: StateNote.error(text, onRetry: onRetry),
+      ),
+    );
+
+/// Tam ekran boş durum: ortak kart.
+Widget _emptyState(String text, IconData icon) => Center(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: StateNote.empty(text, icon: icon),
+      ),
+    );
 
 String _title(TrackCard t) => t.title ?? 'Şarkı bilgisi yükleniyor…';
 
@@ -89,15 +106,16 @@ class _SearchScreenState extends State<SearchScreen> {
     final m = ScaffoldMessenger.of(context);
     try {
       await widget.api.addLater(t.track);
+      Haptics.success();
       m.showSnackBar(const SnackBar(content: Text('Sonra dinle listesine eklendi')));
     } catch (e) {
+      Haptics.warn();
       m.showSnackBar(SnackBar(content: Text(_msg(e))));
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final r = _results;
     return Scaffold(
       appBar: AppBar(
@@ -117,11 +135,11 @@ class _SearchScreenState extends State<SearchScreen> {
             preferredSize: Size.fromHeight(2), child: LinearProgressIndicator(minHeight: 2)) : null,
       ),
       body: _error != null
-          ? Center(child: Text(_error!, style: TextStyle(color: theme.colorScheme.error)))
+          ? _errorState(_error!, _run)
           : r == null
               ? const Center(child: Text('Dinlediğin ya da merak ettiğin şarkıyı ara'))
               : r.isEmpty
-                  ? const Center(child: Text('Sonuç yok'))
+                  ? _emptyState('Sonuç yok', Icons.search_off_rounded)
                   : ListView.builder(
                       itemCount: r.length,
                       itemBuilder: (_, i) {
@@ -180,6 +198,11 @@ class _LaterScreenState extends State<LaterScreen> {
     super.dispose();
   }
 
+  void _reload() {
+    setState(() => _error = null);
+    _load();
+  }
+
   Future<void> _load() async {
     try {
       final r = _likes ? await widget.api.likesList() : await widget.api.laterList();
@@ -206,6 +229,7 @@ class _LaterScreenState extends State<LaterScreen> {
       await (_likes ? widget.api.removeLike(t.track) : widget.api.removeLater(t.track));
       if (!mounted) return;
       _drop(t);
+      Haptics.success();
       m
         ..clearSnackBars()
         ..showSnackBar(SnackBar(
@@ -263,6 +287,7 @@ class _LaterScreenState extends State<LaterScreen> {
         } catch (_) {} // oy yazıldı; listeden çıkarma başarısızsa şarkı listede kalır
         if (mounted) _drop(t);
       }
+      Haptics.success();
       m.showSnackBar(SnackBar(content: Text('Oylandı: ${c.votes[picked]!.label}')));
     } catch (e) {
       m.showSnackBar(SnackBar(content: Text(_msg(e))));
@@ -274,6 +299,7 @@ class _LaterScreenState extends State<LaterScreen> {
     setState(() => _exporting = true);
     try {
       final r = await widget.api.exportLater();
+      if (r.added > 0) Haptics.success();
       m.clearSnackBars();
       m.showSnackBar(SnackBar(
           content: Text(r.added == 0
@@ -303,21 +329,16 @@ class _LaterScreenState extends State<LaterScreen> {
         ],
       ),
       body: _error != null
-          ? Center(child: Text(_error!))
+          ? _errorState(_error!, _reload)
           : items == null
               ? const Center(child: CircularProgressIndicator())
               : items.isEmpty
-                  ? Center(
-                      child: Padding(
-                        padding: const EdgeInsets.all(24),
-                        child: Text(
-                            _likes
-                                ? 'Henüz beğendiğin şarkı yok. Oylama kartındaki kalbe dokun.'
-                                : 'Liste boş. Oylama ekranında bir kartı sağa kaydırınca '
-                                    'buraya eklenir.',
-                            textAlign: TextAlign.center),
-                      ),
-                    )
+                  ? _emptyState(
+                      _likes
+                          ? 'Henüz beğendiğin şarkı yok. Oylama kartındaki kalbe dokun.'
+                          : 'Liste boş. Oylama ekranında bir kartı sağa kaydırınca '
+                              'buraya eklenir.',
+                      _likes ? Icons.favorite_border_rounded : Icons.bookmark_border_rounded)
                   : ListView.builder(
                       itemCount: items.length,
                       itemBuilder: (_, i) {
@@ -405,6 +426,11 @@ class _TrackScreenState extends State<TrackScreen> {
     super.dispose();
   }
 
+  void _reload() {
+    setState(() => _error = null);
+    _load();
+  }
+
   Future<void> _load() async {
     try {
       final r = await widget.api.comments(_card.track);
@@ -433,6 +459,7 @@ class _TrackScreenState extends State<TrackScreen> {
     final m = ScaffoldMessenger.of(context);
     try {
       await widget.api.addComment(_card.track, text);
+      Haptics.success();
       _ctl.clear();
       await _load();
     } catch (e) {
@@ -489,7 +516,6 @@ class _TrackScreenState extends State<TrackScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final items = _items;
     return Scaffold(
       appBar: AppBar(title: const Text('Şarkı')),
@@ -509,11 +535,12 @@ class _TrackScreenState extends State<TrackScreen> {
           const Divider(height: 1),
           Expanded(
             child: _error != null
-                ? Center(child: Text(_error!, style: TextStyle(color: theme.colorScheme.error)))
+                ? _errorState(_error!, _reload)
                 : items == null
                     ? const Center(child: CircularProgressIndicator())
                     : items.isEmpty
-                        ? const Center(child: Text('Henüz yorum yok. İlk yorumu sen yaz.'))
+                        ? _emptyState('Henüz yorum yok. İlk yorumu sen yaz.',
+                            Icons.chat_bubble_outline_rounded)
                         : ListView.separated(
                             itemCount: items.length,
                             separatorBuilder: (_, _) => const Divider(height: 1),

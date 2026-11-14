@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 
 import 'api.dart';
+import 'strings.dart';
 
 /// Kalan kart bu sayının altına inince arka planda doldurulur.
 const prefetchBelow = 8;
@@ -179,7 +180,7 @@ class QueueController extends ChangeNotifier {
       _fail(e.message);
       return;
     } catch (_) {
-      _fail('Sunucuya ulaşılamadı');
+      _fail(TiniStrings.unreachable);
       return;
     }
     await _run();
@@ -251,7 +252,7 @@ class QueueController extends ChangeNotifier {
       }
       return _onError(e);
     } catch (_) {
-      return _onError(ApiException(0, 'Sunucuya ulaşılamadı', kind: ApiFailure.offline));
+      return _onError(ApiException(0, TiniStrings.unreachable, kind: ApiFailure.offline));
     }
   }
 
