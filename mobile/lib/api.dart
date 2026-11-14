@@ -151,7 +151,13 @@ class TasteProfile {
     required this.hardAvoidCount,
     this.clusterNames = const [],
     this.clusterTags = const [],
+    this.version,
+    this.createdAt,
   });
+
+  /// Profil anlık görüntüsünün sürüm numarası ve üretim zamanı (sunucu vermezse null).
+  final int? version;
+  final DateTime? createdAt;
   final int voteCount;
   final List<double> clusterWeights;
   final List<String?> clusterNames;
@@ -481,6 +487,11 @@ class Api {
         ],
         avoidCount: avoid.length,
         hardAvoidCount: avoid.where((a) => (a as Map)['hard'] == true).length,
+        version: (b['version'] as num?)?.toInt(),
+        createdAt: switch (b['created_at']) {
+          final String s => DateTime.tryParse(s),
+          _ => null,
+        },
       );
     } on ApiException catch (e) {
       if (e.status == 404) return null;

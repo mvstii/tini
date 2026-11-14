@@ -90,6 +90,7 @@ abstract final class TiniStrings {
       '$votes oy · $amazing Efsane · $unheard Dinlemedin';
   static const tasteModes = 'Zevk modların';
   static String modeName(int n) => 'Mod $n';
+  static String profileStamp(int version, String date) => 'Profil sürümü $version · $date';
   static const modesEmpty = 'Zevk modların, profilin kurulunca burada görünür.';
   static const yourVotes = 'Oy dağılımın';
   static const badgesTitle = 'Rozetlerin';
