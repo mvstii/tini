@@ -14,18 +14,28 @@ class RecommendationsScreen extends StatelessWidget {
     required this.state,
     required this.onContinue,
     this.onLogout,
+    this.active = true,
   });
   final Api api;
   final AppState state;
   final VoidCallback onContinue;
   final VoidCallback? onLogout;
 
+  /// Bu sekme şu an görünür mü; bayat liste yalnızca görünürken yenilenir.
+  final bool active;
+
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
       listenable: state,
       builder: (context, _) => state.unlocked
-          ? ListScreen(api: api, onLogout: onLogout, embedded: true)
+          ? ListScreen(
+              api: api,
+              onLogout: onLogout,
+              embedded: true,
+              state: state,
+              active: active,
+            )
           : _Locked(state: state, onContinue: onContinue),
     );
   }

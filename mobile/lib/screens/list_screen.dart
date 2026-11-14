@@ -5,6 +5,7 @@ import 'package:flutter/services.dart' show PlatformException;
 import 'package:url_launcher/url_launcher.dart';
 
 import '../api.dart';
+import '../app_state.dart';
 import '../strings.dart';
 import '../theme/cosmic_colors.dart';
 import '../theme/tini_tokens.dart';
@@ -40,12 +41,20 @@ class ListScreen extends StatefulWidget {
     this.onLogout,
     this.launch = _launchExternal,
     this.embedded = false,
+    this.state,
+    this.active = true,
   });
   final Api api;
   final VoidCallback? onLogout;
 
   /// Kabuk içinde sekme olarak: üst çubuk yok, alt menü için boşluk var.
   final bool embedded;
+
+  /// Kabuğun paylaşılan durumu: bayat liste ([AppState.listNeedsRefresh]) sekme açılınca yenilenir.
+  final AppState? state;
+
+  /// Sekme şu an görünür mü (yalnızca görünürken yenilenir).
+  final bool active;
 
   /// Testte değiştirilebilir; varsayılan servis uygulamasını açar.
   final Future<bool> Function(String url) launch;
@@ -75,6 +84,34 @@ class _ListScreenState extends State<ListScreen> {
         if (mounted && _list == null && !_busy) _generate();
       });
     }
+    widget.state?.addListener(_maybeRefresh);
+  }
+
+  @override
+  void didUpdateWidget(covariant ListScreen old) {
+    super.didUpdateWidget(old);
+    if (old.state != widget.state) {
+      old.state?.removeListener(_maybeRefresh);
+      widget.state?.addListener(_maybeRefresh);
+    }
+    if (widget.active && !old.active) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _maybeRefresh());
+    }
+  }
+
+  @override
+  void dispose() {
+    widget.state?.removeListener(_maybeRefresh);
+    super.dispose();
+  }
+
+  /// Liste profilin gerisindeyse ve sekme görünürse yeniden üretir. Hatalı ya da boş listede
+  /// dokunmaz (döngü olmasın; "Yeniden dene" kullanıcınındır).
+  void _maybeRefresh() {
+    final s = widget.state;
+    if (!mounted || s == null || !widget.active) return;
+    if (_busy || _list == null || _error != null) return;
+    if (s.listNeedsRefresh) unawaited(_generate());
   }
 
   /// Önbellekte olmayan sanatçı portrelerini arka planda ister; kapaklar geldikçe güncellenir.
@@ -109,7 +146,14 @@ class _ListScreenState extends State<ListScreen> {
       _error = null;
     });
     try {
+      final s = widget.state;
+      // Liste bayatsa önce profil güncel oylarla yeniden kurulur (sunucu profili kendisi kurmaz).
+      if (s != null && s.listGenerated && s.profileNeedsRebuild) {
+        await widget.api.rebuildProfile();
+        s.markProfileBuilt();
+      }
       final l = await widget.api.generateList();
+      s?.markListGenerated();
       final gen = ++_gen;
       if (mounted) {
         setState(() {

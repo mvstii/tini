@@ -65,6 +65,7 @@ class RatingScreen extends StatefulWidget {
     this.state,
     this.onLogout,
     this.onOpenRecommendations,
+    this.onOpenProfile,
     this.bottomInset = 0,
   });
   final Api api;
@@ -75,6 +76,10 @@ class RatingScreen extends StatefulWidget {
 
   /// Profil kurulunca çağrılır (kabukta Öneriler sekmesi); yoksa keşif listesi açılır.
   final VoidCallback? onOpenRecommendations;
+
+  /// Profil kurulduktan sonra çağrılır (kabukta Profil sekmesi); yoksa [onOpenRecommendations]
+  /// ya da keşif listesi açılır.
+  final VoidCallback? onOpenProfile;
 
   /// Alttaki yüzen menünün kapladığı yükseklik.
   final double bottomInset;
@@ -326,7 +331,7 @@ class _RatingScreenState extends State<RatingScreen> {
       await widget.api.rebuildProfile();
       if (!mounted) return;
       _state.markProfileBuilt();
-      final open = widget.onOpenRecommendations;
+      final open = widget.onOpenProfile ?? widget.onOpenRecommendations;
       if (open != null) return open();
       // Profil hazır: keşif listesine geç (oylamaya geri dönülebilir).
       await Navigator.of(context).push(

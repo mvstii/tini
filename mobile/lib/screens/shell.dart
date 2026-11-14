@@ -90,12 +90,14 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
                       state: _state,
                       onLogout: widget.onLogout,
                       onOpenRecommendations: () => _go(2),
+                      onOpenProfile: () => _go(3),
                     ),
                     RecommendationsScreen(
                       api: widget.api,
                       state: _state,
                       onLogout: widget.onLogout,
                       onContinue: () => _go(1),
+                      active: _tab == 2,
                     ),
                     ProfileScreen(
                       api: widget.api,
@@ -131,6 +133,7 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
             index: _tab,
             onSelect: _go,
             pendingVotes: _state.pendingVotes,
+            recsFresh: _state.listNeedsRefresh,
           ),
         ),
       ],
