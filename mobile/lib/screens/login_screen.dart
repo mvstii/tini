@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show TextInput;
 
 import '../api.dart';
+import '../strings.dart';
 import '../widgets/brand.dart';
 import '../widgets/studio.dart';
 
@@ -52,7 +53,7 @@ class _LoginScreenState extends State<LoginScreen> {
     } on ApiException catch (e) {
       if (mounted) setState(() => _error = e.message);
     } catch (_) {
-      if (mounted) setState(() => _error = 'Sunucuya ulaşılamadı');
+      if (mounted) setState(() => _error = TiniStrings.unreachable);
     } finally {
       if (mounted) setState(() => _busy = false);
     }

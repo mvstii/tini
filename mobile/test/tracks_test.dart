@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
@@ -223,5 +224,89 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('like-3')));
     await tester.pumpAndSettle();
     expect(find.text('Sevilen'), findsNothing);
+  });
+
+  testWidgets('later list load failure shows the shared error card and retry reloads',
+      (tester) async {
+    var fail = true;
+    final api = await _api((r) async {
+      if (r.method == 'GET' && r.url.path == '/later') {
+        if (fail) return _json({'detail': 'Geçici hata'}, 500);
+        return _json({
+          'items': [
+            {'track': 1, 'title': 'Şarkı Bir', 'artists': ['A'], 'image': null},
+          ]
+        });
+      }
+      return _json({});
+    });
+    await tester.pumpWidget(MaterialApp(home: LaterScreen(api: api)));
+    await tester.pumpAndSettle();
+    expect(find.byIcon(Icons.error_outline_rounded), findsOneWidget);
+    expect(find.text('Yeniden dene'), findsOneWidget);
+    expect(find.text('Şarkı Bir'), findsNothing);
+
+    fail = false;
+    await tester.tap(find.text('Yeniden dene'));
+    await tester.pumpAndSettle();
+    expect(find.text('Şarkı Bir'), findsOneWidget);
+    expect(find.text('Yeniden dene'), findsNothing);
+  });
+
+  testWidgets('search failure offers retry and re-runs the same query', (tester) async {
+    var fail = true;
+    var searches = 0;
+    final api = await _api((r) async {
+      if (r.url.path.contains('search')) {
+        searches++;
+        if (fail) return _json({'detail': 'Geçici hata'}, 500);
+        return _json({
+          'items': [
+            {'track': 9, 'title': 'Bulunan', 'artists': ['A'], 'image': null},
+          ]
+        });
+      }
+      return _json({});
+    });
+    await tester.pumpWidget(MaterialApp(home: SearchScreen(api: api)));
+    await tester.enterText(find.byKey(const ValueKey('search-field')), 'tarkan');
+    await tester.pump(const Duration(milliseconds: 600));
+    await tester.pumpAndSettle();
+    expect(find.text('Yeniden dene'), findsOneWidget);
+
+    fail = false;
+    await tester.tap(find.text('Yeniden dene'));
+    await tester.pumpAndSettle();
+    expect(find.text('Bulunan'), findsOneWidget);
+    expect(searches, 2);
+  });
+
+  testWidgets('voting from the later list gives success haptic feedback', (tester) async {
+    final haptics = <Object?>[];
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(SystemChannels.platform,
+        (call) async {
+      if (call.method == 'HapticFeedback.vibrate') haptics.add(call.arguments);
+      return null;
+    });
+    addTearDown(() => tester.binding.defaultBinaryMessenger
+        .setMockMethodCallHandler(SystemChannels.platform, null));
+    final api = await _api((r) async {
+      if (r.method == 'GET' && r.url.path == '/later') {
+        return _json({
+          'items': [
+            {'track': 1, 'title': 'Şarkı Bir', 'artists': ['A'], 'image': null},
+          ]
+        });
+      }
+      if (r.method == 'DELETE') return http.Response('', 204);
+      return _json({}, 201);
+    });
+    await tester.pumpWidget(MaterialApp(home: LaterScreen(api: api)));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Şarkı Bir'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('vote-5')));
+    await tester.pumpAndSettle();
+    expect(haptics, contains('HapticFeedbackType.mediumImpact'));
   });
 }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../api.dart';
 import '../theme/cosmic_colors.dart';
+import 'studio.dart';
 
 /// Beğeni kalbi: dokununca dolar, tekrar dokununca beğeni geri çekilir. Yer imidir, oy değildir.
 /// Anında yerelde değişir; sunucu hata verirse eski haline döner.
@@ -44,12 +45,14 @@ class _LikeButtonState extends State<LikeButton> {
       _busy = true;
     });
     widget.onChanged?.call(next);
+    Haptics.select();
     try {
       await (next ? widget.api.addLike(widget.track) : widget.api.removeLike(widget.track));
     } catch (e) {
       if (!mounted) return;
       setState(() => _liked = !next);
       widget.onChanged?.call(!next);
+      Haptics.warn();
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text(e is ApiException ? e.message : 'Beğeni kaydedilemedi, tekrar dene')));
     } finally {

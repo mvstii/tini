@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../api.dart';
+import '../strings.dart';
 import '../widgets/artist_avatar.dart';
 import '../widgets/studio.dart';
 import 'list_screen.dart' show reasonText;
@@ -58,7 +59,7 @@ class _FreshScreenState extends State<FreshScreen> {
             });
       }
     } catch (_) {
-      if (mounted) setState(() => _error = 'Sunucuya ulaşılamadı');
+      if (mounted) setState(() => _error = TiniStrings.unreachable);
     } finally {
       if (mounted) setState(() => _busy = false);
     }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../api.dart';
+import '../strings.dart';
 import 'feedback_screen.dart';
 import 'fresh_screen.dart';
 import 'list_screen.dart' show reasonText;
@@ -70,7 +71,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       if (e.status == 401) return widget.onLogout();
       if (mounted) setState(() => _message = e.message);
     } catch (_) {
-      if (mounted) setState(() => _message = 'Sunucuya ulaşılamadı');
+      if (mounted) setState(() => _message = TiniStrings.unreachable);
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -192,7 +193,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     } on ApiException catch (e) {
       if (mounted) setState(() => _message = e.status == 403 ? 'Parola hatalı.' : e.message);
     } catch (_) {
-      if (mounted) setState(() => _message = 'Sunucuya ulaşılamadı');
+      if (mounted) setState(() => _message = TiniStrings.unreachable);
     }
   }
 

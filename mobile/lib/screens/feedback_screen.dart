@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../api.dart';
+import '../strings.dart';
 
 const feedbackKinds = <String, String>{'bug': 'Hata', 'idea': 'Öneri', 'other': 'Diğer'};
 
@@ -47,7 +48,7 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
       }
       if (mounted) setState(() => _error = e.message);
     } catch (_) {
-      if (mounted) setState(() => _error = 'Sunucuya ulaşılamadı');
+      if (mounted) setState(() => _error = TiniStrings.unreachable);
     }
     if (mounted) setState(() => _busy = false);
   }

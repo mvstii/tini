@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../theme/cosmic_colors.dart';
 import '../theme/tini_tokens.dart';
@@ -194,6 +195,19 @@ class _HoverableState extends State<Hoverable> {
       ),
     );
   }
+}
+
+/// Dokunsal geri bildirimin tek noktası: ekranlar `HapticFeedback`'i doğrudan çağırmaz, böylece
+/// hangi olayın hangi şiddette titreştiği tek yerden ayarlanır.
+abstract final class Haptics {
+  /// Seçim / küçük durum değişimi (oy düğmesi, beğeni).
+  static void select() => HapticFeedback.selectionClick();
+
+  /// Bir eylem sunucuya yazıldı (oy değişti, listeye eklendi, dışa aktarıldı).
+  static void success() => HapticFeedback.mediumImpact();
+
+  /// Eylem başarısız oldu.
+  static void warn() => HapticFeedback.heavyImpact();
 }
 
 /// Ortak hata / boş durum kartı: simge + metin, isteğe bağlı "Yeniden dene".

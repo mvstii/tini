@@ -206,6 +206,7 @@ class _ListScreenState extends State<ListScreen> {
       setState(
         () => _spotify = r.added == 0 ? SaveState.idle : SaveState.saved,
       );
+      if (r.added > 0) Haptics.success();
       _toast(msg);
     } on ApiException catch (ex) {
       if (!mounted) return;

@@ -201,9 +201,11 @@ class _RatingScreenState extends State<RatingScreen> {
         }
         return widget.onLogout?.call();
       }
+      Haptics.warn();
       if (mounted) setState(() => _error = e.message);
     } catch (_) {
-      if (mounted) setState(() => _error = 'Sunucuya ulaşılamadı');
+      Haptics.warn();
+      if (mounted) setState(() => _error = TiniStrings.unreachable);
     }
   }
 
@@ -267,6 +269,7 @@ class _RatingScreenState extends State<RatingScreen> {
       setState(() => _busy = false);
       _maybeAutoplay();
       if (saved) {
+        Haptics.success();
         ScaffoldMessenger.of(context)
           ..clearSnackBars()
           ..showSnackBar(
@@ -284,6 +287,7 @@ class _RatingScreenState extends State<RatingScreen> {
   /// kullanıcı yeniden oylayana kadar kalır (oyu temizleme olayı yok).
   Future<void> _undo() async {
     if (_history.isEmpty || _busy) return;
+    Haptics.select();
     final step = _history.removeLast();
     if (step.later) {
       unawaited(widget.api.removeLater(step.item.track).catchError((_) {}));
@@ -330,6 +334,7 @@ class _RatingScreenState extends State<RatingScreen> {
     await _guard(() async {
       await widget.api.rebuildProfile();
       if (!mounted) return;
+      Haptics.success();
       _state.markProfileBuilt();
       final open = widget.onOpenProfile ?? widget.onOpenRecommendations;
       if (open != null) return open();
@@ -502,7 +507,7 @@ class _RatingScreenState extends State<RatingScreen> {
           return _MessageCard(
             color: c.card,
             icon: Icons.cloud_off_rounded,
-            text: _queue.message ?? 'Sunucuya ulaşılamadı',
+            text: _queue.message ?? TiniStrings.unreachable,
             action: 'Yeniden dene',
             onAction: _queue.retry,
           );

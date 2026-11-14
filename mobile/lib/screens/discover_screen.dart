@@ -94,7 +94,7 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
       if (e.status == 401) return widget.onLogout();
       if (mounted) setState(() => _tracksError = e.message);
     } catch (_) {
-      if (mounted) setState(() => _tracksError = 'Sunucuya ulaşılamadı');
+      if (mounted) setState(() => _tracksError = TiniStrings.unreachable);
     }
   }
 
@@ -158,7 +158,7 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
         );
       }
     } catch (_) {
-      if (mounted) setState(() => _releaseError = 'Sunucuya ulaşılamadı');
+      if (mounted) setState(() => _releaseError = TiniStrings.unreachable);
     }
   }
 
@@ -178,7 +178,7 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
       if (e.status == 401) return widget.onLogout();
       if (mounted) setState(() => _message = e.message);
     } catch (_) {
-      if (mounted) setState(() => _message = 'Sunucuya ulaşılamadı');
+      if (mounted) setState(() => _message = TiniStrings.unreachable);
     }
   }
 
