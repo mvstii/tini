@@ -3,6 +3,7 @@ from datetime import UTC, datetime, timedelta
 from fastapi import APIRouter, Depends, Header, HTTPException, Request
 from pydantic import BaseModel, EmailStr, Field
 from sqlalchemy import delete, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.config import get_settings
@@ -60,7 +61,11 @@ def register(
         raise HTTPException(409, "Bu e-posta zaten kayıtlı")
     user = User(email=email, password_hash=hash_password(body.password))
     db.add(user)
-    db.flush()
+    try:
+        db.flush()
+    except IntegrityError:  # eşzamanlı kayıt: ön kontrolü ikisi de geçti, benzersizlik yakaladı
+        db.rollback()
+        raise HTTPException(409, "Bu e-posta zaten kayıtlı") from None
     return _issue(db, user)
 
 
