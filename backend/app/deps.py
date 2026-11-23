@@ -23,5 +23,8 @@ def current_user(
     sess = db.get(UserSession, hash_token(value))
     if sess is None or sess.expires_at <= datetime.now(UTC):
         raise HTTPException(401, "Oturum geçersiz")
+    user = db.get(User, sess.user_id)
+    if user is None:  # hesap silme yarışı: oturum okundu, kullanıcı arada silindi
+        raise HTTPException(401, "Oturum geçersiz")
     request.state.user_id = sess.user_id
-    return db.get(User, sess.user_id)
+    return user
