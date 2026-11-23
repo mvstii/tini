@@ -355,6 +355,23 @@ def get_meta_purge_settings() -> MetaPurgeSettings:
     return MetaPurgeSettings()
 
 
+class SessionPurgeSettings(BaseSettings):
+    """Süresi dolan oturumların (`user_session`) silinmesi. SESSION_PURGE_ öneki."""
+
+    model_config = SettingsConfigDict(env_file=".env", env_prefix="SESSION_PURGE_", extra="ignore")
+
+    enabled: bool = True
+    interval_hours: int = 6
+    delay_seconds: int = 180  # açılıştan ilk tura kadar bekleme
+    grace_seconds: int = 3600
+    batch_size: int = 5000
+
+
+@lru_cache
+def get_session_purge_settings() -> SessionPurgeSettings:
+    return SessionPurgeSettings()
+
+
 @lru_cache
 def get_artwork_settings() -> ArtworkSettings:
     return ArtworkSettings()

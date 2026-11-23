@@ -21,6 +21,7 @@ from app.recommend.api import router as recommend_router
 from app.releases.api import router as releases_router
 from app.releases.scheduler import lifespan as releases_lifespan
 from app.requestlog import install as install_request_log
+from app.session_purge_scheduler import lifespan as session_purge_lifespan
 from app.tracks import comments_router, later_router, likes_router, search_router
 
 logging.getLogger("tini.request").setLevel(logging.INFO)
@@ -38,7 +39,12 @@ def docs_urls(app_env: str) -> dict[str, str | None]:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    async with releases_lifespan(app), graph_lifespan(app), meta_purge_lifespan(app):
+    async with (
+        releases_lifespan(app),
+        graph_lifespan(app),
+        meta_purge_lifespan(app),
+        session_purge_lifespan(app),
+    ):
         yield
 
 
