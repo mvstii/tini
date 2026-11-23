@@ -9,7 +9,6 @@ from fastapi import HTTPException, Request
 
 from app.config import AuthSettings, MediaLimitSettings, PhotoSettings
 
-
 SWEEP_EVERY = 256  # bu kadar vuruşta bir tüm anahtarlar süpürülür
 
 
