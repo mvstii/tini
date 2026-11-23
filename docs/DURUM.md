@@ -8,6 +8,13 @@ Son güncelleme: 13 Kasım 2026 · Her aşama (PR) sonrasında güncellenir.
 - **Faz 1 kapısı geçildi (30 Ekim 2026):** emülatörde hesap açıldı, Spotify bağlandı, kütüphane aktarıldı (531 bağlantı, 524 parça veritabanında).
 - **Faz 0:** tamamlandı. Kalan kullanıcı işleri: partners@last.fm'e izin e-postası, `.env.example` şablonunu geri koymak, Spotify'daki "tini-spike" ve "tini-spike-2" çalma listelerini silmek.
 
+## Oy kilidi kaldırıldı (23 Kasım 2026, dal `fix/oy-kilidi`)
+
+- Kök neden: `RatingScreen._answer`/`_later` sunucu yazımı bitene kadar `_busy` ile tüm oylamayı kilitliyordu; yavaş sunucuda (Render uyanması ~38 sn, zaman aşımı 60 sn) oylama donuyordu.
+- Yeni: `lib/vote_sender.dart` (`VoteSender`) oy ve "sonra dinle" yazımlarını arka planda **sırayla** (FIFO) gönderir; kart hemen çıkar, kullanıcı sonraki kartı oylar. Yazım başarısız olursa kart kuyruğa geri gelir (eski davranış).
+- Geri alma, bekleyen yazım varken kapalıdır (sıra ve geçmiş tutarlı kalır). Profil kurma önce bekleyen oyları boşaltır (`drain`).
+- Test: `test/vote_sender_test.dart` (3 yeni); `flutter analyze` temiz, `flutter test` 141/141. Cihazda doğrulanmadı.
+
 ## Metadata TTL temizliği (23 Kasım 2026, dal `fix/meta-ttl-temizligi`)
 
 - `user_track_meta` (Spotify başlık/sanatçı/süre önbelleği) için `expires_at` yalnızca okumada süzgeçti; süresi dolan satırlar hiç silinmiyordu (CLAUDE.md: Spotify verisi kalıcı saklanmaz).
