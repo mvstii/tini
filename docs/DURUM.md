@@ -8,6 +8,13 @@ Son güncelleme: 13 Kasım 2026 · Her aşama (PR) sonrasında güncellenir.
 - **Faz 1 kapısı geçildi (30 Ekim 2026):** emülatörde hesap açıldı, Spotify bağlandı, kütüphane aktarıldı (531 bağlantı, 524 parça veritabanında).
 - **Faz 0:** tamamlandı. Kalan kullanıcı işleri: partners@last.fm'e izin e-postası, `.env.example` şablonunu geri koymak, Spotify'daki "tini-spike" ve "tini-spike-2" çalma listelerini silmek.
 
+## Metadata TTL temizliği (23 Kasım 2026, dal `fix/meta-ttl-temizligi`)
+
+- `user_track_meta` (Spotify başlık/sanatçı/süre önbelleği) için `expires_at` yalnızca okumada süzgeçti; süresi dolan satırlar hiç silinmiyordu (CLAUDE.md: Spotify verisi kalıcı saklanmaz).
+- Yeni: `app/profile/meta_purge.py` (`purge_expired_meta`, `expires_at < now - grace` satırlarını gruplar halinde siler) ve `meta_purge_scheduler.py` (sunucu içi döngü, `main.py` lifespan'ında).
+- Ayarlar `META_PURGE_` önekiyle: `ENABLED` (varsayılan açık), `INTERVAL_HOURS=6`, `DELAY_SECONDS=120`, `GRACE_SECONDS=3600`, `BATCH_SIZE=5000`.
+- Testler: `tests/test_meta_purge.py`. Yerelde PostgreSQL olmadığı için DB testleri çalıştırılmadı (CI'a bırakıldı); zamanlayıcı testleri DB gerektirmez.
+
 ## Soğuk açılış dayanıklılığı (23 Kasım 2026, dal `fix/mobil-soguk-acilis`)
 
 - Denetim sonucu (backend + mobil): Render ücretsiz katmanda uyanma ~38 sn ölçüldü; istek zaman aşımı 45 sn'ydi. Mobil: zaman aşımı 60 sn, zaman aşımı/502/503/504'te GET bir kez yeniden denenir (POST/DELETE asla, kuyruk istekleri kendi geri çekilmesini kullanır), açılışta sessiz `/health` ısındırma, "Sunucu uyanıyor" ipucu giriş ekranında da, `restore()` bozuk anahtar deposunda çökmez, 401 tek merkezden (`Api.onUnauthorized`) girişe döner, release derlemede varsayılan `API_BASE` canlı https adresi ve http ise açık hata.
