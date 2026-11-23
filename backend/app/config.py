@@ -1,6 +1,7 @@
 from functools import lru_cache
 
-from pydantic import field_validator
+from cryptography.fernet import Fernet
+from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -34,6 +35,27 @@ class Settings(BaseSettings):
     server_timing_enabled: bool = True
     # Dış servis 429/5xx iken istemciye 503 ile döndürülen varsayılan Retry-After (saniye).
     upstream_retry_after_seconds: int = 30
+
+    @field_validator("app_env")
+    @classmethod
+    def _known_env(cls, v: str) -> str:
+        # Yazım hatası (ör. "production") sessizce dev sayılıp /docs'u açık bırakmasın.
+        if v not in ("dev", "test", "prod"):
+            raise ValueError(f"APP_ENV 'dev', 'test' veya 'prod' olmalı (gelen: {v!r})")
+        return v
+
+    @model_validator(mode="after")
+    def _prod_needs_valid_credential_key(self):
+        # Canlıda anahtar yoksa/bozuksa uygulama açılıp Spotify bağlanırken 500 vermesin:
+        # açılışta düşsün (Render başarısız deploy'da eski sürümü çalışır bırakır).
+        if self.app_env == "prod":
+            try:
+                Fernet(self.credential_key.encode())
+            except Exception as e:
+                raise ValueError(
+                    "APP_ENV=prod iken CREDENTIAL_KEY geçerli bir Fernet anahtarı olmalı"
+                ) from e
+        return self
 
     @field_validator("spotify_redirect_uri", "spotify_scopes", mode="before")
     @classmethod

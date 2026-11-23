@@ -8,6 +8,13 @@ Son güncelleme: 13 Kasım 2026 · Her aşama (PR) sonrasında güncellenir.
 - **Faz 1 kapısı geçildi (30 Ekim 2026):** emülatörde hesap açıldı, Spotify bağlandı, kütüphane aktarıldı (531 bağlantı, 524 parça veritabanında).
 - **Faz 0:** tamamlandı. Kalan kullanıcı işleri: partners@last.fm'e izin e-postası, `.env.example` şablonunu geri koymak, Spotify'daki "tini-spike" ve "tini-spike-2" çalma listelerini silmek.
 
+## Açılış doğrulaması ve Dockerfile (23 Kasım 2026, dal `fix/acilis-dogrulama`)
+
+- `Settings`: `app_env` yalnız `dev|test|prod` (yazım hatası artık sessizce dev sayılıp `/docs`'u açık bırakmaz). `APP_ENV=prod` iken `CREDENTIAL_KEY` geçerli bir Fernet anahtarı değilse **açılış hata verir** (eskiden uygulama açılıp Spotify bağlanırken 500 veriyordu). Dev/test davranışı değişmedi.
+- `Dockerfile`: `|| true` ve dev bağımlılıkları kalktı (`pip install .`, kurulum hatası derlemeyi düşürür), konteyner root olmayan kullanıcıyla (`tini`, uid 10001) çalışır, `--forwarded-allow-ips` `FORWARDED_ALLOW_IPS` ortamından okunur (varsayılan `*`).
+- **Dağıtım öncesi kontrol:** Render'da `APP_ENV=prod` ve geçerli `CREDENTIAL_KEY` tanımlı olmalı; aksi halde yeni sürümün deploy'u düşer (eski sürüm çalışmaya devam eder).
+- Test: `tests/test_config_startup.py`. Yerelde bağımlılık/Docker yok: Dockerfile derlemesi ve testler CI'a bırakıldı (CI imajı derlemiyor, Dockerfile Render'da ilk deploy'da denenir).
+
 ## Oy kilidi kaldırıldı (23 Kasım 2026, dal `fix/oy-kilidi`)
 
 - Kök neden: `RatingScreen._answer`/`_later` sunucu yazımı bitene kadar `_busy` ile tüm oylamayı kilitliyordu; yavaş sunucuda (Render uyanması ~38 sn, zaman aşımı 60 sn) oylama donuyordu.
