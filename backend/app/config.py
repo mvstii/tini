@@ -314,6 +314,25 @@ class ArtworkSettings(BaseSettings):
     preview_enabled: bool = True  # kapalıysa /preview boş döner; istemci dinle düğmesini gizler
 
 
+class MetaPurgeSettings(BaseSettings):
+    """Süresi dolan servis metadata'sının (`user_track_meta`) silinmesi. META_PURGE_ öneki.
+
+    Spotify Developer Terms: metadata yalnızca geçici önbellektir; TTL dolunca saklanmaz."""
+
+    model_config = SettingsConfigDict(env_file=".env", env_prefix="META_PURGE_", extra="ignore")
+
+    enabled: bool = True  # uyumluluk düzeltmesi: varsayılan açık
+    interval_hours: int = 6  # temizlik turları arası süre
+    delay_seconds: int = 120  # açılıştan ilk tura kadar bekleme
+    grace_seconds: int = 3600  # süresi dolduktan sonra silinmeden önce tanınan ek süre
+    batch_size: int = 5000  # tek DELETE'te en çok satır (uzun kilit olmasın)
+
+
+@lru_cache
+def get_meta_purge_settings() -> MetaPurgeSettings:
+    return MetaPurgeSettings()
+
+
 @lru_cache
 def get_artwork_settings() -> ArtworkSettings:
     return ArtworkSettings()
