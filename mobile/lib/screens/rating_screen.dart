@@ -12,6 +12,7 @@ import '../app_state.dart';
 import '../preview_player.dart';
 import '../queue_controller.dart';
 import '../strings.dart';
+import '../vote_sender.dart';
 import '../theme/cosmic_colors.dart';
 import '../theme/tini_tokens.dart';
 import '../widgets/info_sheet.dart';
@@ -107,9 +108,15 @@ class _RatingScreenState extends State<RatingScreen> {
     ApiQueueBackend(widget.api),
     onUnauthorized: _logout,
   );
+  // Oy/“sonra dinle” yazımları arka planda, sırayla gider; ekran yanıtı beklemez.
+  final VoteSender _sender = VoteSender();
   final List<_Step> _history = [];
   bool _loading = true; // oturum durumu (_state.load) yükleniyor
+  // Yalnız geri alma yazımı ve profil kurma sırasında oy girişini kilitler.
   bool _busy = false;
+
+  /// Ekrandan çıkıldıktan sonra biten yazım, kendi sahibi olduğumuz durumu kullanmamalı.
+  bool get _stateAlive => widget.state != null || mounted;
   bool _peekPending = true;
   String? _error;
   int? _autoplayed; // otomatik çalma en son bu parça için tetiklendi
@@ -121,6 +128,7 @@ class _RatingScreenState extends State<RatingScreen> {
     super.initState();
     _state.addListener(_onState);
     _queue.addListener(_onState);
+    _sender.addListener(_onState); // bekleyen yazım değişince geri al düğmesi güncellenir
     PreviewController.autoplay.addListener(_onState);
     _loadAutoplay();
     _init();
@@ -177,6 +185,8 @@ class _RatingScreenState extends State<RatingScreen> {
   void dispose() {
     _state.removeListener(_onState);
     _queue.removeListener(_onState);
+    _sender.removeListener(_onState);
+    _sender.dispose();
     _queue.dispose();
     PreviewController.autoplay.removeListener(_onState);
     if (widget.state == null) _state.dispose();
@@ -220,55 +230,53 @@ class _RatingScreenState extends State<RatingScreen> {
     unawaited(_queue.start());
   }
 
-  Future<void> _answer(int? vote) async {
+  /// Kart hemen çıkar; oy yazımı [_sender] kuyruğunda sırayla arka planda gider. Sunucu
+  /// yavaşken (soğuk açılış) kullanıcı sonraki kartı oylamaya devam eder. Yazım başarısız
+  /// olursa kart kuyruğa geri gelir.
+  void _answer(int? vote) {
     final item = _current;
     if (item == null || _busy || _state.forced != UiState.normal) return;
-    // Kart ağaçtan hemen çıkar; sunucu yanıtı beklenirse sürükleme durumu asılı kalır.
-    setState(() {
-      _busy = true;
-      _error = null;
-    });
+    setState(() => _error = null);
     _queue.pop();
     final prev = _state.votes[item.track];
-    var saved = false;
-    await _guard(() async {
-      if (vote != null) {
-        await widget.api.castVote(item.track, vote, source: item.sourceLabel);
-        _state.recordVote(item, vote);
-      } else {
-        await widget.api.markUnheard(item.track, source: item.sourceLabel);
-        _state.recordUnheard();
-      }
-      saved = true;
-      _history.add(_Step(item, vote, prevVote: prev));
-    });
-    if (!saved) _queue.putBack(item); // kayıt başarısızsa kart geri gelir
-    if (mounted) {
-      setState(() => _busy = false);
-      _maybeAutoplay();
-    }
+    unawaited(
+      _sender.enqueue(() async {
+        var saved = false;
+        await _guard(() async {
+          if (vote != null) {
+            await widget.api.castVote(item.track, vote, source: item.sourceLabel);
+            if (_stateAlive) _state.recordVote(item, vote);
+          } else {
+            await widget.api.markUnheard(item.track, source: item.sourceLabel);
+            if (_stateAlive) _state.recordUnheard();
+          }
+          saved = true;
+          _history.add(_Step(item, vote, prevVote: prev));
+        });
+        if (!saved && mounted) _queue.putBack(item); // kayıt başarısızsa kart geri gelir
+      }),
+    );
   }
 
   /// Sağa kaydırma: parça "Sonra dinle" listesine girer, kuyruktan çıkar.
-  Future<void> _later() async {
+  void _later() {
     final item = _current;
     if (item == null || _busy || _state.forced != UiState.normal) return;
-    setState(() {
-      _busy = true;
-      _error = null;
-    });
+    setState(() => _error = null);
     _queue.pop();
-    var saved = false;
-    await _guard(() async {
-      await widget.api.addLater(item.track);
-      saved = true;
-      _history.add(_Step(item, null, later: true));
-    });
-    if (!saved) _queue.putBack(item);
-    if (mounted) {
-      setState(() => _busy = false);
-      _maybeAutoplay();
-      if (saved) {
+    unawaited(
+      _sender.enqueue(() async {
+        var saved = false;
+        await _guard(() async {
+          await widget.api.addLater(item.track);
+          saved = true;
+          _history.add(_Step(item, null, later: true));
+        });
+        if (!mounted) return;
+        if (!saved) {
+          _queue.putBack(item);
+          return;
+        }
         Haptics.success();
         ScaffoldMessenger.of(context)
           ..clearSnackBars()
@@ -278,15 +286,16 @@ class _RatingScreenState extends State<RatingScreen> {
               duration: Duration(seconds: 2),
             ),
           );
-      }
-    }
+      }),
+    );
   }
 
   /// Geri al: kart kuyruğa döner. Parça daha önce oylanmışsa önceki oy yeni bir olay olarak
   /// yazılır (olay silinmez; güncel oy son olaydır). İlk kez oylanan parçada sunucudaki oy,
   /// kullanıcı yeniden oylayana kadar kalır (oyu temizleme olayı yok).
   Future<void> _undo() async {
-    if (_history.isEmpty || _busy) return;
+    // Bekleyen yazım varken geri alma kapalı: sıra ve geçmiş tutarlı kalır.
+    if (_history.isEmpty || _busy || _sender.busy) return;
     Haptics.select();
     final step = _history.removeLast();
     if (step.later) {
@@ -331,6 +340,7 @@ class _RatingScreenState extends State<RatingScreen> {
       _busy = true;
       _error = null;
     });
+    await _sender.drain(); // profil, bekleyen oyları da içersin
     await _guard(() async {
       await widget.api.rebuildProfile();
       if (!mounted) return;
@@ -372,7 +382,7 @@ class _RatingScreenState extends State<RatingScreen> {
             children: [
               _TopBar(
                 state: _state,
-                canUndo: _history.isNotEmpty && !_busy,
+                canUndo: _history.isNotEmpty && !_busy && !_sender.busy,
                 onUndo: _undo,
                 autoplay: PreviewController.autoplay.value,
                 onAutoplay: _toggleAutoplay,
