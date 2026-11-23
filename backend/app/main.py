@@ -16,12 +16,12 @@ from app.preview import router as preview_router
 from app.profile.api import profile_router
 from app.profile.api import router as votes_router
 from app.profile.meta_purge_scheduler import lifespan as meta_purge_lifespan
-from app.session_purge_scheduler import lifespan as session_purge_lifespan
 from app.recommend.api import lists_router
 from app.recommend.api import router as recommend_router
 from app.releases.api import router as releases_router
 from app.releases.scheduler import lifespan as releases_lifespan
 from app.requestlog import install as install_request_log
+from app.session_purge_scheduler import lifespan as session_purge_lifespan
 from app.tracks import comments_router, later_router, likes_router, search_router
 
 logging.getLogger("tini.request").setLevel(logging.INFO)

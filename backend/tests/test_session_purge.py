@@ -6,8 +6,8 @@ import pytest
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.models import User, UserSession
 from app import session_purge, session_purge_scheduler
+from app.models import User, UserSession
 
 NOW = datetime(2026, 11, 23, 12, 0, tzinfo=UTC)
 
