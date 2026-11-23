@@ -10,6 +10,7 @@ import '../ui/components/gallery_screen.dart';
 import '../theme/transitions.dart';
 import '../widgets/preview_widgets.dart';
 import '../widgets/studio.dart';
+import '../widgets/waking_hint.dart';
 import 'discover_screen.dart';
 import 'profile_screen.dart';
 import 'rating_screen.dart';
@@ -117,7 +118,7 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
                 top: 8,
                 left: 24,
                 right: 24,
-                child: _WakingHint(),
+                child: WakingHint(),
               ),
             ],
           ),
@@ -232,49 +233,6 @@ class _DebugBar extends StatelessWidget {
               ),
             ),
           ],
-        ),
-      ),
-    );
-  }
-}
-
-/// Sunucu soğuk başlangıçtayken (istek uzun sürerse) üstte kısa bir bilgi şeridi.
-class _WakingHint extends StatelessWidget {
-  const _WakingHint();
-
-  @override
-  Widget build(BuildContext context) {
-    final c = TiniCosmicColors.of(context);
-    return SafeArea(
-      bottom: false,
-      child: ValueListenableBuilder<int>(
-        valueListenable: slowRequests,
-        builder: (_, n, _) => IgnorePointer(
-          child: AnimatedOpacity(
-            opacity: n > 0 ? 1 : 0,
-            duration: const Duration(milliseconds: 200),
-            child: Semantics(
-              liveRegion: true,
-              label: n > 0 ? 'Sunucu uyanıyor, birkaç saniye daha' : null,
-              excludeSemantics: true,
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 14,
-                  vertical: 8,
-                ),
-                decoration: BoxDecoration(
-                  color: c.card,
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: c.primary.withValues(alpha: 0.4)),
-                ),
-                child: Text(
-                  'Sunucu uyanıyor, birkaç saniye daha…',
-                  textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.labelMedium,
-                ),
-              ),
-            ),
-          ),
         ),
       ),
     );
