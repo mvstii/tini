@@ -16,6 +16,7 @@ from app.preview import router as preview_router
 from app.profile.api import profile_router
 from app.profile.api import router as votes_router
 from app.profile.meta_purge_scheduler import lifespan as meta_purge_lifespan
+from app.session_purge_scheduler import lifespan as session_purge_lifespan
 from app.recommend.api import lists_router
 from app.recommend.api import router as recommend_router
 from app.releases.api import router as releases_router
@@ -38,7 +39,12 @@ def docs_urls(app_env: str) -> dict[str, str | None]:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    async with releases_lifespan(app), graph_lifespan(app), meta_purge_lifespan(app):
+    async with (
+        releases_lifespan(app),
+        graph_lifespan(app),
+        meta_purge_lifespan(app),
+        session_purge_lifespan(app),
+    ):
         yield
 
 

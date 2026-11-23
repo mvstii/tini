@@ -379,3 +379,9 @@ UI/UX-B · Profil ekranı durumları (14 Kasım 2026, dal `feat/ui-profil-icerik
 - `current_user`: oturum var ama kullanıcı yoksa (hesap silme yarışı) 500 yerine 401.
 - Kayıt: eşzamanlı aynı e-posta `IntegrityError` verirse 409 "Bu e-posta zaten kayıtlı" (ön kontrol korunur).
 - Testler: `backend/tests/test_auth_edge.py` (PostgreSQL gerekir; yerelde çalıştırılmadı, CI'da).
+
+## Oturum süpürme (23 Kasım 2026)
+
+- Süresi dolan `user_session` satırları (`expires_at < now - grace`) sunucu içi zamanlayıcıyla parti parti silinir (`app/session_purge.py`, `app/session_purge_scheduler.py`).
+- Ayarlar `SESSION_PURGE_*`: `ENABLED=true`, `INTERVAL_HOURS=6`, `DELAY_SECONDS=180`, `GRACE_SECONDS=3600`, `BATCH_SIZE=5000`.
+- Testler: `backend/tests/test_session_purge.py` (PostgreSQL gerekir; CI'da).
