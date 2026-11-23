@@ -5,6 +5,7 @@ import '../api.dart';
 import '../strings.dart';
 import '../widgets/brand.dart';
 import '../widgets/studio.dart';
+import '../widgets/waking_hint.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key, required this.api, required this.onDone});
@@ -64,7 +65,10 @@ class _LoginScreenState extends State<LoginScreen> {
     final theme = Theme.of(context);
     return Scaffold(
       body: AmbientBackground(
-        child: SafeArea(
+        child: Stack(
+          children: [
+            const Positioned(top: 8, left: 24, right: 24, child: WakingHint()),
+            SafeArea(
           child: Center(
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(24),
@@ -140,6 +144,8 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
             ),
           ),
+        ),
+          ],
         ),
       ),
     );

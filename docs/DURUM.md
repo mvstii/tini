@@ -15,6 +15,12 @@ Son güncelleme: 13 Kasım 2026 · Her aşama (PR) sonrasında güncellenir.
 - Ayarlar `META_PURGE_` önekiyle: `ENABLED` (varsayılan açık), `INTERVAL_HOURS=6`, `DELAY_SECONDS=120`, `GRACE_SECONDS=3600`, `BATCH_SIZE=5000`.
 - Testler: `tests/test_meta_purge.py`. Yerelde PostgreSQL olmadığı için DB testleri çalıştırılmadı (CI'a bırakıldı); zamanlayıcı testleri DB gerektirmez.
 
+## Soğuk açılış dayanıklılığı (23 Kasım 2026, dal `fix/mobil-soguk-acilis`)
+
+- Denetim sonucu (backend + mobil): Render ücretsiz katmanda uyanma ~38 sn ölçüldü; istek zaman aşımı 45 sn'ydi. Mobil: zaman aşımı 60 sn, zaman aşımı/502/503/504'te GET bir kez yeniden denenir (POST/DELETE asla, kuyruk istekleri kendi geri çekilmesini kullanır), açılışta sessiz `/health` ısındırma, "Sunucu uyanıyor" ipucu giriş ekranında da, `restore()` bozuk anahtar deposunda çökmez, 401 tek merkezden (`Api.onUnauthorized`) girişe döner, release derlemede varsayılan `API_BASE` canlı https adresi ve http ise açık hata.
+- Test: `flutter analyze` temiz, `flutter test` 138/138 (8 yeni, `test/cold_start_test.dart`). Cihazda doğrulanmadı.
+- Sıradaki: PR-B (`user_track_meta` TTL temizliği, backend). Açık denetim bulguları (oy sırasında 45 sn kilit, release imzası, Dockerfile, `app_env` doğrulaması, hız sınırı, oturum süpürme) ayrı PR'lar.
+
 ## Son oylananlar ve liste kapakları (13 Kasım 2026)
 
 - `/votes/history` ve `/lists` yanıtlarına kapak eklendi (parça önbelleği `image`, yayın `release.cover`); istemci kapak yüklenemezse sanatçı portresine düşer. Canlıda doğrulanmadı; kapak, kullanıcı parça önbelleği doluysa görünür.

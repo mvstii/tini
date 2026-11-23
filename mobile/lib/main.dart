@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import 'api.dart';
@@ -34,6 +36,7 @@ class _TiniBootState extends State<TiniBoot> {
     final results = await Future.wait([
       () async {
         await api.restore();
+        if (api.loggedIn) unawaited(api.warmUp()); // sunucu uykudaysa şimdiden uyansın
         return await api.loadTheme();
       }(),
       api.loadIntroSeen(),
@@ -97,6 +100,23 @@ class _TiniAppState extends State<TiniApp> {
   late bool _loggedIn = widget.api.loggedIn;
   late ThemeMode _themeMode = widget.themeMode;
   late bool _introSeen = widget.introSeen;
+
+  @override
+  void initState() {
+    super.initState();
+    // 401 tek merkezde: hangi ekranda olursa olsun oturum bitince giriş ekranına düşülür.
+    widget.api.onUnauthorized = () {
+      if (!mounted || !_loggedIn) return;
+      ProfilePhotoStore.clear();
+      setState(() => _loggedIn = false);
+    };
+  }
+
+  @override
+  void dispose() {
+    widget.api.onUnauthorized = null;
+    super.dispose();
+  }
 
   void _setTheme(ThemeMode mode) {
     setState(() => _themeMode = mode);
