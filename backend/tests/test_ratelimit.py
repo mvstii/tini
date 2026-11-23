@@ -2,10 +2,17 @@ import itertools
 import uuid
 
 import pytest
+from fastapi import HTTPException
 from fastapi.testclient import TestClient
 
 from app.main import app, docs_urls
-from app.ratelimit import SlidingWindowLimiter, get_auth_limits
+from app.ratelimit import (
+    SWEEP_EVERY,
+    SlidingWindowLimiter,
+    check_media_limit,
+    get_auth_limits,
+    login_key,
+)
 
 PW = "uzun-bir-parola-1"
 _emails = itertools.count()
@@ -98,3 +105,48 @@ def test_register_limited_per_ip(client):
         assert r.status_code == 201
     r = client.post("/auth/register", json={"email": _email(), "password": PW})
     assert r.status_code == 429
+
+
+def test_sweep_drops_stale_keys():
+    clock = FakeClock()
+    lim = SlidingWindowLimiter(5, 60, clock)
+    for i in range(10):
+        lim.hit(f"k{i}")
+    clock.now += 61
+    lim.sweep()
+    assert lim._hits == {}
+
+
+def test_hit_sweeps_automatically():
+    clock = FakeClock()
+    lim = SlidingWindowLimiter(10**6, 60, clock)
+    for i in range(50):
+        lim.hit(f"old{i}")
+    clock.now += 61
+    for _ in range(SWEEP_EVERY):
+        lim.hit("live")
+    assert set(lim._hits) == {"live"}
+
+
+def test_media_limit_per_user_then_429():
+    lim = SlidingWindowLimiter(2, 60, FakeClock())
+    check_media_limit("u1", lim)
+    check_media_limit("u1", lim)
+    with pytest.raises(HTTPException) as e:
+        check_media_limit("u1", lim)
+    assert e.value.status_code == 429
+    assert int(e.value.headers["Retry-After"]) > 0
+    check_media_limit("u2", lim)  # başka kullanıcı etkilenmez
+
+
+def test_login_key_pairs_email_and_ip():
+    assert login_key("a@x.com", "1.1.1.1") != login_key("a@x.com", "2.2.2.2")
+
+
+def test_other_ip_cannot_lock_victim_email(client):
+    email = _email()
+    assert client.post("/auth/register", json={"email": email, "password": PW}).status_code == 201
+    limits = get_auth_limits()
+    for _ in range(limits.login_email.limit):  # saldırganın IP'si kilitlenir
+        limits.login_email.hit(login_key(email, "9.9.9.9"))
+    assert client.post("/auth/login", json={"email": email, "password": PW}).status_code == 200
