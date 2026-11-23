@@ -32,7 +32,7 @@ def _seed(db, offsets_seconds):
     db.add(u)
     db.flush()
     for i, off in enumerate(offsets_seconds):
-        t = Track(isrc=f"TRPURGE{uuid.uuid4().hex[:5].upper()}{i}")
+        t = Track(isrc=f"TP{uuid.uuid4().hex[:9].upper()}{i}")
         db.add(t)
         db.flush()
         db.add(
