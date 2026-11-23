@@ -21,6 +21,7 @@ from app.connect import get_http
 from app.deps import current_user
 from app.deps import get_db as _get_db
 from app.models import Artist, Track, User
+from app.ratelimit import SlidingWindowLimiter, check_media_limit, get_media_limiter
 from app.sources.deezer import DeezerClient
 from app.sources.http import SourceClient, SourceError
 
@@ -67,8 +68,10 @@ def preview(
     ),
     by_id: Callable[[int], tuple[str, str] | None] = Depends(get_preview_by_id),
     cfg: ArtworkSettings = Depends(get_artwork_settings),
+    limiter: SlidingWindowLimiter = Depends(get_media_limiter),
 ) -> dict:
     """ISRC'li parça için önce ISRC, değilse sanatçı adıyla aranır. Bulunamazsa `url` null."""
+    check_media_limit(user.id, limiter)
     empty = {"url": None, "title": None}
     if not cfg.preview_enabled:
         return empty

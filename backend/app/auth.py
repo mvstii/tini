@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 from app.config import get_settings
 from app.deps import current_user, get_db
 from app.models import User, UserSession
-from app.ratelimit import AuthLimits, client_ip, get_auth_limits, too_many
+from app.ratelimit import AuthLimits, client_ip, get_auth_limits, login_key, too_many
 from app.security import (
     burn_verify,
     hash_password,
@@ -78,17 +78,18 @@ def login(
 ) -> SessionOut:
     ip = client_ip(request)
     email = body.email.lower()
-    waits = [limits.login_email.retry_after(email), limits.login_ip.retry_after(ip)]
+    key = login_key(email, ip)
+    waits = [limits.login_email.retry_after(key), limits.login_ip.retry_after(ip)]
     if any(w is not None for w in waits):
         raise too_many(max(w for w in waits if w is not None))
     user = db.scalar(select(User).where(User.email == email))
     if user is None:
         burn_verify(body.password)
     if user is None or not verify_password(user.password_hash, body.password):
-        limits.login_email.hit(email)
+        limits.login_email.hit(key)
         limits.login_ip.hit(ip)
         raise HTTPException(401, "E-posta veya parola hatalı")
-    limits.login_email.reset(email)
+    limits.login_email.reset(key)
     return _issue(db, user)
 
 
@@ -116,15 +117,18 @@ def delete_me(
     limits: AuthLimits = Depends(get_auth_limits),
 ) -> None:
     """Hesabı ve tüm kişisel veriyi siler (parola onayıyla); paylaşılan katalog kalır."""
-    wait = limits.login_email.retry_after(user.email)
-    if wait is not None:
-        raise too_many(wait)
+    ip = client_ip(request)
+    key = login_key(user.email, ip)
+    waits = [limits.login_email.retry_after(key), limits.login_ip.retry_after(ip)]
+    if any(w is not None for w in waits):
+        raise too_many(max(w for w in waits if w is not None))
     if not verify_password(user.password_hash, body.password):
-        limits.login_email.hit(user.email)
+        limits.login_email.hit(key)
+        limits.login_ip.hit(ip)
         raise HTTPException(403, "Parola hatalı")
     db.delete(user)
     db.commit()
-    limits.login_email.reset(user.email)
+    limits.login_email.reset(key)
 
 
 @router.get("/me")

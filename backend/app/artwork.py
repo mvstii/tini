@@ -17,6 +17,7 @@ from app.connect import get_http
 from app.deps import current_user
 from app.deps import get_db as _get_db
 from app.models import User
+from app.ratelimit import SlidingWindowLimiter, check_media_limit, get_media_limiter
 from app.sources.deezer import DeezerClient
 from app.sources.http import SourceClient
 
@@ -48,8 +49,10 @@ def images(
     db=Depends(_get_db),
     fetch: Callable[[str], str | None] = Depends(get_fetcher),
     cfg: ArtworkSettings = Depends(get_artwork_settings),
+    limiter: SlidingWindowLimiter = Depends(get_media_limiter),
 ) -> dict:
     """`ids` virgülle ayrılmış sanatçı kimlikleri. Dönen `pending` > 0 ise istemci tekrar sorar."""
+    check_media_limit(user.id, limiter)
     wanted = [int(p) for p in ids.split(",") if p.strip().isdigit()][:MAX_IDS]
     if not cfg.enabled:
         return {"images": {}, "pending": 0}

@@ -7,7 +7,9 @@ from math import ceil
 
 from fastapi import HTTPException, Request
 
-from app.config import AuthSettings, PhotoSettings
+from app.config import AuthSettings, MediaLimitSettings, PhotoSettings
+
+SWEEP_EVERY = 256  # bu kadar vuruşta bir tüm anahtarlar süpürülür
 
 
 class SlidingWindowLimiter:
@@ -20,6 +22,7 @@ class SlidingWindowLimiter:
         self.window = window_seconds
         self._clock = clock
         self._hits: dict[str, deque[float]] = defaultdict(deque)
+        self._since_sweep = 0
 
     def _prune(self, key: str) -> deque[float]:
         q = self._hits[key]
@@ -41,6 +44,15 @@ class SlidingWindowLimiter:
     def hit(self, key: str) -> None:
         self._prune(key)
         self._hits[key].append(self._clock())
+        self._since_sweep += 1
+        if self._since_sweep >= SWEEP_EVERY:
+            self.sweep()
+
+    def sweep(self) -> None:
+        """Bir daha gelmeyen anahtarların kalıntısını temizler (bellek sızmasın)."""
+        self._since_sweep = 0
+        for key in list(self._hits):
+            self._prune(key)
 
     def reset(self, key: str) -> None:
         self._hits.pop(key, None)
@@ -72,6 +84,26 @@ def get_photo_limiter() -> SlidingWindowLimiter:
     """Profil fotoğrafı yüklemeleri: kullanıcı başına pencere içinde en çok `put_limit`."""
     s = PhotoSettings()
     return SlidingWindowLimiter(s.put_limit, s.put_window_seconds)
+
+
+@lru_cache
+def get_media_limiter() -> SlidingWindowLimiter:
+    """/preview ve /artists/images: kullanıcı başına pencere içinde en çok `limit` istek."""
+    s = MediaLimitSettings()
+    return SlidingWindowLimiter(s.limit, s.window_seconds)
+
+
+def check_media_limit(user_id: object, limiter: SlidingWindowLimiter) -> None:
+    key = str(user_id)
+    wait = limiter.retry_after(key)
+    if wait is not None:
+        raise too_many(wait)
+    limiter.hit(key)
+
+
+def login_key(email: str, ip: str) -> str:
+    """Giriş kilidi e-posta+IP çiftine bağlıdır: başka IP'den biri e-postayı kilitleyemez."""
+    return f"{email}|{ip}"
 
 
 def client_ip(request: Request) -> str:

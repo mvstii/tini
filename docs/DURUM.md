@@ -385,3 +385,10 @@ UI/UX-B · Profil ekranı durumları (14 Kasım 2026, dal `feat/ui-profil-icerik
 - Süresi dolan `user_session` satırları (`expires_at < now - grace`) sunucu içi zamanlayıcıyla parti parti silinir (`app/session_purge.py`, `app/session_purge_scheduler.py`).
 - Ayarlar `SESSION_PURGE_*`: `ENABLED=true`, `INTERVAL_HOURS=6`, `DELAY_SECONDS=180`, `GRACE_SECONDS=3600`, `BATCH_SIZE=5000`.
 - Testler: `backend/tests/test_session_purge.py` (PostgreSQL gerekir; CI'da).
+
+## Hız sınırı sertleştirme (23 Kasım 2026)
+
+- `/preview` ve `/artists/images`: kullanıcı başına `MEDIA_LIMIT` (120) / `MEDIA_WINDOW_SECONDS` (60); aşınca 429 + `Retry-After`.
+- Giriş ve `DELETE /me` kilidi e-posta+IP çiftine bağlı; genel IP sınırı (`AUTH_LOGIN_IP_LIMIT`) korunur.
+- `SlidingWindowLimiter` her 256 vuruşta eskiyen anahtarları süpürür. Sayaçlar bellekte kalır (Render yeniden başlayınca sıfırlanır).
+- Testler: `backend/tests/test_ratelimit.py`.

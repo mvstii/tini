@@ -76,6 +76,15 @@ class AuthSettings(BaseSettings):
     register_window_seconds: int = 3600
 
 
+class MediaLimitSettings(BaseSettings):
+    """/preview ve /artists/images (dış API'yi tetikler) kullanıcı başı sınırı. MEDIA_ öneki."""
+
+    model_config = SettingsConfigDict(env_file=".env", env_prefix="MEDIA_", extra="ignore")
+
+    limit: int = 120
+    window_seconds: int = 60
+
+
 class PhotoSettings(BaseSettings):
     """Profil fotoğrafı sınırları; ortamdan PHOTO_ önekiyle ezilir."""
 
