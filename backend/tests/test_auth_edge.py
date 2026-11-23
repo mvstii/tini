@@ -20,6 +20,8 @@ def test_register_race_maps_to_409(client, db, monkeypatch):  # noqa: F811
     real_flush = db.flush
 
     def flush(*a, **kw):
+        if not any(isinstance(o, User) for o in db.new):
+            return real_flush(*a, **kw)  # ön kontrolün autoflush'u
         monkeypatch.setattr(db, "flush", real_flush)
         raise IntegrityError("insert", {}, Exception("duplicate"))
 
