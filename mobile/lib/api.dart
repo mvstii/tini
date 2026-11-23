@@ -3,19 +3,39 @@ import 'dart:convert';
 import 'dart:io' show SocketException;
 import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart' show kReleaseMode;
 import 'package:flutter/material.dart' show ThemeMode, ValueNotifier;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 
 /// Emülatörde 10.0.2.2 ana makineyi gösterir. Kapalı test APK'sı tünel adresiyle derlenir:
 /// `--dart-define=API_BASE=https://<alan-adı>` (docs/DAGITIM.md).
-const apiBase = String.fromEnvironment('API_BASE', defaultValue: 'http://10.0.2.2:8000');
+/// Yayın (release) derlemesinde `--dart-define` unutulursa canlı sunucuya düşer; geliştirmede emülatör.
+const apiBase = String.fromEnvironment(
+  'API_BASE',
+  defaultValue: kReleaseMode ? 'https://tini-74he.onrender.com' : 'http://10.0.2.2:8000',
+);
+
+/// Yayın derlemesinde şifresiz (http) adres yanlış derleme demektir; sebebi gizlemeden bildirilir.
+String? apiBaseProblem(String base, {required bool release}) {
+  if (release && !base.startsWith('https://')) {
+    return 'Uygulama yanlış sunucu adresiyle derlenmiş (https gerekli)';
+  }
+  return null;
+}
 
 /// Geri bildirimle sunucuya gönderilir; derlemede `--dart-define=APP_VERSION=...` ile verilir.
 const appVersion = String.fromEnvironment('APP_VERSION', defaultValue: '1.0.0');
 
-/// Render ücretsiz katmanı soğuk başlangıçta ~20 sn sürebilir; bundan uzun süren istek hataya çevrilir.
-const requestTimeout = Duration(seconds: 45);
+/// Render ücretsiz katmanı soğuk başlangıçta ~40 sn sürebilir (ölçüm: 38 sn); pay bırakılır,
+/// bundan uzun süren istek hataya çevrilir.
+const requestTimeout = Duration(seconds: 60);
+
+/// Zaman aşımı ya da bu durum kodlarından sonra GET isteği bir kez yeniden denenir.
+const _retryStatuses = {502, 503, 504};
+/// Testlerde kısaltılabilsin diye değişkendir.
+Duration getRetryDelay = const Duration(seconds: 2);
+
 /// Fotoğraf yükleme/indirme (≤256 KB) için biraz daha geniş süre.
 const photoTimeout = Duration(seconds: 60);
 
@@ -254,9 +274,31 @@ class Api {
   final FlutterSecureStorage _storage;
   String? _session;
 
+  /// Oturum sunucuca reddedilince (401) yerel oturum silindikten sonra çağrılır; tek merkez.
+  void Function()? onUnauthorized;
+
   bool get loggedIn => _session != null;
 
-  Future<void> restore() async => _session = await _storage.read(key: _key);
+  /// Anahtar deposu bozulduysa (yedekten dönme, Keystore sıfırlanması) açılış takılmasın:
+  /// oturum yok sayılır, bozuk girdi silinir ve kullanıcı giriş ekranına düşer.
+  Future<void> restore() async {
+    try {
+      _session = await _storage.read(key: _key);
+    } catch (_) {
+      _session = null;
+      try {
+        await _storage.delete(key: _key);
+      } catch (_) {}
+    }
+  }
+
+  /// Açılışta sessizce `/health` çağırır: sunucu uykudaysa kullanıcı giriş yaparken uyanır.
+  /// Hata yok sayılır; ipucu şeridi için yavaş istek sayacı zaten çalışır.
+  Future<void> warmUp() async {
+    try {
+      await health();
+    } catch (_) {}
+  }
 
   static const _themeKey = 'theme';
 
@@ -351,7 +393,7 @@ class Api {
       if (recent.isNotEmpty) 'recent': [for (final t in recent) '$t'],
     };
     final body = await _send('GET', '/votes/queue?${Uri(queryParameters: q).query}',
-        null, queueTimeout);
+        null, queueTimeout, false); // kuyruğun kendi geri çekilmesi var
     return VoteQueue(
       body['remaining'] as int,
       body['stale'] as int,
@@ -645,13 +687,13 @@ class Api {
   }
 
   Future<Map<String, dynamic>> _send(String method, String path,
-      [Object? json, Duration timeout = requestTimeout]) async {
+      [Object? json, Duration timeout = requestTimeout, bool retry = true]) async {
     final req = http.Request(method, Uri.parse('$apiBase$path'));
     if (json != null) {
       req.headers['Content-Type'] = 'application/json';
       req.body = jsonEncode(json);
     }
-    final res = await _exec(req, timeout);
+    final res = await _exec(req, timeout, retry: retry);
     await _throwIfError(res);
     final text = utf8.decode(res.bodyBytes);
     if (text.isEmpty) return {};
@@ -688,7 +730,35 @@ class Api {
   }
 
   /// Ortak aktarım: oturum başlığı, zaman aşımı, çevrimdışı ve "sunucu uyanıyor" ipucu.
-  Future<http.Response> _exec(http.Request req, Duration timeout) async {
+  /// GET istekleri zaman aşımında ya da 502/503/504'te bir kez yeniden denenir (`retry`);
+  /// POST/PUT/DELETE asla (oy ve kayıt çift gitmesin).
+  Future<http.Response> _exec(http.Request req, Duration timeout, {bool retry = true}) async {
+    final problem = apiBaseProblem(apiBase, release: kReleaseMode);
+    if (problem != null) throw ApiException(0, problem);
+    final canRetry = retry && req.method == 'GET';
+    try {
+      final res = await _execOnce(_copy(req), timeout);
+      if (canRetry && _retryStatuses.contains(res.statusCode)) {
+        await Future<void>.delayed(getRetryDelay);
+        return await _execOnce(_copy(req), timeout);
+      }
+      return res;
+    } on ApiException catch (e) {
+      if (canRetry && e.kind == ApiFailure.timeout) {
+        return await _execOnce(_copy(req), timeout);
+      }
+      rethrow;
+    }
+  }
+
+  /// `http.Request` bir kez gönderilince kullanılamaz; yeniden deneme için kopya çıkarılır.
+  http.Request _copy(http.Request r) {
+    final c = http.Request(r.method, r.url)..headers.addAll(r.headers);
+    if (r.bodyBytes.isNotEmpty) c.bodyBytes = r.bodyBytes;
+    return c;
+  }
+
+  Future<http.Response> _execOnce(http.Request req, Duration timeout) async {
     if (_session != null) req.headers['Authorization'] = 'Bearer $_session';
     // Soğuk başlangıçta (sunucu uyku) uzun süren istek: kullanıcıya "uyanıyor" ipucu göster.
     var slow = false;
@@ -721,7 +791,10 @@ class Api {
     } catch (_) {}
     if (res.statusCode == 401) {
       _session = null;
-      await _storage.delete(key: _key);
+      try {
+        await _storage.delete(key: _key);
+      } catch (_) {}
+      onUnauthorized?.call();
     }
     throw ApiException(res.statusCode, message);
   }
