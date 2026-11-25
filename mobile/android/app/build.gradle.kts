@@ -31,14 +31,32 @@ android {
         versionName = flutter.versionName
     }
 
-    // android/key.properties yoksa (CI, yeni makine) release debug anahtarıyla imzalanır.
+    // Release imzası android/key.properties'ten gelir (şablon: key.properties.example).
+    // Dosya yoksa release derlemesi DURUR: debug anahtarıyla imzalı paket yanlışlıkla mağazaya
+    // gitmesin. Yerel deneme APK'sı için açık kaçış: -PallowDebugSigning=true (uyarı basar).
     val signingProps = Properties().apply {
         val f = rootProject.file("key.properties")
         if (f.exists()) f.inputStream().use { load(it) }
     }
+    val allowDebugSigning = project.findProperty("allowDebugSigning") == "true"
+    val releaseRequested = gradle.startParameter.taskNames.any { it.contains("release", ignoreCase = true) }
+    val requiredKeys = listOf("storeFile", "storePassword", "keyAlias", "keyPassword")
+
+    if (releaseRequested && !allowDebugSigning) {
+        if (signingProps.isEmpty) {
+            throw GradleException(
+                "Release imzası yok: android/key.properties oluştur (bkz. key.properties.example) " +
+                    "ya da yerel deneme için -PallowDebugSigning=true ver."
+            )
+        }
+        val missing = requiredKeys.filter { signingProps.getProperty(it).isNullOrBlank() }
+        if (missing.isNotEmpty()) {
+            throw GradleException("android/key.properties eksik alanlar: ${missing.joinToString()}")
+        }
+    }
 
     signingConfigs {
-        if (signingProps.isNotEmpty()) {
+        if (requiredKeys.all { !signingProps.getProperty(it).isNullOrBlank() }) {
             create("release") {
                 storeFile = file(signingProps.getProperty("storeFile"))
                 storePassword = signingProps.getProperty("storePassword")
@@ -50,7 +68,13 @@ android {
 
     buildTypes {
         release {
-            signingConfig = signingConfigs.findByName("release") ?: signingConfigs.getByName("debug")
+            val cfg = signingConfigs.findByName("release")
+            if (cfg != null) {
+                signingConfig = cfg
+            } else if (allowDebugSigning) {
+                logger.warn("UYARI: release DEBUG anahtarıyla imzalanıyor; mağazaya yükleme.")
+                signingConfig = signingConfigs.getByName("debug")
+            }
         }
     }
 }
