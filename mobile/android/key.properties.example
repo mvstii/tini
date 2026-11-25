@@ -1,0 +1,7 @@
+# Kopyala: key.properties (git'e GİRMEZ). Upload keystore'u keytool ile oluştur:
+#   keytool -genkey -v -keystore upload.jks -keyalg RSA -keysize 2048 -validity 10000 -alias upload
+# storeFile, android/app klasörüne göredir:
+storeFile=upload.jks
+storePassword=
+keyAlias=upload
+keyPassword=

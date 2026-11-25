@@ -392,3 +392,9 @@ UI/UX-B · Profil ekranı durumları (14 Kasım 2026, dal `feat/ui-profil-icerik
 - Giriş ve `DELETE /me` kilidi e-posta+IP çiftine bağlı; genel IP sınırı (`AUTH_LOGIN_IP_LIMIT`) korunur.
 - `SlidingWindowLimiter` her 256 vuruşta eskiyen anahtarları süpürür. Sayaçlar bellekte kalır (Render yeniden başlayınca sıfırlanır).
 - Testler: `backend/tests/test_ratelimit.py`.
+
+## Android release imzası (25 Kasım 2026)
+
+- Release derlemesi `mobile/android/key.properties` ister (şablon: `key.properties.example`; dosya git'e girmez). Dosya yoksa ya da `storeFile/storePassword/keyAlias/keyPassword` eksikse derleme hata verir.
+- Yerel deneme APK'sı: `cd mobile/android && ./gradlew assembleRelease -PallowDebugSigning=true` (debug anahtarı, uyarı basar; mağazaya yükleme).
+- Debug derlemesi ve `flutter run` etkilenmez. Gradle değişikliği yerelde derlenmedi (Flutter/JDK yok).
