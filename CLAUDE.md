@@ -70,7 +70,7 @@ Bu kararları geliştiriciye sormadan değiştirme:
 ## Güncel durum
 
 - Güncel durum belgesi: `docs/DURUM.md`. **Her aşama (PR) sonrasında güncellenir.**
-- Faz 0–4 tamamlandı; güncel faz Faz 5'tir (ayrıntı DURUM.md ve ROADMAP.md). Faz 5'e başlamadan önce `docs/FAZ5_PLAN.md` sunulup onay alınır.
+- Faz 0–6 tamamlandı (`v0.1.0-mvp`; Faz 6 kapısı 2 Kasım 2026'da geliştirici kararıyla gevşetildi, iki kalem Faz 7 boyunca sürer). Güncel faz Faz 7'dir, yayın hazırlığı (plan: `docs/FAZ7_PLAN.md`; ayrıntı DURUM.md ve ROADMAP.md).
 
 ## Aktif program: Keşif Evreni ve Kuyruk Güvenilirliği
 

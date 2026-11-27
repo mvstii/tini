@@ -398,3 +398,15 @@ UI/UX-B · Profil ekranı durumları (14 Kasım 2026, dal `feat/ui-profil-icerik
 - Release derlemesi `mobile/android/key.properties` ister (şablon: `key.properties.example`; dosya git'e girmez). Dosya yoksa ya da `storeFile/storePassword/keyAlias/keyPassword` eksikse derleme hata verir.
 - Yerel deneme APK'sı: `cd mobile/android && ./gradlew assembleRelease -PallowDebugSigning=true` (debug anahtarı, uyarı basar; mağazaya yükleme).
 - Debug derlemesi ve `flutter run` etkilenmez. Gradle değişikliği yerelde derlenmedi (Flutter/JDK yok).
+
+## Faz 7 · Oyla ekranı tutarlılığı (28 Kasım 2026, dal `feat/oyla-tutarlilik`)
+
+Kapsam (yalnızca mobil; backend/göç/bayrak yok; geliştirici onayı: "Senin önerin neyse oradan ilerleyelim"). Oyla ekranı #96'da yeniden tasarlanmıştı; bu iş ekranı UI/UX-A'da (#107) bilerek dışarıda kalan parçalarla ortak bileşenlere hizalar:
+
+- **Ortak nefes animasyonu:** `widgets/studio.dart`'a `Breathing` eklendi (0,45→1,0 solma döngüsü, `disableAnimations` açıkken durur). `SkeletonCard` ve Oyla'nın `_SkeletonCard`'ı aynı bileşeni kullanır; görünüm değişmedi.
+- **Ortak hata notu:** Oyla başlığındaki tek satırlık kırmızı hata metni `StateNote.error` oldu (özet/profil yüklenemediyse "Yeniden dene" ile `_init` yeniden çalışır). Hata, tek satırlık metinden kenar boşluklu karta (iki satır metin + düğme, ~65 px) büyür; kart alanı o kadar küçülür (ekran görüntüsü: `docs/design/review/oyla-hata-{dark,light}.png`, 390×844'te taşma yok; 360×640'ta uzun mesajla da taşma yok, widget testi; gerçek cihazda denenmedi).
+- **Titreşim:** `Haptics.light()` eklendi; kart kaydırmada eşik geçildiğinde çağrılır (doğrudan `HapticFeedback` çağrısı kalktı). Eşiği geçince tam bir kez titreşir (test).
+- **Metinler:** Oyla ekranındaki gömülü Türkçe metinler `TiniStrings`'e taşındı (seviye/tur ilerlemesi, otomatik çalma, arama, geri al, sonra dinle, kuyruk durumları, kütüphane yenileme). `StateNote`'un "Yeniden dene" düğmesi ve `tracks_screen`'in "Sonra dinle'ye eklendi"/"Geri al" metinleri de aynı kaynaktan okunur. Metin içeriği değişmedi.
+- **Bilinçli düşülen:** `_MessageCard` `StateNote`'a çevrilmedi (deste boyunda ve döner göstergeli; `StateNote` bunu ifade edemez). `_SwipeCard`/`_TopBar`'ın `lib/ui/components/`'e taşınması ayrı PR (onay bekliyor). "Tahminim" ipucu yapılmadı: backend'de uç nokta yok.
+- **Test:** Flutter `analyze` temiz, `flutter test` 147 geçti (6 yeni: iskelet nefesi, hata notu + yeniden deneme, 360×640'ta uzun hata notu taşmaz, eşik haptiği, `Breathing`, `Haptics.light`). Yeni API'li testler önce kırmızı (derleme hatası) sonra yeşil; 360×640 testi taşma koruması olarak ilk çalıştırmada yeşildi. Telefonda görsel doğrulama yapılmadı; yeni APK/IPA gerekir.
+- **Belge düzeltmesi:** `CLAUDE.md` "Güncel durum" satırı bayattı ("Faz 5 güncel"); Faz 0–6 tamam, güncel faz Faz 7 olarak düzeltildi.

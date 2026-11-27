@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:flutter/semantics.dart' show CustomSemanticsAction;
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -282,7 +281,7 @@ class _RatingScreenState extends State<RatingScreen> {
           ..clearSnackBars()
           ..showSnackBar(
             const SnackBar(
-              content: Text('Sonra dinle listesine eklendi'),
+              content: Text(TiniStrings.laterAdded),
               duration: Duration(seconds: 2),
             ),
           );
@@ -409,28 +408,13 @@ class _RatingScreenState extends State<RatingScreen> {
                         busy: _busy,
                         onBuild: _buildProfile,
                       ),
-                    // Profil/özet yüklenemediyse seviye 0 görünür; hata ve yeniden deneme göster.
+                    // Profil/özet yüklenemediyse seviye 0 görünür; ortak hata notu + yeniden deneme.
                     if (_error != null && (_current != null || !_state.loaded))
                       Padding(
                         padding: const EdgeInsets.only(top: 4),
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: Text(
-                                _error!,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  color: Theme.of(context).colorScheme.error,
-                                ),
-                              ),
-                            ),
-                            if (!_state.loaded)
-                              TextButton(
-                                onPressed: _loading ? null : _init,
-                                child: const Text('Yeniden dene'),
-                              ),
-                          ],
+                        child: StateNote.error(
+                          _error!,
+                          onRetry: _state.loaded || _loading ? null : _init,
                         ),
                       ),
                   ],
@@ -480,8 +464,8 @@ class _RatingScreenState extends State<RatingScreen> {
       return _MessageCard(
         color: c.card,
         icon: Icons.cloud_off_rounded,
-        text: 'Bağlantı hatası',
-        action: 'Yeniden dene',
+        text: TiniStrings.connectionError,
+        action: TiniStrings.retry,
         onAction: () {
           _state.setForced(UiState.normal);
           _init();
@@ -492,8 +476,8 @@ class _RatingScreenState extends State<RatingScreen> {
       return _MessageCard(
         color: c.card,
         busy: true,
-        text: 'Kuyruk bitti, yeni şarkılar taranıyor',
-        action: 'Normale dön',
+        text: TiniStrings.queueScanning,
+        action: TiniStrings.backToNormal,
         onAction: () => _state.setForced(UiState.normal),
       );
     }
@@ -503,14 +487,14 @@ class _RatingScreenState extends State<RatingScreen> {
           return _MessageCard(
             color: c.card,
             busy: true,
-            text: 'Sunucu uyanıyor, birkaç saniye sürebilir',
+            text: TiniStrings.serverWaking,
           );
         case QueueStatus.offline:
           return _MessageCard(
             color: c.card,
             icon: Icons.wifi_off_rounded,
-            text: 'İnternet bağlantısı yok. Bağlantı gelince kendiliğinden devam eder.',
-            action: 'Yeniden dene',
+            text: TiniStrings.offlineWillResume,
+            action: TiniStrings.retry,
             onAction: _queue.retry,
           );
         case QueueStatus.failed:
@@ -518,7 +502,7 @@ class _RatingScreenState extends State<RatingScreen> {
             color: c.card,
             icon: Icons.cloud_off_rounded,
             text: _queue.message ?? TiniStrings.unreachable,
-            action: 'Yeniden dene',
+            action: TiniStrings.retry,
             onAction: _queue.retry,
           );
         case QueueStatus.exhausted:
@@ -526,11 +510,11 @@ class _RatingScreenState extends State<RatingScreen> {
             color: c.card,
             icon: Icons.library_music_rounded,
             text: _queue.stale > 0
-                ? '${_queue.stale} şarkının bilgisi eskidi. Kütüphaneyi yenile.'
-                : 'Yeni şarkılar hazırlanıyor olabilir. Biraz sonra kendiliğinden bakılır.',
-            action: _queue.stale > 0 ? 'Kütüphaneyi yenile' : 'Yeniden dene',
+                ? TiniStrings.staleTracks(_queue.stale)
+                : TiniStrings.queuePreparing,
+            action: _queue.stale > 0 ? TiniStrings.refreshLibrary : TiniStrings.retry,
             onAction: _queue.stale > 0 ? _queue.refreshLibrary : _queue.retry,
-            secondaryAction: _state.profileBuilt ? 'Keşif listesine git' : null,
+            secondaryAction: _state.profileBuilt ? TiniStrings.goToDiscover : null,
             onSecondary: _openDiscover,
           );
         case QueueStatus.ready:
@@ -538,7 +522,7 @@ class _RatingScreenState extends State<RatingScreen> {
           return _MessageCard(
             color: c.card,
             busy: true,
-            text: 'Kuyruk bitti, yeni şarkılar taranıyor',
+            text: TiniStrings.queueScanning,
           );
       }
     }
@@ -581,8 +565,8 @@ class _TopBar extends StatelessWidget {
     final theme = Theme.of(context);
     final total = state.total;
     final label = state.unlocked
-        ? 'Seviye ${state.level} · ${state.inLevel} / $tourVotes · Toplam $total'
-        : 'Başlangıç Turu · $total / $tourVotes';
+        ? TiniStrings.levelProgress(state.level, state.inLevel, tourVotes, total)
+        : TiniStrings.tourProgress(total, tourVotes);
     return SizedBox(
       height: 48,
       child: Row(
@@ -635,14 +619,14 @@ class _TopBar extends StatelessWidget {
             selected: autoplay,
             icon: Icons.volume_off_rounded,
             selectedIcon: Icons.volume_up_rounded,
-            tooltip: autoplay ? 'Otomatik çalma açık' : 'Otomatik çalma kapalı',
+            tooltip: autoplay ? TiniStrings.autoplayOn : TiniStrings.autoplayOff,
           ),
           const SizedBox(width: 6),
           StudioIconButton(
             key: const ValueKey('open-search'),
             onPressed: onSearch,
             icon: Icons.search_rounded,
-            tooltip: 'Şarkı ara',
+            tooltip: TiniStrings.searchSong,
           ),
           const SizedBox(width: 6),
           StudioIconButton(
@@ -650,13 +634,13 @@ class _TopBar extends StatelessWidget {
             onPressed: onLater,
             icon: Icons.bookmark_border_rounded,
             selectedIcon: Icons.bookmark_rounded,
-            tooltip: 'Sonra dinle',
+            tooltip: TiniStrings.listenLater,
           ),
           const SizedBox(width: 6),
           StudioIconButton(
             onPressed: canUndo ? onUndo : null,
             icon: Icons.undo_rounded,
-            tooltip: 'Geri al',
+            tooltip: TiniStrings.undo,
           ),
         ],
       ),
@@ -815,7 +799,7 @@ class _SwipeCardState extends State<_SwipeCard>
     _ctl.stop();
     _dx.value += d.delta.dx;
     final over = _dx.value.abs() >= _threshold;
-    if (over && !_crossed) HapticFeedback.lightImpact();
+    if (over && !_crossed) Haptics.light();
     _crossed = over;
   }
 
@@ -846,9 +830,9 @@ class _SwipeCardState extends State<_SwipeCard>
         return Semantics(
           customSemanticsActions: widget.enabled
               ? {
-                  const CustomSemanticsAction(label: 'Sonra dinle'):
+                  const CustomSemanticsAction(label: TiniStrings.listenLater):
                       widget.onLater,
-                  const CustomSemanticsAction(label: 'Dinlemedim, geç'):
+                  const CustomSemanticsAction(label: TiniStrings.skipAction):
                       widget.onSkip,
                 }
               : const {},
@@ -1093,37 +1077,9 @@ class _SwipeOverlay extends StatelessWidget {
   }
 }
 
-class _SkeletonCard extends StatefulWidget {
+class _SkeletonCard extends StatelessWidget {
   const _SkeletonCard({required this.color});
   final Color color;
-
-  @override
-  State<_SkeletonCard> createState() => _SkeletonCardState();
-}
-
-class _SkeletonCardState extends State<_SkeletonCard>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _ctl = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 900),
-  );
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    if (MediaQuery.disableAnimationsOf(context)) {
-      _ctl.stop();
-      _ctl.value = 1;
-    } else if (!_ctl.isAnimating) {
-      _ctl.repeat(reverse: true);
-    }
-  }
-
-  @override
-  void dispose() {
-    _ctl.dispose();
-    super.dispose();
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -1137,10 +1093,10 @@ class _SkeletonCardState extends State<_SkeletonCard>
       ),
     );
     return Container(
-      decoration: _cardDecoration(context, widget.color),
+      decoration: _cardDecoration(context, color),
       padding: const EdgeInsets.all(14),
-      child: FadeTransition(
-        opacity: Tween(begin: 0.45, end: 1.0).animate(_ctl),
+      child: Breathing(
+        period: const Duration(milliseconds: 900),
         child: Column(
           children: [
             Flexible(

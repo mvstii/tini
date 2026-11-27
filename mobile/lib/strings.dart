@@ -158,6 +158,28 @@ abstract final class TiniStrings {
       'Yumuşak ceza: puanları genel olarak olumsuz olan ama Berbat içermeyen sanatçılar. '
       'Elenmez, yalnızca öneri sırasında geriye düşer.';
 
+  // Oyla ekranı: ilerleme, araç ipuçları, kuyruk durumları
+  static String levelProgress(int level, int inLevel, int tour, int total) =>
+      'Seviye $level · $inLevel / $tour · Toplam $total';
+  static String tourProgress(int total, int tour) => 'Başlangıç Turu · $total / $tour';
+  static const autoplayOn = 'Otomatik çalma açık';
+  static const autoplayOff = 'Otomatik çalma kapalı';
+  static const searchSong = 'Şarkı ara';
+  static const undo = 'Geri al';
+  static const laterAdded = 'Sonra dinle listesine eklendi';
+  static const skipAction = 'Dinlemedim, geç';
+  static const connectionError = 'Bağlantı hatası';
+  static const queueScanning = 'Kuyruk bitti, yeni şarkılar taranıyor';
+  static const backToNormal = 'Normale dön';
+  static const serverWaking = 'Sunucu uyanıyor, birkaç saniye sürebilir';
+  static const offlineWillResume =
+      'İnternet bağlantısı yok. Bağlantı gelince kendiliğinden devam eder.';
+  static String staleTracks(int n) => '$n şarkının bilgisi eskidi. Kütüphaneyi yenile.';
+  static const queuePreparing =
+      'Yeni şarkılar hazırlanıyor olabilir. Biraz sonra kendiliğinden bakılır.';
+  static const refreshLibrary = 'Kütüphaneyi yenile';
+  static const goToDiscover = 'Keşif listesine git';
+
   // İlk açılış eğitimi
   static const introSkip = 'Eğitimi atla';
   static const introNext = 'İleri';
