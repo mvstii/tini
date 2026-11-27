@@ -143,6 +143,24 @@ void main() {
       await shot(t, MaterialApp(debugShowCheckedModeBanner: false, theme: _theme(b), home: Scaffold(body: AmbientBackground(child: SafeArea(child: RatingScreen(api: a))))), 'oyla-${b.name}');
     });
   }
+  // PR-A: özet yüklenemedi, header'da ortak hata notu (StateNote) görünür; kart yine çalışır.
+  for (final b in [Brightness.dark, Brightness.light]) {
+    testWidgets('rating error ${b.name}', (t) async {
+      final a = Api(
+          client: MockClient((r) async {
+            if (r.url.path == '/votes/history') return http.Response('{}', 500);
+            if (r.url.path == '/votes/queue') {
+              return http.Response.bytes(
+                  utf8.encode('{"remaining": 3, "stale": 0, "items": [{"track": 1, "title": "Gece Yarısı", "artists": ["Gama", "Ekin"]}, {"track": 2, "title": "Beta", "artists": ["B"]}]}'),
+                  200);
+            }
+            return http.Response('{}', 200);
+          }),
+          storage: _Mem());
+      await a.restore();
+      await shot(t, MaterialApp(debugShowCheckedModeBanner: false, theme: _theme(b), home: Scaffold(body: AmbientBackground(child: SafeArea(child: RatingScreen(api: a))))), 'oyla-hata-${b.name}', dir: 'design/review');
+    });
+  }
   // UI-3 inceleme görüntüleri: kabuk (sekme çubuğu + Oyla / Keşfet).
   for (final b in [Brightness.dark, Brightness.light]) {
     testWidgets('shell ${b.name}', (t) async {

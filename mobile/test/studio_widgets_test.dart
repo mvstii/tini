@@ -1,5 +1,6 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tini/api.dart';
 import 'package:tini/screens/list_screen.dart' show reasonText;
@@ -60,6 +61,34 @@ void main() {
     await tester.pumpWidget(app(reduce: true));
     await tester.pump();
     expect(tester.hasRunningAnimations, isFalse);
+  });
+
+  testWidgets('Breathing fades in a loop but holds still with reduced motion', (tester) async {
+    Widget app({required bool reduce}) => MediaQuery(
+          data: MediaQueryData(disableAnimations: reduce),
+          child: const MaterialApp(
+            home: Scaffold(body: Breathing(child: SizedBox(width: 10, height: 10))),
+          ),
+        );
+    await tester.pumpWidget(app(reduce: false));
+    expect(tester.hasRunningAnimations, isTrue);
+    await tester.pumpWidget(app(reduce: true));
+    await tester.pump();
+    expect(tester.hasRunningAnimations, isFalse);
+  });
+
+  testWidgets('Haptics.light sends one light impact through the platform channel', (tester) async {
+    final haptics = <Object?>[];
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(SystemChannels.platform,
+        (call) async {
+      if (call.method == 'HapticFeedback.vibrate') haptics.add(call.arguments);
+      return null;
+    });
+    addTearDown(() => tester.binding.defaultBinaryMessenger
+        .setMockMethodCallHandler(SystemChannels.platform, null));
+    Haptics.light();
+    await tester.pump();
+    expect(haptics, ['HapticFeedbackType.lightImpact']);
   });
 
   test('reasonText never fabricates a reason for an empty reason list', () {

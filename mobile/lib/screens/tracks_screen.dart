@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../api.dart';
+import '../strings.dart';
 import '../theme/cosmic_colors.dart';
 import '../widgets/like_button.dart';
 import '../widgets/preview_button.dart';
@@ -107,7 +108,7 @@ class _SearchScreenState extends State<SearchScreen> {
     try {
       await widget.api.addLater(t.track);
       Haptics.success();
-      m.showSnackBar(const SnackBar(content: Text('Sonra dinle listesine eklendi')));
+      m.showSnackBar(const SnackBar(content: Text(TiniStrings.laterAdded)));
     } catch (e) {
       Haptics.warn();
       m.showSnackBar(SnackBar(content: Text(_msg(e))));
@@ -234,7 +235,7 @@ class _LaterScreenState extends State<LaterScreen> {
         ..clearSnackBars()
         ..showSnackBar(SnackBar(
           content: Text(_likes ? 'Beğenilerden çıkarıldı' : 'Listeden çıkarıldı'),
-          action: SnackBarAction(label: 'Geri al', onPressed: () => _restore(t)),
+          action: SnackBarAction(label: TiniStrings.undo, onPressed: () => _restore(t)),
         ));
     } catch (e) {
       m.showSnackBar(SnackBar(content: Text(_msg(e))));

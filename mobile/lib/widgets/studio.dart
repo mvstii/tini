@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../strings.dart';
 import '../theme/cosmic_colors.dart';
 import '../theme/tini_tokens.dart';
 import '../theme/tokens.dart';
@@ -200,6 +201,9 @@ class _HoverableState extends State<Hoverable> {
 /// Dokunsal geri bildirimin tek noktası: ekranlar `HapticFeedback`'i doğrudan çağırmaz, böylece
 /// hangi olayın hangi şiddette titreştiği tek yerden ayarlanır.
 abstract final class Haptics {
+  /// Eşik geçildi (kart kaydırmada "bırakırsan oy yazılır" noktası).
+  static void light() => HapticFeedback.lightImpact();
+
   /// Seçim / küçük durum değişimi (oy düğmesi, beğeni).
   static void select() => HapticFeedback.selectionClick();
 
@@ -236,7 +240,7 @@ class StateNote extends StatelessWidget {
           const SizedBox(width: 12),
           Expanded(child: Text(text, style: TextStyle(color: color))),
           if (onRetry != null)
-            TextButton(onPressed: onRetry, child: const Text('Yeniden dene')),
+            TextButton(onPressed: onRetry, child: const Text(TiniStrings.retry)),
         ]),
       ),
     );
@@ -385,20 +389,25 @@ class _StudioButtonState extends State<StudioButton> {
   }
 }
 
-/// Yükleme sırasında listenin yerini tutan, nefes alan iskelet kartı.
-class SkeletonCard extends StatefulWidget {
-  const SkeletonCard({super.key, this.height = 84});
-  final double height;
+/// Çocuğu 0.45 ile 1 arasında yumuşakça soldurup döndüren "nefes" sarmalayıcısı; iskeletler
+/// (liste satırı ve Oyla kartı) bunu paylaşır. "Hareketi azalt" açıkken döngü durur, sabit
+/// bir kareye çekilir.
+class Breathing extends StatefulWidget {
+  const Breathing({
+    super.key,
+    required this.child,
+    this.period = const Duration(milliseconds: 1100),
+  });
+  final Widget child;
+  final Duration period;
 
   @override
-  State<SkeletonCard> createState() => _SkeletonCardState();
+  State<Breathing> createState() => _BreathingState();
 }
 
-class _SkeletonCardState extends State<SkeletonCard> with SingleTickerProviderStateMixin {
-  late final AnimationController _c =
-      AnimationController(vsync: this, duration: const Duration(milliseconds: 1100));
+class _BreathingState extends State<Breathing> with SingleTickerProviderStateMixin {
+  late final AnimationController _c = AnimationController(vsync: this, duration: widget.period);
 
-  /// Hareketi azalt açıkken sonsuz nefes durur, sabit bir kareye çekilir.
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
@@ -417,6 +426,16 @@ class _SkeletonCardState extends State<SkeletonCard> with SingleTickerProviderSt
   }
 
   @override
+  Widget build(BuildContext context) =>
+      FadeTransition(opacity: Tween(begin: 0.45, end: 1.0).animate(_c), child: widget.child);
+}
+
+/// Yükleme sırasında listenin yerini tutan, nefes alan iskelet kartı.
+class SkeletonCard extends StatelessWidget {
+  const SkeletonCard({super.key, this.height = 84});
+  final double height;
+
+  @override
   Widget build(BuildContext context) {
     final base = Theme.of(context).colorScheme.onSurface;
     Widget bar(double w, double h) => Container(
@@ -425,12 +444,11 @@ class _SkeletonCardState extends State<SkeletonCard> with SingleTickerProviderSt
           decoration: BoxDecoration(
               color: base.withValues(alpha: 0.10), borderRadius: BorderRadius.circular(6)),
         );
-    return FadeTransition(
-      opacity: Tween(begin: 0.45, end: 1.0).animate(_c),
+    return Breathing(
       child: StudioSurface(
         padding: const EdgeInsets.all(14),
         child: SizedBox(
-          height: widget.height,
+          height: height,
           child: Row(children: [
             Container(
               width: 56,

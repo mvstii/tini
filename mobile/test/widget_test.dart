@@ -1,6 +1,8 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
@@ -19,6 +21,7 @@ import 'package:tini/screens/shell.dart';
 import 'package:tini/ui/components/components.dart';
 import 'package:tini/widgets/artist_avatar.dart';
 import 'package:tini/widgets/preview_button.dart';
+import 'package:tini/widgets/studio.dart';
 
 class _MemoryStorage extends FlutterSecureStorage {
   final data = <String, String>{};
@@ -589,6 +592,166 @@ void main() {
       await tester.tap(find.text('Kütüphaneyi yenile'));
       await tester.pumpAndSettle();
       expect(f.calls, contains('POST /library/import'));
+    });
+
+    testWidgets('loading shows the shared breathing skeleton, then the card', (
+      tester,
+    ) async {
+      final gate = Completer<void>();
+      final api = _api((req) async {
+        if (req.url.path == '/votes/history') {
+          await gate.future;
+          return http.Response(jsonEncode({'total': 0, 'items': []}), 200);
+        }
+        if (req.url.path == '/votes/queue') {
+          return http.Response.bytes(
+            utf8.encode(
+              jsonEncode({
+                'remaining': 1,
+                'stale': 0,
+                'items': [
+                  {
+                    'track': 1,
+                    'title': 'Alpha',
+                    'artists': ['A'],
+                  },
+                ],
+              }),
+            ),
+            200,
+          );
+        }
+        return http.Response('{}', 200);
+      }, _MemoryStorage()..data['session'] = 'T');
+      await api.restore();
+      await tester.pumpWidget(MaterialApp(home: RatingScreen(api: api)));
+      await tester.pump();
+      expect(find.byType(Breathing), findsOneWidget);
+      expect(find.text('Alpha'), findsNothing);
+
+      gate.complete();
+      await tester.pumpAndSettle();
+      expect(find.byType(Breathing), findsNothing);
+      expect(find.text('Alpha'), findsOneWidget);
+    });
+
+    testWidgets('a failed summary load shows the shared error note and retry reloads', (
+      tester,
+    ) async {
+      var summaryCalls = 0;
+      final api = _api((req) async {
+        if (req.url.path == '/votes/history') {
+          summaryCalls++;
+          if (summaryCalls == 1) {
+            return http.Response(jsonEncode({'detail': 'boom'}), 500);
+          }
+          return http.Response(jsonEncode({'total': 0, 'items': []}), 200);
+        }
+        if (req.url.path == '/votes/queue') {
+          return http.Response.bytes(
+            utf8.encode(
+              jsonEncode({
+                'remaining': 1,
+                'stale': 0,
+                'items': [
+                  {
+                    'track': 1,
+                    'title': 'Alpha',
+                    'artists': ['A'],
+                  },
+                ],
+              }),
+            ),
+            200,
+          );
+        }
+        return http.Response('{}', 200);
+      }, _MemoryStorage()..data['session'] = 'T');
+      await api.restore();
+      await tester.pumpWidget(MaterialApp(home: RatingScreen(api: api)));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(StateNote), findsOneWidget);
+      expect(find.text('boom'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+
+      await tester.tap(find.text('Yeniden dene'));
+      await tester.pumpAndSettle();
+      expect(summaryCalls, 2);
+      expect(find.byType(StateNote), findsNothing);
+      expect(find.text('Alpha'), findsOneWidget);
+    });
+
+    testWidgets('a long error note still fits a 360x640 phone with card and vote row', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(360, 640);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      final api = _api((req) async {
+        if (req.url.path == '/votes/history') {
+          return http.Response(
+            jsonEncode({
+              'detail':
+                  'Sunucu şu an yoğun, isteğin işlenemedi. Birkaç dakika sonra '
+                  'tekrar dene; sorun sürerse bağlantını kontrol et.',
+            }),
+            500,
+          );
+        }
+        if (req.url.path == '/votes/queue') {
+          return http.Response.bytes(
+            utf8.encode(
+              jsonEncode({
+                'remaining': 1,
+                'stale': 0,
+                'items': [
+                  {'track': 1, 'title': 'Alpha', 'artists': ['A']},
+                ],
+              }),
+            ),
+            200,
+          );
+        }
+        return http.Response('{}', 200);
+      }, _MemoryStorage()..data['session'] = 'T');
+      await api.restore();
+      await tester.pumpWidget(MaterialApp(home: RatingScreen(api: api)));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(StateNote), findsOneWidget);
+      expect(find.text('Alpha'), findsOneWidget);
+      expect(find.byType(VoteRow), findsOneWidget);
+      // Taşma (RenderFlex overflow) test çerçevesine istisna olarak düşer.
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('crossing the swipe threshold gives exactly one light haptic tick', (
+      tester,
+    ) async {
+      final haptics = <Object?>[];
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        (call) async {
+          if (call.method == 'HapticFeedback.vibrate') haptics.add(call.arguments);
+          return null;
+        },
+      );
+      addTearDown(
+        () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+          SystemChannels.platform,
+          null,
+        ),
+      );
+      final f = fake();
+      await open(tester, f.api);
+
+      await tester.drag(find.text('Alpha'), const Offset(-600, 0));
+      await tester.pumpAndSettle();
+      expect(
+        haptics.where((h) => h == 'HapticFeedbackType.lightImpact'),
+        hasLength(1),
+      );
     });
   });
 
